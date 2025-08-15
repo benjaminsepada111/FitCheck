@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'second_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -94,6 +95,33 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     child: const Text(
                       'Increment',
+                      style: TextStyle(fontSize: 20, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // ✅ Go to Second Page button
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SecondPage(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 15,
+                        horizontal: 40,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      backgroundColor: Colors.deepPurpleAccent,
+                      elevation: 5,
+                    ),
+                    child: const Text(
+                      'Go to Second Page',
                       style: TextStyle(fontSize: 20, color: Colors.white),
                     ),
                   ),

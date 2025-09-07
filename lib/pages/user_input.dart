@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/page_content_wrapper.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
-import 'main_page.dart';
+import '../main_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -412,7 +412,7 @@ class AgeSelectionPage extends StatelessWidget {
   }
 }
 
-// 🔹 Weight Selection Page
+
 
 
 // 🔹 Weight Selection Page

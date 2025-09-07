@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'user_input.dart';
+import 'package:capstone_project/color/colors.dart';
 
 void main() {
   runApp(const MyApp());
@@ -85,7 +86,7 @@ class IntroPage extends StatelessWidget {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
-                      backgroundColor: Colors.blue.shade400,
+                      backgroundColor: AppColors.buttons, // button color
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),

@@ -5,6 +5,10 @@ import '../MainPage/challenge_calendar.dart';
 import '../MainPage/custom_bottom_navbar.dart';
 import '../MainPage/challenge_history_sheet.dart';
 
+// add your other page imports
+import 'food_page.dart';
+import 'profile.dart';
+
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
@@ -31,6 +35,31 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
+  Widget _getBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              MilestoneJourney(),
+              SizedBox(height: 10),
+              Trackers(),
+              SizedBox(height: 10),
+              ChallengeCalendar(),
+            ],
+          ),
+        );
+      case 1:
+        return const FoodPage();
+      case 2:
+        return const ProfilePage();
+      default:
+        return const Center(child: Text("Page not found"));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,7 +69,7 @@ class _MainPageState extends State<MainPage> {
             SliverAppBar(
               automaticallyImplyLeading: false,
               backgroundColor: Colors.white,
-              pinned: true, // keeps it visible
+              pinned: true,
               elevation: 0,
               toolbarHeight: 70,
               title: Row(
@@ -54,9 +83,8 @@ class _MainPageState extends State<MainPage> {
                       color: Colors.black,
                     ),
                   ),
-
                   PopupMenuButton<String>(
-                    offset: const Offset(0, 20), // (x, y) shift in pixels
+                    offset: const Offset(0, 20),
                     onSelected: (value) {
                       if (value == "View Challenge History") {
                         _showChallengeHistory();
@@ -67,7 +95,7 @@ class _MainPageState extends State<MainPage> {
                       }
                     },
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12), // Rounded corners
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     color: Colors.white,
                     elevation: 6,
@@ -120,29 +148,17 @@ class _MainPageState extends State<MainPage> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                        const Icon(Icons.keyboard_arrow_down,
+                            color: Colors.black),
                       ],
                     ),
                   )
-
                 ],
               ),
             ),
           ];
         },
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              MilestoneJourney(),
-              SizedBox(height: 10),
-              Trackers(),
-              SizedBox(height: 10),
-              ChallengeCalendar(),
-            ],
-          ),
-        ),
+        body: _getBody(),
       ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,

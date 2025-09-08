@@ -96,7 +96,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                       text: 'Challenge Title',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                         color: Color(0xFF1A1A1A),
                       ),
                       children: [
@@ -162,7 +162,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             text: 'Start Date',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -232,7 +232,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             text: 'Ends Date',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -307,7 +307,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             text: 'Daily Calorie Goal',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -373,7 +373,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             text: 'Daily Water Goal (glasses)',
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -442,7 +442,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                       text: 'Notes',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                         color: Color(0xFF1A1A1A),
                       ),
                       children: [

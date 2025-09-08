@@ -178,15 +178,9 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (_selectedImage != null) {
-                      Navigator.pop(context, {
-                        "image": _selectedImage,
-                        "note": _noteController.text,
-                        "date": DateTime.now(),
-                      });
-                    }
+                    // TODO: save milestone logic
+                    Navigator.pop(context);
                   },
-
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(160, 48),
                     shape: RoundedRectangleBorder(

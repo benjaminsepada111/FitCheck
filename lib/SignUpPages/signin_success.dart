@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../color/colors.dart';
+import 'package:capstone_project/color/colors.dart';
 
-class SuccessScreen extends StatelessWidget {
-  const SuccessScreen({super.key});
+class SigninSuccessScreen extends StatelessWidget {
+  const SigninSuccessScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,7 @@ class SuccessScreen extends StatelessWidget {
 
                 // Success Title
                 const Text(
-                  "Success!",
+                  "Congratsulations!",
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -36,7 +36,7 @@ class SuccessScreen extends StatelessWidget {
 
                 // Subtitle
                 const Text(
-                  "Changed password successfully.",
+                  "Account Created Successful.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,

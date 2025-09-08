@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'verification_page.dart';
+import 'package:capstone_project/LoginPages/login_page.dart'; // 👈 redirect after signup
+import 'signupverification_page.dart';
 import '../color/colors.dart';
 
-class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
+class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _emailController = TextEditingController();
+  bool _agreeToTerms = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false, // ✅ prevents content from moving
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF06111D),
       body: Stack(
         children: [
@@ -37,7 +39,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             child: Column(
               children: const [
                 Text(
-                  "Forgot Password",
+                  "Sign Up",
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -47,7 +49,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  "Enter your email address associated\nwith your account.",
+                  "Sign Up to get started",
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white70,
@@ -67,7 +69,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
 
-          // Forgot Password Content
+          // Sign Up Content
           Align(
             alignment: Alignment.bottomCenter,
             child: SingleChildScrollView(
@@ -93,8 +95,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        hintText: "Enter Username or Email",
+                        hintText: "Enter your email",
                         filled: true,
                         fillColor: Colors.grey[200],
                         border: OutlineInputBorder(
@@ -104,9 +107,45 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ),
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // Terms & Conditions
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _agreeToTerms,
+                          activeColor: AppColors.secondary,
+                          onChanged: (value) {
+                            setState(() {
+                              _agreeToTerms = value ?? false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              text: "By creating an account, I agree to the ",
+                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              children: [
+                                TextSpan(
+                                  text: "Terms of Service",
+                                  style: TextStyle(color: AppColors.secondary),
+                                ),
+                                const TextSpan(text: " and "),
+                                TextSpan(
+                                  text: "Privacy Policy",
+                                  style: TextStyle(color: AppColors.secondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     const SizedBox(height: 24),
 
-                    // Send Code Button
+                    // Sign Up Button
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -117,15 +156,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: _agreeToTerms
+                            ? () {
+                          // Navigate to Login after signup
+                          Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(builder: (context) => const VerificationPage()),
                           );
-                        },
-
+                        }
+                            : null,
                         child: const Text(
-                          "SEND CODE",
+                          "SIGN UP",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -135,10 +176,32 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 300),
+                    const SizedBox(height: 16),
 
+                    // Already have account
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text("Already have an account? "),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginPage()),
+                            );
+                          },
+                          child: const Text(
+                            "LOG IN",
+                            style: TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
 
-
+                    const SizedBox(height: 200),
                   ],
                 ),
               ),

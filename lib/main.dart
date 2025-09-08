@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'pages/welcome_page.dart';
-import 'pages/create_account_page.dart';
+import 'onboarding.dart';
 import 'LoginPages/login_page.dart';
+import 'app_text_styles.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,16 +14,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: "Classroom App",
+      title: "FitCheck App",
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        fontFamily: "Sen",
       ),
-      initialRoute: '/',
+      // 👇 Start with Onboarding
+      initialRoute: '/onboarding',
       routes: {
-        '/': (context) => const WelcomePage(),
-        '/create-account': (context) => const CreateAccountPage(),
-        '/login': (context) => const LoginPage(),
+        '/onboarding': (context) => const OnboardingScreen(),
+        '/login': (context) => const LoginPage(), // 👈 added login route
       },
     );
   }

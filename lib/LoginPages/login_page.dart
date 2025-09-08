@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../pages/intro_page.dart';
 import 'forgot_password.dart';
+import 'package:capstone_project/SignUpPages/signuppage.dart';
+import '../app_text_styles.dart';
+import '../color/colors.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -44,8 +47,9 @@ class _LoginPageState extends State<LoginPage> {
               children: const [
                 Text(
                   "Log In",
-                  style: TextStyle(
+                  style:  TextStyle(
                     fontSize: 38,
+                    fontFamily: "Sen",
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -55,6 +59,7 @@ class _LoginPageState extends State<LoginPage> {
                 Text(
                   "Sign in to your existing account!",
                   style: TextStyle(
+                    fontFamily: "Sen",
                     fontSize: 16,
                     color: Colors.white70,
                   ),
@@ -94,26 +99,13 @@ class _LoginPageState extends State<LoginPage> {
                     const Center(
                       child: Column(
                         children: [
-                          Text(
-                            "Log In",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
+
                           SizedBox(height: 8),
-                          Text(
-                            "Sign in to your existing account",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
+
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+
 
                     // Email field
                     const Text(
@@ -196,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                           },
                           child: const Text(
                             "Forgot Password",
-                            style: TextStyle(color: Colors.green),
+                            style: TextStyle( color: AppColors.secondary,),
                           ),
                         ),
 
@@ -211,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                       height: 55,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: AppColors.secondary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -242,11 +234,16 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         const Text("Don’t have an account? "),
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const SignUpPage()), // 👈 navigate to signup.dart
+                            );
+                          },
                           child: const Text(
                             "SIGN UP",
                             style: TextStyle(
-                              color: Colors.green,
+                              color: AppColors.secondary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -254,7 +251,8 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 36),
+
+                    const SizedBox(height: 26),
 
                     // OR divider
                     const Row(
@@ -278,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 26),
 
                     // Social Buttons
 

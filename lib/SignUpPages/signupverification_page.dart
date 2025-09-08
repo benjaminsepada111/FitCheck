@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'change_password.dart';
-import '../color/colors.dart';
+import 'signin_success.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class VerificationPage extends StatefulWidget {
   const VerificationPage({super.key});
@@ -136,12 +136,13 @@ class _VerificationPageState extends State<VerificationPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+
                       onPressed: () {
                         if (code.length == 5) {
                           // Example: Only navigate if code is 5 digits
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
+                            MaterialPageRoute(builder: (context) => const SigninSuccessScreen()),
                           );
                         } else {
                           debugPrint("Please enter full 5-digit code");

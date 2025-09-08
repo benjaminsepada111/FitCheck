@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'create_challenge_sheet.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class ChallengeCalendar extends StatelessWidget {
   const ChallengeCalendar({super.key});
@@ -41,6 +42,7 @@ class ChallengeCalendar extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+
                       const Text(
                         "No Challenge Started",
                         style: TextStyle(
@@ -125,7 +127,7 @@ class ChallengeCalendar extends StatelessWidget {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
+                              backgroundColor: AppColors.secondary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -183,23 +185,24 @@ class ChallengeCalendar extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildDateCell(String date, {bool isOtherMonth = false}) {
     return SizedBox(
       width: 32,
       height: 32,
       child: Container(
-        // <CHANGE> Added grey circular background for each date
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(6),
+          color: Colors.grey.shade200.withOpacity(0.3), // light faded background
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Center(
           child: Text(
             date,
             style: TextStyle(
               fontSize: 14,
-              color: isOtherMonth ? Colors.grey.shade400 : Colors.black87,
+              fontWeight: FontWeight.w500,
+              color: isOtherMonth
+                  ? Colors.grey.shade400.withOpacity(0.6) // very faint for prev/next month
+                  : Colors.black.withOpacity(0.2),       // faded black for current month
             ),
           ),
         ),

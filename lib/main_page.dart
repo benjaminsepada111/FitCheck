@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../widgets/milestone_journey.dart';
-import '../widgets/trackers.dart';
-import '../widgets/challenge_calendar.dart';
-import '../widgets/custom_bottom_navbar.dart';
-import '../widgets/challenge_history_sheet.dart';
+import '../MainPage/milestone_journey.dart';
+import '../MainPage/trackers.dart';
+import '../MainPage/challenge_calendar.dart';
+import '../MainPage/custom_bottom_navbar.dart';
+import '../MainPage/challenge_history_sheet.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -54,7 +54,9 @@ class _MainPageState extends State<MainPage> {
                       color: Colors.black,
                     ),
                   ),
+
                   PopupMenuButton<String>(
+                    offset: const Offset(0, 20), // (x, y) shift in pixels
                     onSelected: (value) {
                       if (value == "View Challenge History") {
                         _showChallengeHistory();
@@ -64,15 +66,47 @@ class _MainPageState extends State<MainPage> {
                         });
                       }
                     },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12), // Rounded corners
+                    ),
+                    color: Colors.white,
+                    elevation: 6,
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: "No Active Challenge",
-                        child: Text("No Active Challenge"),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: Colors.grey,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              "No Active Challenge",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const PopupMenuDivider(),
                       const PopupMenuItem(
                         value: "View Challenge History",
-                        child: Text("View Challenge History"),
+                        child: Text(
+                          "View Challenge History",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
                     ],
                     child: Row(
@@ -89,7 +123,8 @@ class _MainPageState extends State<MainPage> {
                         const Icon(Icons.keyboard_arrow_down, color: Colors.black),
                       ],
                     ),
-                  ),
+                  )
+
                 ],
               ),
             ),
@@ -100,11 +135,10 @@ class _MainPageState extends State<MainPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              SizedBox(height: 20),
               MilestoneJourney(),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
               Trackers(),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
               ChallengeCalendar(),
             ],
           ),

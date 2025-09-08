@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../pages/intro_page.dart';
+import '../UserInputFile/onboarding_screen.dart';
 import 'forgot_password.dart';
 import 'package:capstone_project/SignUpPages/signuppage.dart';
 import '../app_text_styles.dart';
@@ -212,7 +212,7 @@ class _LoginPageState extends State<LoginPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const IntroPage()),
+                                builder: (context) => const OnboardingScreen()),
                           );
                         },
                         child: const Text(

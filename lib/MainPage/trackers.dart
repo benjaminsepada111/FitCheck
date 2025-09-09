@@ -19,7 +19,7 @@ class Trackers extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: progress,
                   strokeWidth: 10,
-                  backgroundColor: Colors.green.shade200,
+                  backgroundColor: AppColors.secondary.shade200,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     AppColors.secondary,
                   ),
@@ -30,7 +30,7 @@ class Trackers extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: AppColors.secondary,
                 ),
               ),
             ],
@@ -41,7 +41,7 @@ class Trackers extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.green,
+              color: AppColors.secondary,
             ),
           ),
           Text(

@@ -37,7 +37,7 @@ class _MainPageState extends State<MainPage> {
 
   Widget _getBody() {
     switch (_selectedIndex) {
-      case 0:
+      case 0: // Home
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -51,9 +51,10 @@ class _MainPageState extends State<MainPage> {
             ],
           ),
         );
-      case 1:
+      case 1: // Food
         return const FoodPage();
-
+      case 2: // Profile
+        return const ProfilePage();
       default:
         return const Center(child: Text("Page not found"));
     }
@@ -61,6 +62,18 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 👉 Profile page should not have the FitCheck header
+    if (_selectedIndex == 2) {
+      return Scaffold(
+        body: _getBody(),
+        bottomNavigationBar: CustomBottomNavBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+        ),
+      );
+    }
+
+    // 👉 Home & Food keep the header
     return Scaffold(
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {

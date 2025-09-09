@@ -34,6 +34,7 @@ class _LoginPageState extends State<LoginPage> {
               height: 359,
               child: SvgPicture.asset(
                 "assets/login_svg/bg.svg",
+                color: AppColors.secondary,
 
               ),
             ),
@@ -77,6 +78,7 @@ class _LoginPageState extends State<LoginPage> {
               height: 230,
               child: SvgPicture.asset(
                 "assets/login_svg/bg2.svg",
+                color: AppColors.secondary,
 
               ),
             ),

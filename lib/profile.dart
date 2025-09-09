@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:capstone_project/MainPage/custom_bottom_navbar.dart';
+
+
+
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
           "Account",
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 30,
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),

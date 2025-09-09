@@ -65,6 +65,13 @@ flutter:
   - assets/login_svg/google.svg
   - assets/login_svg/facebook.svg
   - assets/login_svg/apple.svg
+  - assets/images/banana.png
+  - assets/images/apple.png
+  - assets/images/strawberry.png
+  - assets/icons/breakfast.svg
+  - assets/icons/dinner.svg
+  - assets/icons/snack.svg
+  - assets/icons/lunch.svg
 
 
   # The following line ensures that the Material Icons font is

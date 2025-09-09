@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:capstone_project/MainPage/custom_bottom_navbar.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -91,6 +91,7 @@ class ProfilePage extends StatelessWidget {
           ]),
         ],
       ),
+
     );
   }
 
@@ -140,5 +141,7 @@ class ProfilePage extends StatelessWidget {
         children: children,
       ),
     );
+
   }
+
 }

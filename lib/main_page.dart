@@ -53,8 +53,7 @@ class _MainPageState extends State<MainPage> {
         );
       case 1:
         return const FoodPage();
-      case 2:
-        return const ProfilePage();
+
       default:
         return const Center(child: Text("Page not found"));
     }

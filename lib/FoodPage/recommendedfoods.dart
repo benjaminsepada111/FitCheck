@@ -6,9 +6,9 @@ class RecommendedFoods extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foods = [
-      {"name": "Banana", "kcal": "50 kcal/100g", "image": "assets/images/banana.jpg"},
-      {"name": "Strawberry", "kcal": "50 kcal/100g", "image": "assets/images/strawberry.jpg"},
-      {"name": "Apple", "kcal": "50 kcal/100g", "image": "assets/images/apple.jpg"},
+      {"name": "Banana", "kcal": "50 kcal/100g", "image": "assets/images/banana.png"},
+      {"name": "Strawberry", "kcal": "50 kcal/100g", "image": "assets/images/strawberry.png"},
+      {"name": "Apple", "kcal": "50 kcal/100g", "image": "assets/images/apple.png"},
     ];
 
     return Column(
@@ -20,7 +20,7 @@ class RecommendedFoods extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 140,
+          height: 150,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: foods.length,
@@ -28,7 +28,7 @@ class RecommendedFoods extends StatelessWidget {
             itemBuilder: (context, index) {
               final food = foods[index];
               return Container(
-                width: 100,
+                width: 150,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   image: DecorationImage(

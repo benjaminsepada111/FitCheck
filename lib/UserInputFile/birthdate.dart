@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class Slide4 extends StatefulWidget {
   const Slide4({super.key});
@@ -82,14 +83,14 @@ class _Slide4State extends State<Slide4> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
+          style: const TextStyle(fontSize: 14, color: Colors.black),
         ),
         const SizedBox(height: 10),
         Container(
-          width: 80,
+          width: 90,
           height: 150,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.green, width: 2),
+            border: Border.all(color: AppColors.secondary, width: 3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: ListWheelScrollView.useDelegate(

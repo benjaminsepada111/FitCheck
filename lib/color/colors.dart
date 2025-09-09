@@ -18,21 +18,21 @@ class AppColors {
     },
   );
 
-  // Secondary Swatch
   // Secondary Swatch (green gradient based)
+  // Secondary Swatch (red gradient based)
   static const MaterialColor secondary = MaterialColor(
-    0xFF018053, // base
+    0xFFDC2626, // base (red 600)
     <int, Color>{
-      50: Color(0xFFE0F4ED),
-      100: Color(0xFFB3E2D0),
-      200: Color(0xFF80CDB0),
-      300: Color(0xFF4DB790),
-      400: Color(0xFF26A678),
-      500: Color(0xFF018053), // base
-      600: Color(0xFF01734B),
-      700: Color(0xFF016643),
-      800: Color(0xFF01583A),
-      900: Color(0xFF01432A),
+      50: Color(0xFFFEF2F2),
+      100: Color(0xFFFEE2E2),
+      200: Color(0xFFFECACA),
+      300: Color(0xFFFCA5A5),
+      400: Color(0xFFF87171),
+      500: Color(0xFFEF4444), // red 500
+      600: Color(0xFFDC2626), // base (red 600)
+      700: Color(0xFFB91C1C),
+      800: Color(0xFF991B1B),
+      900: Color(0xFF7F1D1D),
     },
   );
 

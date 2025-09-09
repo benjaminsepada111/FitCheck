@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-
-
+// 👉 import your real pages here
+import 'package:capstone_project/Accounts/personal_info_page.dart';
+import 'package:capstone_project/Accounts/change_password_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -8,7 +9,6 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
@@ -31,7 +31,6 @@ class ProfilePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             elevation: 0,
-            color: const Color(0xFFF7F9FC),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -71,8 +70,22 @@ class ProfilePage extends StatelessWidget {
 
           // Account Settings
           _buildSection([
-            _buildListTile(Icons.person_outline, "Personal Info"),
-            _buildListTile(Icons.vpn_key_outlined, "Change Password"),
+            _buildListTile(
+              Icons.person_outline,
+              "Personal Info",
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
+              ),
+            ),
+            _buildListTile(
+              Icons.vpn_key_outlined,
+              "Change Password",
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+              ),
+            ),
             _buildListTile(Icons.lock_outline, "Two Factor Authentication"),
             _buildListTile(Icons.fingerprint, "Biometric Login"),
           ]),
@@ -94,13 +107,17 @@ class ProfilePage extends StatelessWidget {
           ]),
         ],
       ),
-
     );
   }
 
-  // Helper widget for list items
-  static Widget _buildListTile(IconData icon, String title) {
+  // Updated helper widget for list items with onTap
+  static Widget _buildListTile(
+      IconData icon,
+      String title, [
+        VoidCallback? onTap,
+      ]) {
     return ListTile(
+      onTap: onTap,
       leading: CircleAvatar(
         radius: 20,
         backgroundColor: const Color(0xFFF7F9FC),
@@ -140,11 +157,7 @@ class ProfilePage extends StatelessWidget {
       ),
       elevation: 0,
       color: const Color(0xFFF7F9FC),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
-
   }
-
 }

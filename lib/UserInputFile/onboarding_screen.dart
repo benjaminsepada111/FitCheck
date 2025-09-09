@@ -24,7 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     GenderSelection(),
     Slide4(),
     WeightSelectorPage(),
-    Slide5(),
+    HeightSelectorPage(),
     Slide1(),
 
 
@@ -68,18 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     const SizedBox(width: 70), // keep spacing aligned
 
 
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginPage()),
-                      );
-                    },
-                    child: const Text(
-                      "Skip",
-                      style: TextStyle(color: AppColors.secondary),
-                    ),
-                  ),
+
                 ],
               ),
               const SizedBox(height: 20),
@@ -105,7 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 count: slides.length,
                 effect: WormEffect(
                   activeDotColor: AppColors.secondary,
-                  dotColor: AppColors.primary.withOpacity(0.3),
+                  dotColor: AppColors.secondary.withOpacity(0.3),
                   dotHeight: 10,
                   dotWidth: 10,
                 ),

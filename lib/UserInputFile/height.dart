@@ -1,242 +1,242 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:capstone_project/color/colors.dart';
 
-class Slide5 extends StatefulWidget {
-  const Slide5({super.key});
+class HeightSelectorPage extends StatefulWidget {
+  const HeightSelectorPage({super.key});
 
   @override
-  State<Slide5> createState() => _Slide5State();
+  State<HeightSelectorPage> createState() => _HeightSelectorPageState();
 }
 
-class _Slide5State extends State<Slide5> {
+class _HeightSelectorPageState extends State<HeightSelectorPage> {
   int selectedHeight = 165;
 
-  @override
-  Widget build(BuildContext context) {
-    return HeightSelectionPage(
-      selectedHeight: selectedHeight,
-      onHeightChanged: (value) {
-        setState(() {
-          selectedHeight = value;
-        });
-      },
-    );
-  }
-}
-
-class HeightSelectionPage extends StatefulWidget {
-  final int selectedHeight;
-  final ValueChanged<int> onHeightChanged;
-
-  const HeightSelectionPage({
-    super.key,
-    required this.selectedHeight,
-    required this.onHeightChanged,
-  });
-
-  @override
-  State<HeightSelectionPage> createState() => _HeightSelectionPageState();
-}
-
-class _HeightSelectionPageState extends State<HeightSelectionPage> {
-  late FixedExtentScrollController _scrollController;
-  late FixedExtentScrollController _labelsController;
-
-  @override
-  void initState() {
-    super.initState();
-    int initialIndex = widget.selectedHeight - 100;
-    _scrollController = FixedExtentScrollController(initialItem: initialIndex);
-    _labelsController = FixedExtentScrollController(initialItem: initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    _labelsController.dispose();
-    super.dispose();
-  }
-
-  void _onScrollChanged(int index) {
-    int newHeight = 100 + index;
-    if (newHeight >= 100 && newHeight <= 220) {
-      HapticFeedback.selectionClick();
-      widget.onHeightChanged(newHeight);
-
-      if (_labelsController.selectedItem != index) {
-        _labelsController.jumpToItem(index);
-      }
-    }
+  void _onHeightChanged(int newHeight) {
+    setState(() {
+      selectedHeight = newHeight;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      body: Padding(
-        padding: const EdgeInsets.all(0),
+      body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 20),
+
             const Text(
               "Height",
               style: TextStyle(
-                fontSize: 30,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
               ),
             ),
             const SizedBox(height: 6),
             const Text(
               "Enter your height in cm.",
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+              ),
             ),
-            const SizedBox(height: 20),
 
+            const SizedBox(height: 20),
             // Selected height
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  "${widget.selectedHeight}",
+                  selectedHeight.toString(),
                   style: const TextStyle(
                     fontSize: 48,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
                     color: Colors.black,
                   ),
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: 6),
                 const Text(
                   "cm",
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.w500,
                     color: Colors.black54,
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
 
+            // Number slider + vertical ruler with compressed spacing
             Expanded(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Labels
-                  SizedBox(
-                    width: 60,
-                    height: 300,
-                    child: ListWheelScrollView.useDelegate(
-                      controller: _labelsController,
-                      itemExtent: 28,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childDelegate: ListWheelChildBuilderDelegate(
-                        builder: (context, index) {
-                          int height = 100 + index;
-                          bool isSelected = height == widget.selectedHeight;
-                          bool showLabel = height % 5 == 0;
+                  // Add left margin to compress number slider
+                  const SizedBox(width: 16),
 
-                          return showLabel
-                              ? Text(
-                            height.toString(),
-                            style: TextStyle(
-                              fontSize: isSelected ? 22 : 16,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Colors.black
-                                  : Colors.grey[500],
+                  // Number slider - reduced flex to compress it
+                  Expanded(
+                    flex: 3,
+                    child: HeightNumberSlider(
+                      selectedHeight: selectedHeight,
+                      onHeightChanged: _onHeightChanged,
+                    ),
+                  ),
+
+                  // Minimal spacing before arrow
+                  const SizedBox(width: 8),
+
+                  // Arrow indicator - moved closer to slider
+                  Transform.rotate(
+                    angle: -90 * 3.1415926535 / 180,
+                    child: SvgPicture.asset(
+                      "assets/icons/weight_arrow.svg",
+                      width: 20, // Made even smaller
+                      color: AppColors.secondary[700],
+                    ),
+                  ),
+
+                  // Very minimal spacing between arrow and ruler
+                  const SizedBox(width: 2),
+
+                  // Vertical ruler - positioned more to the left
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: Container(
+                      width: 90, // Made narrower
+                      decoration: BoxDecoration(
+
+                        border: Border.all(color: AppColors.secondary[700]!, width: 2),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4), // Further reduced horizontal padding
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            ListView.builder(
+                              scrollDirection: Axis.vertical,
+                              itemCount: 200,
+                              itemBuilder: (context, index) {
+                                bool isMajorTick = index % 10 == 0;
+                                bool isHalfTick = index % 5 == 0;
+
+                                double lineWidth = isMajorTick
+                                    ? 40 // Further reduced
+                                    : isHalfTick
+                                    ? 28 // Further reduced
+                                    : 16; // Further reduced
+
+                                return Container(
+                                  height: 12,
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                    height: 2,
+                                    width: lineWidth,
+                                    color: Colors.black54,
+                                  ),
+                                );
+                              },
                             ),
-                          )
-                              : const SizedBox();
-                        },
-                        childCount: 121,
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(width: 10),
-
-                  // Ruler
-                  Stack(
-                    alignment: Alignment.centerLeft,
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 300,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.green, width: 2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListWheelScrollView.useDelegate(
-                          controller: _scrollController,
-                          itemExtent: 20,
-                          physics: const FixedExtentScrollPhysics(),
-                          onSelectedItemChanged: _onScrollChanged,
-                          childDelegate: ListWheelChildBuilderDelegate(
-                            builder: (context, index) {
-                              int height = 100 + index;
-                              bool isMainMark = height % 10 == 0;
-                              bool isSubMark = height % 5 == 0;
-                              bool isSelected =
-                                  height == widget.selectedHeight;
-
-                              double tickWidth;
-                              Color tickColor;
-
-                              if (isSelected && isMainMark) {
-                                tickWidth = 60;
-                                tickColor = Colors.black;
-                              } else if (isMainMark) {
-                                tickWidth = 50;
-                                tickColor = Colors.black87;
-                              } else if (isSubMark) {
-                                tickWidth = 35;
-                                tickColor = Colors.grey[700]!;
-                              } else {
-                                tickWidth = 25;
-                                tickColor = Colors.grey[500]!;
-                              }
-
-                              return Container(
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 10),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  width: tickWidth,
-                                  height: 2,
-                                  color: tickColor,
-                                ),
-                              );
-                            },
-                            childCount: 121,
-                          ),
-                        ),
-                      ),
-
-                      // Arrow indicator
-                      Positioned(
-                        left: 105,
-                        child: SvgPicture.asset(
-                          "assets/icons/arrow_left.svg",
-                          height: 30,
-                          width: 30,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
+                  // Larger right margin to balance the layout
+                  const SizedBox(width: 50),
                 ],
               ),
             ),
 
-            const SizedBox(height: 50),
+
           ],
         ),
+      ),
+    );
+  }
+}
+
+class HeightNumberSlider extends StatefulWidget {
+  final int selectedHeight;
+  final ValueChanged<int> onHeightChanged;
+
+  const HeightNumberSlider({
+    super.key,
+    required this.selectedHeight,
+    required this.onHeightChanged,
+  });
+
+  @override
+  State<HeightNumberSlider> createState() => _HeightNumberSliderState();
+}
+
+class _HeightNumberSliderState extends State<HeightNumberSlider> {
+  late FixedExtentScrollController _scrollController;
+
+  final int minHeight = 100;
+  final int maxHeight = 220;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = FixedExtentScrollController(
+      initialItem: widget.selectedHeight - minHeight,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListWheelScrollView.useDelegate(
+      controller: _scrollController,
+      itemExtent: 50,
+      physics: const FixedExtentScrollPhysics(),
+      onSelectedItemChanged: (index) {
+        int newHeight = minHeight + index;
+        widget.onHeightChanged(newHeight);
+        HapticFeedback.selectionClick();
+      },
+      childDelegate: ListWheelChildBuilderDelegate(
+        builder: (context, index) {
+          int height = minHeight + index;
+          bool isSelected = height == widget.selectedHeight;
+
+          return Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  height.toString(),
+                  style: TextStyle(
+                    fontSize: isSelected ? 36 : 22,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Colors.black : Colors.grey,
+                  ),
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 4),
+                  const Text(
+                    "cm",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+        childCount: maxHeight - minHeight + 1,
       ),
     );
   }

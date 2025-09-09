@@ -71,7 +71,7 @@ class _GenderSelectionState extends State<GenderSelection> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(26),
         decoration: BoxDecoration(
           border: Border.all(
             color: isSelected ? AppColors.secondary : Colors.transparent,
@@ -84,7 +84,7 @@ class _GenderSelectionState extends State<GenderSelection> {
             CircleAvatar(
               radius: 40,
               backgroundColor: color,
-              child: Icon(icon, size: 50, color: Colors.white),
+              child: Icon(icon, size: 60, color: Colors.white),
             ),
             const SizedBox(height: 8),
             Text(

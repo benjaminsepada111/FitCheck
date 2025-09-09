@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 👈 add this
 import 'add_milestone_sheet.dart';
 import 'milestone_preview.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class MilestoneJourney extends StatefulWidget {
   const MilestoneJourney({super.key});
@@ -103,7 +104,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 foregroundColor: _milestones.isEmpty ? Colors.grey : Colors.white,
                 backgroundColor: _milestones.isEmpty
                     ? Colors.grey.shade200
-                    : Colors.deepPurple, // active color
+                    : AppColors.secondary, // active color
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

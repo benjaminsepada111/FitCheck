@@ -74,6 +74,7 @@ flutter:
   - assets/icons/dinner.svg
   - assets/icons/snack.svg
   - assets/icons/lunch.svg
+  - assets/icons/weight_arrow.svg
 
 
   # The following line ensures that the Material Icons font is

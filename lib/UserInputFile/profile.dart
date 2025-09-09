@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class Slide1 extends StatelessWidget {
   const Slide1({super.key});
@@ -43,12 +44,12 @@ class Slide1 extends StatelessWidget {
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.green.shade100,
+                        color: AppColors.secondary.shade100,
                       ),
                     ),
                     Container(
                       decoration: const BoxDecoration(
-                        color: Colors.green,
+                        color: AppColors.secondary,
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(8),
@@ -83,7 +84,7 @@ class Slide1 extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: "Name",
                   filled: true,
-                  fillColor: Colors.grey.shade100,
+                  fillColor: AppColors.secondary.shade100,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
@@ -113,7 +114,7 @@ class Slide1 extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: "FitCheck",
                   filled: true,
-                  fillColor: Colors.grey.shade100,
+                  fillColor: AppColors.secondary.shade100,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,

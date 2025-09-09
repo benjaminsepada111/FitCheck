@@ -306,7 +306,7 @@ class _LoginPageState extends State<LoginPage> {
                         InkWell(
                           onTap: () {},
                           child: Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.blue[800],
                               shape: BoxShape.circle,

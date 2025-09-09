@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:capstone_project/LoginPages/login_page.dart';
+
 
 class SigninSuccessScreen extends StatelessWidget {
   const SigninSuccessScreen({super.key});
@@ -16,11 +19,12 @@ class SigninSuccessScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Success Image
-                Image.asset(
-                  "assets/images/success.png", // your image path
-                  height: 120,
+                SvgPicture.asset(
+                  "assets/icons/success.svg",
                   width: 120,
+                  color: AppColors.secondary, // ✅ everything green changes
                 ),
+
                 const SizedBox(height: 30),
 
                 // Success Title
@@ -57,8 +61,12 @@ class SigninSuccessScreen extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      // Navigate to home or login page
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginPage()),
+                      );
                     },
+
                     child: const Text(
                       "CONTINUE",
                       style: TextStyle(

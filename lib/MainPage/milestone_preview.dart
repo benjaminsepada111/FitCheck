@@ -76,7 +76,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 final milestone = milestones[index];
                 return Center(
                   child: Image.file(
-                    milestone["file"] as File,
+                    File(milestone["file"] as String), // 👈 Fixed: Create File from String path
                     fit: BoxFit.contain,
                   ),
                 );
@@ -109,7 +109,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        milestone["file"] as File,
+                        File(milestone["file"] as String), // 👈 Fixed: Create File from String path
                         width: 60,
                         height: 80,
                         fit: BoxFit.cover,

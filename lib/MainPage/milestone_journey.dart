@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 👈 add this
 import 'add_milestone_sheet.dart';
+import 'milestone_preview.dart';
 
 class MilestoneJourney extends StatefulWidget {
   const MilestoneJourney({super.key});
@@ -86,12 +87,23 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             TextButton.icon(
-              onPressed: () {
-                // TODO: preview action
+              onPressed: _milestones.isEmpty
+                  ? null // disable if no milestones
+                  : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MilestonePreviewPage(
+                      milestones: _milestones,
+                    ),
+                  ),
+                );
               },
               style: TextButton.styleFrom(
-                foregroundColor: Colors.grey,
-                backgroundColor: Colors.grey.shade200,
+                foregroundColor: _milestones.isEmpty ? Colors.grey : Colors.white,
+                backgroundColor: _milestones.isEmpty
+                    ? Colors.grey.shade200
+                    : Colors.deepPurple, // active color
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -100,13 +112,16 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 "assets/icons/play.svg",
                 height: 23,
                 width: 23,
-                color: Colors.grey,
+                color: _milestones.isEmpty ? Colors.grey : Colors.white,
               ),
-              label: const Text(
+              label: Text(
                 "Preview",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(
+                  color: _milestones.isEmpty ? Colors.grey : Colors.white,
+                ),
               ),
             ),
+
           ],
         ),
         const SizedBox(height: 10),

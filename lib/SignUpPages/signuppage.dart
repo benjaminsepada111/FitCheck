@@ -29,7 +29,7 @@ class _SignUpPageState extends State<SignUpPage> {
             right: 175,
             child: SizedBox(
               height: 359,
-              child: SvgPicture.asset("assets/login_svg/bg.svg"),
+              child: SvgPicture.asset("assets/login_svg/bg.svg",  color: AppColors.secondary,),
             ),
           ),
           Positioned(
@@ -65,7 +65,10 @@ class _SignUpPageState extends State<SignUpPage> {
             right: -10,
             child: SizedBox(
               height: 230,
-              child: SvgPicture.asset("assets/login_svg/bg2.svg"),
+              child: SvgPicture.asset(
+                "assets/login_svg/bg2.svg",
+                color: AppColors.secondary,
+              ),
             ),
           ),
 

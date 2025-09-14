@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:capstone_project/LoginPages/login_page.dart'; // 👈 redirect after signup
+import 'package:capstone_project/LoginPages/login_page.dart';
 import 'signupverification_page.dart';
 import '../color/colors.dart';
+import '../services/auth_service.dart';
+import 'dart:math';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -13,7 +15,143 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _emailController = TextEditingController();
+  final AuthService _authService = AuthService();
+  final _formKey = GlobalKey<FormState>();
+
   bool _agreeToTerms = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  // Show error dialog
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Generate random 5-digit OTP
+  String _generateOTP() {
+    Random random = Random();
+    return (10000 + random.nextInt(90000)).toString();
+  }
+
+  // Send OTP to email with proper timeout and error handling
+  Future<String> _sendOTPToEmail(String email) async {
+    try {
+      // Generate OTP
+      String otp = _generateOTP();
+
+      // Store OTP in Firestore with timeout
+      await _authService.storeTemporaryOTP(email, otp).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Request timed out. Please check your internet connection.');
+        },
+      );
+
+      // For now, we'll simulate sending the email
+      // In production, you should implement actual email sending via:
+      // - Firebase Cloud Functions
+      // - Your own backend API
+      // - Third-party email service
+
+      await Future.delayed(const Duration(milliseconds: 500)); // Simulate API call
+
+      print('OTP sent to $email: $otp'); // For testing - remove in production
+
+      return otp;
+    } catch (e) {
+      // Clean up if storing OTP failed
+      try {
+        await _authService.deleteTemporaryOTP(email);
+      } catch (_) {
+        // Ignore cleanup errors
+      }
+      rethrow;
+    }
+  }
+
+  // Send OTP and navigate to verification
+  Future<void> _sendOTPAndNavigate() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!_agreeToTerms) {
+      _showErrorDialog('Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
+
+    final email = _emailController.text.trim();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Check if email is already registered
+      bool isEmailRegistered = await _authService.isEmailRegistered(email).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Connection timeout. Please check your internet connection.');
+        },
+      );
+
+      if (isEmailRegistered) {
+        _showErrorDialog('This email is already registered. Please use a different email or try logging in.');
+        return;
+      }
+
+      // Send OTP to email
+      await _sendOTPToEmail(email);
+
+      // Navigate to verification page
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerificationPage(
+              email: email,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Failed to send verification code.';
+
+        if (e.toString().contains('timeout') || e.toString().contains('network')) {
+          errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+        } else if (e.toString().contains('permission-denied')) {
+          errorMessage = 'Permission denied. Please try again.';
+        } else if (e.toString().contains('unavailable')) {
+          errorMessage = 'Service temporarily unavailable. Please try again later.';
+        }
+
+        _showErrorDialog(errorMessage);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,15 +167,20 @@ class _SignUpPageState extends State<SignUpPage> {
             right: 175,
             child: SizedBox(
               height: 359,
-              child: SvgPicture.asset("assets/login_svg/bg.svg",  color: AppColors.secondary,),
+              child: SvgPicture.asset(
+                "assets/login_svg/bg.svg",
+                color: AppColors.secondary,
+              ),
             ),
           ),
-          Positioned(
+
+          // Title and subtitle
+          const Positioned(
             top: 160,
             left: 0,
             right: 0,
             child: Column(
-              children: const [
+              children: [
                 Text(
                   "Sign Up",
                   style: TextStyle(
@@ -49,7 +192,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  "Sign Up to get started",
+                  "Enter your email to get started",
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white70,
@@ -59,6 +202,7 @@ class _SignUpPageState extends State<SignUpPage> {
               ],
             ),
           ),
+
           Positioned(
             top: 0,
             left: 100,
@@ -82,134 +226,154 @@ class _SignUpPageState extends State<SignUpPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Email field
-                    const Text(
-                      "EMAIL",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        hintText: "Enter your email",
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Email field
+                      const Text(
+                        "EMAIL",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                          color: Colors.black54,
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Terms & Conditions
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _agreeToTerms,
-                          activeColor: AppColors.secondary,
-                          onChanged: (value) {
-                            setState(() {
-                              _agreeToTerms = value ?? false;
-                            });
-                          },
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        enabled: !_isLoading,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          hintText: "Enter your email",
+                          filled: true,
+                          fillColor: Colors.grey[200],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.red),
+                          ),
                         ),
-                        Expanded(
-                          child: Text.rich(
-                            TextSpan(
-                              text: "By creating an account, I agree to the ",
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
-                              children: [
-                                TextSpan(
-                                  text: "Terms of Service",
-                                  style: TextStyle(color: AppColors.secondary),
-                                ),
-                                const TextSpan(text: " and "),
-                                TextSpan(
-                                  text: "Privacy Policy",
-                                  style: TextStyle(color: AppColors.secondary),
-                                ),
-                              ],
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Terms & Conditions
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _agreeToTerms,
+                            activeColor: AppColors.secondary,
+                            onChanged: _isLoading ? null : (value) {
+                              setState(() {
+                                _agreeToTerms = value ?? false;
+                              });
+                            },
+                          ),
+                          const Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                text: "By creating an account, I agree to the ",
+                                style: TextStyle(fontSize: 12, color: Colors.black54),
+                                children: [
+                                  TextSpan(
+                                    text: "Terms of Service",
+                                    style: TextStyle(color: AppColors.secondary),
+                                  ),
+                                  TextSpan(text: " and "),
+                                  TextSpan(
+                                    text: "Privacy Policy",
+                                    style: TextStyle(color: AppColors.secondary),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Sign Up Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: _agreeToTerms
-                            ? () {
-                          // Navigate to Login after signup
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const VerificationPage()),
-                          );
-                        }
-                            : null,
-                        child: const Text(
-                          "SIGN UP",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        ],
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 24),
 
-                    // Already have account
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text("Already have an account? "),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginPage()),
-                            );
-                          },
-                          child: const Text(
-                            "LOG IN",
+                      // Continue Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _isLoading ? null : _sendOTPAndNavigate,
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text(
+                            "CONTINUE",
                             style: TextStyle(
-                              color: AppColors.secondary,
+                              color: Colors.white,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
 
-                    const SizedBox(height: 200),
-                  ],
+                      const SizedBox(height: 16),
+
+                      // Already have account
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text("Already have an account? "),
+                          GestureDetector(
+                            onTap: _isLoading ? null : () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (context) => const LoginPage()),
+                              );
+                            },
+                            child: const Text(
+                              "LOG IN",
+                              style: TextStyle(
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 50),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
+
+          // Loading overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
         ],
       ),
     );

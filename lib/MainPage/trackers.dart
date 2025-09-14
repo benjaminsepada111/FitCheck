@@ -66,9 +66,9 @@ class Trackers extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildTracker("Calorie", 0, 8, 0.75), // 75%
-            _buildTracker("Water", 0, 8, 0.50),   // 50%
-            _buildTracker("Streak", 0, 30, 0.25), // 25%
+            _buildTracker("Calorie", 0, 8, 0.0), // 75%
+            _buildTracker("Water", 0, 8, 0.0),   // 50%
+            _buildTracker("Streak", 0, 30, 0.0), // 25%
           ],
         ),
       ],

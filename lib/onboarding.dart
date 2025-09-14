@@ -3,6 +3,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:capstone_project/LoginPages/login_page.dart';
 import 'package:capstone_project/color/colors.dart';
 
+
 void main() {
   runApp(const MyApp());
 }
@@ -35,26 +36,41 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, String>> onboardingData = [
     {
-      "image": "📷",
+      "image": "assets/images/strawberry.png",
       "title": "Welcome",
       "description": "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
     },
     {
-      "image": "🔥",
+      "image": "assets/images/banana.png",
       "title": "Fast",
       "description": "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
     },
     {
-      "image": "⚡",
+      "image": "assets/images/strawberry.png",
       "title": "Powerful",
       "description": "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
     },
     {
-      "image": "✅",
+      "image": "assets/images/banana.png",
       "title": "Get Started",
       "description": "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
     },
   ];
+
+  // 👇 Helper to decide whether to load image asset or emoji text
+  Widget buildImage(String image) {
+    if (image.startsWith("assets/")) {
+      return Image.asset(
+        image,
+        height: 200,
+      );
+    } else {
+      return Text(
+        image,
+        style: const TextStyle(fontSize: 100),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        data["image"]!,
-                        style: const TextStyle(fontSize: 100),
-                      ),
+                      buildImage(data["image"]!), // 👈 now supports both
                       const SizedBox(height: 30),
                       Text(
                         data["title"]!,
@@ -134,12 +147,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Text(
                 isLastPage ? "GET STARTED" : "NEXT",
                 style: const TextStyle(
-                  color: AppColors.textWhite, // 👈 change button text color
+                  color: AppColors.textWhite,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-
             TextButton(
               onPressed: () {
                 Navigator.pushReplacementNamed(context, '/login');
@@ -147,7 +159,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: const Text(
                 "Skip",
                 style: TextStyle(
-                  color: AppColors.secondary, // 👈 your custom color
+                  color: AppColors.secondary,
                   fontWeight: FontWeight.bold,
                 ),
               ),

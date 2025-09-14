@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import 'dart:async';
 import 'change_password.dart';
 import '../color/colors.dart';
+import '../services/forgot_password_service.dart.dart';
 
 class VerificationPage extends StatefulWidget {
-  const VerificationPage({super.key});
+  final String email;
+
+  const VerificationPage({super.key, required this.email});
 
   @override
   State<VerificationPage> createState() => _VerificationPageState();
@@ -13,13 +17,147 @@ class VerificationPage extends StatefulWidget {
 
 class _VerificationPageState extends State<VerificationPage> {
   String code = "";
-  int resendSeconds = 114; // countdown for resend
+  int resendSeconds = 60;
+  Timer? _timer;
+  bool _canResend = false;
+  bool _isLoading = false;
+  final ForgotPasswordService _forgotPasswordService = ForgotPasswordService();
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startCountdown() {
+    _canResend = false;
+    resendSeconds = 60;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (resendSeconds > 0) {
+          resendSeconds--;
+        } else {
+          _canResend = true;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.secondary,
+      ),
+    );
+  }
+
+  Future<void> _verifyCode() async {
+    if (code.length != 5) {
+      _showErrorDialog('Please enter the complete 5-digit code');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final isValid = _forgotPasswordService.verifyCode(widget.email, code);
+
+      if (isValid) {
+        _showSuccessMessage('Code verified successfully!');
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WorkingChangePasswordPage(
+                email: widget.email,
+                isVerified: true,
+              ),
+            ),
+          );
+        }
+      } else {
+        _showErrorDialog('Invalid or expired verification code');
+      }
+    } catch (e) {
+      _showErrorDialog('Verification failed. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _resendCode() async {
+    if (!_canResend) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await _forgotPasswordService.resendCode(widget.email);
+
+      if (success) {
+        _showSuccessMessage('New verification code sent!');
+        _startCountdown();
+        setState(() {
+          code = "";
+        });
+      }
+    } catch (e) {
+      _showErrorDialog('Failed to resend code. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF06111D),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Stack(
         children: [
           // Background SVG
@@ -29,16 +167,21 @@ class _VerificationPageState extends State<VerificationPage> {
             right: 175,
             child: SizedBox(
               height: 359,
-              child: SvgPicture.asset("assets/login_svg/bg.svg"),
+              child: SvgPicture.asset(
+                "assets/login_svg/bg.svg",
+                color: AppColors.secondary,
+              ),
             ),
           ),
+
+          // Title and subtitle
           Positioned(
-            top: 160,
+            top: 120,
             left: 0,
             right: 0,
             child: Column(
-              children: const [
-                Text(
+              children: [
+                const Text(
                   "Verification",
                   style: TextStyle(
                     fontSize: 32,
@@ -47,10 +190,10 @@ class _VerificationPageState extends State<VerificationPage> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  "We have sent a code to your email\nexample@gmail.com",
-                  style: TextStyle(
+                  "We have sent a code to your email\n${widget.email}",
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white70,
                   ),
@@ -59,13 +202,17 @@ class _VerificationPageState extends State<VerificationPage> {
               ],
             ),
           ),
+
           Positioned(
             top: 0,
             left: 100,
             right: -10,
             child: SizedBox(
               height: 230,
-              child: SvgPicture.asset("assets/login_svg/bg2.svg"),
+              child: SvgPicture.asset(
+                "assets/login_svg/bg2.svg",
+                color: AppColors.secondary,
+              ),
             ),
           ),
 
@@ -105,8 +252,15 @@ class _VerificationPageState extends State<VerificationPage> {
                     appContext: context,
                     keyboardType: TextInputType.number,
                     animationType: AnimationType.fade,
+                    enabled: !_isLoading,
                     onChanged: (value) {
                       setState(() => code = value);
+                    },
+                    onCompleted: (value) {
+                      // Auto-verify when code is complete
+                      if (value.length == 5) {
+                        _verifyCode();
+                      }
                     },
                     pinTheme: PinTheme(
                       shape: PinCodeFieldShape.box,
@@ -136,19 +290,10 @@ class _VerificationPageState extends State<VerificationPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        if (code.length == 5) {
-                          // Example: Only navigate if code is 5 digits
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const ChangePasswordPage()),
-                          );
-                        } else {
-                          debugPrint("Please enter full 5-digit code");
-                        }
-                      },
-
-                      child: const Text(
+                      onPressed: _isLoading ? null : _verifyCode,
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
                         "VERIFY",
                         style: TextStyle(
                           color: Colors.white,
@@ -161,18 +306,34 @@ class _VerificationPageState extends State<VerificationPage> {
 
                   const SizedBox(height: 16),
 
-                  // Resend timer
-                  Text(
-                    "Didn’t get the code? Resend in ${resendSeconds}s",
-                    style: const TextStyle(color: Colors.grey),
+                  // Resend timer/button
+                  GestureDetector(
+                    onTap: _canResend && !_isLoading ? _resendCode : null,
+                    child: Text(
+                      _canResend
+                          ? "Didn't get the code? Resend now"
+                          : "Didn't get the code? Resend in ${resendSeconds}s",
+                      style: TextStyle(
+                        color: _canResend ? AppColors.secondary : Colors.grey,
+                        fontWeight: _canResend ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 250),
-
                 ],
               ),
             ),
           ),
+
+          // Loading overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
         ],
       ),
     );

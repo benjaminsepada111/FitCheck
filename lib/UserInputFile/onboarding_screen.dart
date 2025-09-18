@@ -16,9 +16,12 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> with TickerProviderStateMixin {
   final PageController _controller = PageController();
   int currentIndex = 0;
+  bool _isAnimating = false; // Prevent rapid clicks
+  late AnimationController _buttonAnimationController;
+  late Animation<double> _buttonScaleAnimation;
 
   final List<Widget> slides = const [
     GenderSelection(),
@@ -26,9 +29,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     WeightSelectorPage(),
     HeightSelectorPage(),
     Slide1(),
-
-
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _buttonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _buttonScaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _buttonAnimationController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _buttonAnimationController.dispose();
+    super.dispose();
+  }
 
   String getButtonText() {
     if (currentIndex == 0) return "NEXT";
@@ -36,59 +60,117 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return "CONTINUE";
   }
 
+  // Smooth navigation with debouncing for next page
+  Future<void> _navigateNext() async {
+    if (_isAnimating) return; // Prevent rapid clicks
+
+    setState(() {
+      _isAnimating = true;
+    });
+
+    // Button press animation
+    _buttonAnimationController.forward();
+
+    try {
+      if (currentIndex == slides.length - 1) {
+        // Navigate to main page with smooth transition
+        await Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const MainPage(),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeInOutCubic,
+                )),
+                child: child,
+              );
+            },
+          ),
+        );
+      } else {
+        // Move to next page with smooth animation
+        await _controller.nextPage(
+          duration: const Duration(milliseconds: 350), // Faster, smoother
+          curve: Curves.easeInOutCubic, // Better curve
+        );
+      }
+    } finally {
+      // Reset animation state
+      if (mounted) {
+        _buttonAnimationController.reverse();
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            setState(() {
+              _isAnimating = false;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  // Smooth navigation for back button
+  Future<void> _navigateBack() async {
+    if (_isAnimating || currentIndex <= 0) return;
+
+    setState(() {
+      _isAnimating = true;
+    });
+
+    try {
+      await _controller.previousPage(
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOutCubic,
+      );
+    } finally {
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            setState(() {
+              _isAnimating = false;
+            });
+          }
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             children: [
-              // 🔙 Navigation bar with Back button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (currentIndex > 0)
-                    TextButton.icon(
-                      onPressed: () {
-                        if (currentIndex > 0) {
-                          _controller.previousPage(
-                            duration: const Duration(milliseconds: 400),
-                            curve: Curves.easeInOut,
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      label: const Text(
-                        "Back",
-                        style: TextStyle(color: Colors.black, fontSize: 16),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 70), // keep spacing aligned
 
-
-
-                ],
-              ),
               const SizedBox(height: 20),
 
               // 📄 PageView with slides
               Expanded(
                 child: PageView(
                   controller: _controller,
-                  physics: const NeverScrollableScrollPhysics(), // 👈 disables swipe
+                  physics: const NeverScrollableScrollPhysics(), // Disables swipe
                   onPageChanged: (index) {
-                    setState(() => currentIndex = index);
+                    // This ensures the indicator updates when page changes
+                    if (mounted) {
+                      setState(() => currentIndex = index);
+                    }
                   },
                   children: slides,
                 ),
               ),
 
-
               const SizedBox(height: 20),
 
-              // 🔘 Page Indicator
+              // 🔘 Page Indicator with smooth transitions
               SmoothPageIndicator(
                 controller: _controller,
                 count: slides.length,
@@ -97,36 +179,61 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   dotColor: AppColors.secondary.withOpacity(0.3),
                   dotHeight: 10,
                   dotWidth: 10,
+                  spacing: 8,
                 ),
               ),
               const SizedBox(height: 30),
 
-              // 🚀 Main Button
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  if (currentIndex == slides.length - 1) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MainPage()),
-                    );
-                  } else {
-                    _controller.nextPage(
-                      duration: const Duration(milliseconds: 500),
-                      curve: Curves.easeInOut,
-                    );
-                  }
+              // 🚀 Main Button with enhanced animations
+              AnimatedBuilder(
+                animation: _buttonScaleAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _buttonScaleAnimation.value,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isAnimating
+                              ? AppColors.secondary.withOpacity(0.8)
+                              : AppColors.secondary,
+                          minimumSize: const Size(double.infinity, 55), // Slightly taller
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: _isAnimating ? 2 : 4,
+                          shadowColor: AppColors.secondary.withOpacity(0.3),
+                        ),
+                        onPressed: _isAnimating ? null : _navigateNext,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: _isAnimating
+                              ? SizedBox(
+                            key: const ValueKey('loading'),
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.textWhite.withOpacity(0.9),
+                              ),
+                            ),
+                          )
+                              : Text(
+                            key: ValueKey(getButtonText()),
+                            getButtonText(),
+                            style: const TextStyle(
+                              color: AppColors.textWhite,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
                 },
-                child: Text(
-                  getButtonText(),
-                  style: const TextStyle(color: AppColors.textWhite),
-                ),
               ),
               const SizedBox(height: 10),
             ],

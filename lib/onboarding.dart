@@ -4,24 +4,6 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:capstone_project/LoginPages/login_page.dart';
 import 'package:capstone_project/color/colors.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const OnboardingScreen(),
-      routes: {
-        '/login': (context) => const LoginPage(),
-      },
-    );
-  }
-}
 
 // Responsive utility class
 class ResponsiveUtils {
@@ -80,33 +62,41 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   bool isLastPage = false;
+  bool _isAnimating = false; // Prevent rapid clicks
+  int _currentPage = 0; // Track current page index
 
   final List<Map<String, String>> onboardingData = [
     {
-      "image": "assets/images/strawberry.png",
-      "title": "Welcome",
+      "image": "🍓",
+      "title": "Welcome to FreshMart",
       "description":
-      "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
+      "Discover fresh fruits and vegetables delivered right to your doorstep. Quality you can trust, convenience you'll love."
     },
     {
-      "image": "assets/images/banana.png",
-      "title": "Fast",
+      "image": "⚡",
+      "title": "Lightning Fast Delivery",
       "description":
-      "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
+      "Get your groceries delivered in under 30 minutes. Fresh produce has never been this accessible and quick."
     },
     {
-      "image": "assets/images/strawberry.png",
-      "title": "Powerful",
+      "image": "💪",
+      "title": "Premium Quality",
       "description":
-      "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
+      "Hand-picked products from trusted local farmers. Every item is carefully selected for freshness and quality."
     },
     {
-      "image": "assets/images/banana.png",
-      "title": "Get Started",
+      "image": "🚀",
+      "title": "Ready to Start?",
       "description":
-      "Lorem ipsum dolor sit amet consectetur. Diam sem nunc mi rhoncus velit orci."
+      "Join thousands of satisfied customers who trust us for their daily grocery needs. Let's get started!"
     },
   ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Widget buildImage(BuildContext context, String image) {
     final imageSize = ResponsiveUtils.getResponsiveImageSize(context, 200);
@@ -116,15 +106,76 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         height: imageSize,
         width: imageSize,
         fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback to emoji if asset fails to load
+          return Text(
+            "📱",
+            style: TextStyle(
+              fontSize: imageSize * 0.8,
+            ),
+          );
+        },
       );
     } else {
-      return Text(
-        image,
-        style: TextStyle(
-          fontSize: ResponsiveUtils.getResponsiveFontSize(context, 100),
+      return Container(
+        width: imageSize,
+        height: imageSize,
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(imageSize / 2),
+        ),
+        child: Center(
+          child: Text(
+            image,
+            style: TextStyle(
+              fontSize: imageSize * 0.5,
+            ),
+          ),
         ),
       );
     }
+  }
+
+  // Smooth navigation with debouncing
+  Future<void> _navigateNext() async {
+    if (_isAnimating) return; // Prevent rapid clicks
+
+    setState(() {
+      _isAnimating = true;
+    });
+
+    try {
+      if (isLastPage) {
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        await _controller.nextPage(
+          duration: const Duration(milliseconds: 300), // Faster transition
+          curve: Curves.easeInOutCubic, // Smoother curve
+        );
+      }
+    } finally {
+      // Reset animation flag after a short delay
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) {
+            setState(() {
+              _isAnimating = false;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  // Skip with debouncing
+  Future<void> _skipOnboarding() async {
+    if (_isAnimating) return;
+
+    setState(() {
+      _isAnimating = true;
+    });
+
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -162,7 +213,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _controller,
             itemCount: onboardingData.length,
             onPageChanged: (index) {
-              setState(() => isLastPage = index == onboardingData.length - 1);
+              setState(() {
+                _currentPage = index;
+                isLastPage = index == onboardingData.length - 1;
+              });
             },
             itemBuilder: (context, index) {
               return _buildOnboardingPage(context, index);
@@ -190,7 +244,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _controller,
             itemCount: onboardingData.length,
             onPageChanged: (index) {
-              setState(() => isLastPage = index == onboardingData.length - 1);
+              setState(() {
+                _currentPage = index;
+                isLastPage = index == onboardingData.length - 1;
+              });
             },
             itemBuilder: (context, index) {
               return _buildOnboardingPage(context, index, isLandscapeContent: true);
@@ -217,9 +274,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildOnboardingPage(BuildContext context, int index,
       {bool isLandscapeContent = false}) {
     final data = onboardingData[index];
-    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(context, 22);
-    final descriptionFontSize = ResponsiveUtils.getResponsiveFontSize(context, 14);
-    final spacing = ResponsiveUtils.getResponsiveHeight(context, 0.03);
+    final titleFontSize = ResponsiveUtils.getResponsiveFontSize(context, 24);
+    final descriptionFontSize = ResponsiveUtils.getResponsiveFontSize(context, 16);
+    final spacing = ResponsiveUtils.getResponsiveHeight(context, 0.04);
     final isTablet = ResponsiveUtils.isTablet(context);
 
     return LayoutBuilder(
@@ -227,52 +284,58 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  flex: isLandscapeContent ? 4 : 3,
-                  child: Container(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Image section
+                  Container(
+                    height: isLandscapeContent ? constraints.maxHeight * 0.4 : constraints.maxHeight * 0.35,
                     alignment: Alignment.center,
                     child: buildImage(context, data["image"]!),
                   ),
-                ),
-                SizedBox(height: spacing),
-                Flexible(
-                  child: Container(
+                  SizedBox(height: spacing),
+
+                  // Title section
+                  Container(
                     constraints: BoxConstraints(
                       maxWidth: isTablet ? 600 : double.infinity,
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       data["title"]!,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: titleFontSize.clamp(18, 32),
+                        fontSize: titleFontSize.clamp(20, 36),
                         fontWeight: FontWeight.bold,
                         height: 1.2,
+                        color: const Color(0xFF2D3748),
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: spacing * 0.5),
-                Flexible(
-                  flex: 2,
-                  child: Container(
+                  SizedBox(height: spacing * 0.7),
+
+                  // Description section
+                  Container(
                     constraints: BoxConstraints(
                       maxWidth: isTablet ? 500 : double.infinity,
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       data["description"]!,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: descriptionFontSize.clamp(12, 18),
-                        color: Colors.grey[600],
-                        height: 1.4,
+                        fontSize: descriptionFontSize.clamp(14, 20),
+                        color: const Color(0xFF4A5568),
+                        height: 1.6,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(height: spacing),
+                ],
+              ),
             ),
           ),
         );
@@ -310,31 +373,43 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           constraints: BoxConstraints(
             maxWidth: isTablet ? 400 : double.infinity,
           ),
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              minimumSize: Size(double.infinity, buttonHeight),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isAnimating
+                    ? AppColors.secondary.withOpacity(0.8)
+                    : AppColors.secondary,
+                minimumSize: Size(double.infinity, buttonHeight),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: _isAnimating ? 1 : 2,
               ),
-              elevation: 2,
-            ),
-            onPressed: () {
-              if (isLastPage) {
-                Navigator.pushReplacementNamed(context, '/login');
-              } else {
-                _controller.nextPage(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeInOut,
-                );
-              }
-            },
-            child: Text(
-              isLastPage ? "GET STARTED" : "NEXT",
-              style: TextStyle(
-                color: AppColors.textWhite,
-                fontWeight: FontWeight.bold,
-                fontSize: buttonFontSize.clamp(14, 20),
+              onPressed: _isAnimating ? null : _navigateNext,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isAnimating
+                    ? SizedBox(
+                  key: const ValueKey('loading'),
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.textWhite.withOpacity(0.8)
+                    ),
+                  ),
+                )
+                    : Text(
+                  key: ValueKey(isLastPage ? 'get_started' : 'next'),
+                  isLastPage ? "GET STARTED" : "NEXT",
+                  style: TextStyle(
+                    color: AppColors.textWhite,
+                    fontWeight: FontWeight.bold,
+                    fontSize: buttonFontSize.clamp(14, 20),
+                  ),
+                ),
               ),
             ),
           ),
@@ -347,16 +422,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             margin: EdgeInsets.only(top: spacing * 0.5),
             child: TextButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, '/login');
-              },
+              onPressed: _isAnimating ? null : _skipOnboarding,
               style: TextButton.styleFrom(
                 minimumSize: const Size(0, 44),
               ),
               child: Text(
                 "Skip",
                 style: TextStyle(
-                  color: AppColors.secondary,
+                  color: _isAnimating
+                      ? AppColors.secondary.withOpacity(0.5)
+                      : AppColors.secondary,
                   fontWeight: FontWeight.bold,
                   fontSize: skipFontSize.clamp(12, 18),
                 ),

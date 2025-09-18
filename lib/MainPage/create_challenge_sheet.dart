@@ -168,10 +168,10 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       ),
       child: Padding(
         padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -185,8 +185,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   const Text(
                     "Create Challenge",
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xFF1A1A1A),
                     ),
                   ),
@@ -195,17 +195,17 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                     icon: const Icon(
                       Icons.close,
                       color: Color(0xFF666666),
-                      size: 24,
+                      size: 28,
                     ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
-                      minWidth: 24,
-                      minHeight: 24,
+                      minWidth: 28,
+                      minHeight: 28,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Challenge Title
               Column(
@@ -215,8 +215,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                     text: const TextSpan(
                       text: 'Challenge Title',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
                         color: Color(0xFF1A1A1A),
                       ),
                       children: [
@@ -227,15 +227,19 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _titleController,
                     enabled: !_isCreating,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
                     decoration: InputDecoration(
                       hintText: "Enter challenge title",
                       hintStyle: const TextStyle(
                         color: Color(0xFFAAAAAA),
-                        fontSize: 14,
+                        fontSize: 16,
                       ),
                       filled: true,
                       fillColor: const Color(0xFFF8F8F8),
@@ -261,14 +265,14 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                         ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                        horizontal: 18,
+                        vertical: 16,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Start & End Date
               Row(
@@ -281,8 +285,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                           text: const TextSpan(
                             text: 'Start Date',
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -293,22 +297,26 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextField(
                           controller: _startDateController,
                           readOnly: true,
                           enabled: !_isCreating,
                           onTap: () => _selectDate(_startDateController, true),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
                           decoration: InputDecoration(
                             hintText: "mm/dd/yyyy",
                             hintStyle: const TextStyle(
                               color: Color(0xFFAAAAAA),
-                              fontSize: 10,
+                              fontSize: 14,
                             ),
                             suffixIcon: const Icon(
                               Icons.calendar_today_outlined,
                               color: Color(0xFF666666),
-                              size: 20,
+                              size: 22,
                             ),
                             filled: true,
                             fillColor: const Color(0xFFF8F8F8),
@@ -334,8 +342,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                              horizontal: 18,
+                              vertical: 16,
                             ),
                           ),
                         ),
@@ -351,8 +359,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                           text: const TextSpan(
                             text: 'End Date',
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -363,22 +371,26 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextField(
                           controller: _endDateController,
                           readOnly: true,
                           enabled: !_isCreating,
                           onTap: () => _selectDate(_endDateController, false),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
                           decoration: InputDecoration(
                             hintText: "mm/dd/yyyy",
                             hintStyle: const TextStyle(
                               color: Color(0xFFAAAAAA),
-                              fontSize: 10,
+                              fontSize: 14,
                             ),
                             suffixIcon: const Icon(
                               Icons.calendar_today_outlined,
                               color: Color(0xFF666666),
-                              size: 20,
+                              size: 22,
                             ),
                             filled: true,
                             fillColor: const Color(0xFFF8F8F8),
@@ -404,8 +416,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                              horizontal: 18,
+                              vertical: 16,
                             ),
                           ),
                         ),
@@ -414,7 +426,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 24),
 
               // Goals
               Row(
@@ -427,8 +439,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                           text: const TextSpan(
                             text: 'Daily Calorie Goal',
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -439,20 +451,20 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextField(
                           controller: _calorieController,
                           enabled: !_isCreating,
                           keyboardType: TextInputType.number,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.black87,
                           ),
                           decoration: InputDecoration(
                             suffixIcon: const Icon(
                               Icons.edit_outlined,
                               color: Color(0xFF666666),
-                              size: 20,
+                              size: 22,
                             ),
                             filled: true,
                             fillColor: const Color(0xFFF8F8F8),
@@ -478,8 +490,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                              horizontal: 18,
+                              vertical: 16,
                             ),
                           ),
                         ),
@@ -495,8 +507,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                           text: const TextSpan(
                             text: 'Daily Water Goal (glasses)',
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF1A1A1A),
                             ),
                             children: [
@@ -507,20 +519,20 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         TextField(
                           controller: _waterController,
                           enabled: !_isCreating,
                           keyboardType: TextInputType.number,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.black87,
                           ),
                           decoration: InputDecoration(
                             suffixIcon: const Icon(
                               Icons.edit_outlined,
                               color: Color(0xFF666666),
-                              size: 20,
+                              size: 22,
                             ),
                             filled: true,
                             fillColor: const Color(0xFFF8F8F8),
@@ -546,8 +558,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                               ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                              horizontal: 18,
+                              vertical: 16,
                             ),
                           ),
                         ),
@@ -556,7 +568,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Notes
               Column(
@@ -565,21 +577,25 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   const Text(
                     'Notes (Optional)',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _notesController,
                     enabled: !_isCreating,
                     maxLines: 4,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
                     decoration: InputDecoration(
                       hintText: "Add notes or specific goals",
                       hintStyle: const TextStyle(
                         color: Color(0xFFAAAAAA),
-                        fontSize: 14,
+                        fontSize: 16,
                       ),
                       filled: true,
                       fillColor: const Color(0xFFF8F8F8),
@@ -604,12 +620,12 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                           width: 2,
                         ),
                       ),
-                      contentPadding: const EdgeInsets.all(16),
+                      contentPadding: const EdgeInsets.all(18),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
 
               // Buttons
               Row(
@@ -624,7 +640,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                         ),
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFF666666),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -633,7 +649,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                       child: const Text(
                         "Cancel",
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -646,7 +662,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -654,17 +670,17 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                       ),
                       child: _isCreating
                           ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                        width: 22,
+                        height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                           : const Text(
-                        "Create Challenge",
+                        "Create",
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

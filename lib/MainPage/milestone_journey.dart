@@ -3,13 +3,21 @@ import 'dart:convert'; // for json
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 👈 add this
+import 'package:shared_preferences/shared_preferences.dart';
 import 'add_milestone_sheet.dart';
 import 'milestone_preview.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/models/challenge.dart'; // Add this import
 
 class MilestoneJourney extends StatefulWidget {
-  const MilestoneJourney({super.key});
+  final Challenge? currentChallenge;
+  final VoidCallback? onCreateChallenge; // Add callback for creating challenge
+
+  const MilestoneJourney({
+    super.key,
+    this.currentChallenge,
+    this.onCreateChallenge, // Add this parameter
+  });
 
   @override
   State<MilestoneJourney> createState() => _MilestoneJourneyState();
@@ -21,7 +29,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
   @override
   void initState() {
     super.initState();
-    _loadMilestones(); // 👈 load saved data on startup
+    _loadMilestones();
   }
 
   Future<void> _loadMilestones() async {
@@ -50,7 +58,99 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
     setState(() {
       _milestones.insert(0, milestone);
     });
-    await _saveMilestones(); // 👈 persist after adding
+    await _saveMilestones();
+  }
+
+  void _showNoChallengeMessage() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.fitness_center,
+                color: AppColors.secondary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Start a Challenge',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'To track your milestone journey, you need to start a challenge first.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Milestone photos help you visualize your progress throughout your fitness journey!',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Later',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to create challenge sheet
+              if (widget.onCreateChallenge != null) {
+                widget.onCreateChallenge!();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Create Challenge'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(DateTime date) {
@@ -75,6 +175,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
   @override
   Widget build(BuildContext context) {
     final hasToday = _hasTodayMilestone();
+    final hasActiveChallenge = widget.currentChallenge != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +205,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 foregroundColor: _milestones.isEmpty ? Colors.grey : Colors.white,
                 backgroundColor: _milestones.isEmpty
                     ? Colors.grey.shade200
-                    : AppColors.secondary, // active color
+                    : AppColors.secondary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -122,7 +223,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 ),
               ),
             ),
-
           ],
         ),
         const SizedBox(height: 10),
@@ -137,7 +237,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
             itemBuilder: (context, index) {
               if (!hasToday && index == 0) {
                 return GestureDetector(
-                  onTap: () {
+                  onTap: hasActiveChallenge
+                      ? () {
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
@@ -148,25 +249,81 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                         onSave: _addMilestone,
                       ),
                     );
-                  },
+                  }
+                      : _showNoChallengeMessage, // Show message if no challenge
                   child: Container(
                     width: 120,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: hasActiveChallenge
+                          ? Colors.grey.shade100
+                          : Colors.grey.shade300, // Darker when disabled
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, size: 30, color: Colors.grey),
-                          SizedBox(height: 5),
-                          Text(
-                            "Add Image",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
+                      border: hasActiveChallenge
+                          ? null
+                          : Border.all(
+                        color: Colors.grey.shade400,
+                        style: BorderStyle.solid,
+                        width: 1,
                       ),
+                    ),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.add,
+                                size: 30,
+                                color: hasActiveChallenge
+                                    ? Colors.grey
+                                    : Colors.grey.shade500,
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                hasActiveChallenge
+                                    ? "Add Image"
+                                    : "Start Challenge",
+                                style: TextStyle(
+                                  color: hasActiveChallenge
+                                      ? Colors.grey
+                                      : Colors.grey.shade600,
+                                  fontSize: hasActiveChallenge ? 14 : 12,
+                                  fontWeight: hasActiveChallenge
+                                      ? FontWeight.normal
+                                      : FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              if (!hasActiveChallenge) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  "First",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (!hasActiveChallenge)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.lock_outline,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );
@@ -178,7 +335,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   image: DecorationImage(
-                    image: FileImage(File(milestone["file"] as String)), // 👈 load from path
+                    image: FileImage(File(milestone["file"] as String)),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -207,6 +364,35 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
             },
           ),
         ),
+
+        // Add informational text when no challenge is active
+        if (!hasActiveChallenge) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Start a challenge to begin tracking your milestone journey and progress photos!",
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

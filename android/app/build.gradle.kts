@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.capstone_project"
-    compileSdk = 36  // 👈 set explicitly
+    compileSdk = 35  // 👈 set explicitly
 
     ndkVersion = "29.0.14033849" // 👈 use your installed NDK
 
@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.capstone_project"
-        minSdk = flutter.minSdkVersion         // 👈 bump to 23 (required by Firebase)
+        minSdk = 26         // 👈 bump to 23 (required by Firebase)
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"

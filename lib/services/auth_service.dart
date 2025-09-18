@@ -15,6 +15,12 @@ class AuthService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
+  // EmailJS Configuration - ADD YOUR CREDENTIALS HERE
+  static const String _emailJSServiceId = 'service_6jpqd4o';
+  static const String _emailJSTemplateId = 'template_616umwo';
+  static const String _emailJSPublicKey = 'wNjUSJo2BpWLhEDhs';
+  static const String _emailJSApiUrl = 'https://api.emailjs.com/api/v1.0/email/send';
+
   // Get current user
   User? get currentUser => _auth.currentUser;
 
@@ -79,27 +85,21 @@ class AuthService {
   // Google Sign In
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        // User cancelled the sign-in
-        return null;
+        return null; // User cancelled sign-in
       }
 
-      // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // Create a new credential
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with the Google credential
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
 
-      // Save user data to Firestore if it's a new user
       if (userCredential.additionalUserInfo?.isNewUser == true) {
         await saveUserToFirestore(userCredential.user!.uid, {
           'email': userCredential.user!.email,
@@ -124,7 +124,6 @@ class AuthService {
         throw Exception('Apple Sign In is only available on iOS devices');
       }
 
-      // Request Apple ID credential
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -132,16 +131,13 @@ class AuthService {
         ],
       );
 
-      // Create OAuth credential
       final oauthCredential = OAuthProvider("apple.com").credential(
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
       );
 
-      // Sign in to Firebase
       final UserCredential userCredential = await _auth.signInWithCredential(oauthCredential);
 
-      // Save user data to Firestore if it's a new user
       if (userCredential.additionalUserInfo?.isNewUser == true) {
         String? displayName;
         if (appleCredential.givenName != null || appleCredential.familyName != null) {
@@ -166,18 +162,14 @@ class AuthService {
   // Facebook Sign In
   Future<UserCredential?> signInWithFacebook() async {
     try {
-      // Trigger the sign-in flow
       final LoginResult result = await FacebookAuth.instance.login();
 
       if (result.status == LoginStatus.success) {
-        // Create a credential from the access token
         final OAuthCredential facebookAuthCredential =
         FacebookAuthProvider.credential(result.accessToken!.tokenString);
 
-        // Sign in to Firebase with the Facebook credential
         final UserCredential userCredential = await _auth.signInWithCredential(facebookAuthCredential);
 
-        // Save user data to Firestore if it's a new user
         if (userCredential.additionalUserInfo?.isNewUser == true) {
           await saveUserToFirestore(userCredential.user!.uid, {
             'email': userCredential.user!.email,
@@ -191,7 +183,7 @@ class AuthService {
 
         return userCredential;
       } else if (result.status == LoginStatus.cancelled) {
-        return null; // User cancelled
+        return null;
       } else {
         throw Exception('Facebook sign-in failed: ${result.message}');
       }
@@ -203,40 +195,101 @@ class AuthService {
   // Sign out from all providers
   Future<void> signOut() async {
     try {
-      // Sign out from Firebase
       await _auth.signOut();
-
-      // Sign out from Google
       await _googleSignIn.signOut();
-
-      // Sign out from Facebook
       await FacebookAuth.instance.logOut();
-
     } catch (e) {
       throw Exception('Failed to sign out: ${e.toString()}');
     }
   }
 
-  // Generate random OTP
+  // Generate random OTP (5-digit)
   String _generateOTP() {
     Random random = Random();
     return (10000 + random.nextInt(90000)).toString();
   }
 
-  // Send OTP via Cloud Function (Recommended approach) - Fixed method
-  Future<String> sendOTPViaCloudFunction(String email) async {
+  // NEW: Send OTP via EmailJS with detailed error logging
+  Future<String> sendOTPViaEmailJS(String email, {String? userName}) async {
     try {
       String otp = _generateOTP();
 
       // Store OTP in Firestore first
       await storeTemporaryOTP(email, otp);
 
-      // Call Cloud Function to send email
+      final emailData = {
+        'service_id': _emailJSServiceId,
+        'template_id': _emailJSTemplateId,
+        'user_id': _emailJSPublicKey,
+        'template_params': {
+          'to_email': email,
+          'to_name': userName ?? email.split('@')[0],
+          'otp_code': otp,
+          'expiry_time': '10 minutes',
+        },
+      };
+
+      print('Sending email with data: ${jsonEncode(emailData)}'); // Debug log
+
+      final response = await http.post(
+        Uri.parse(_emailJSApiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(emailData),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Email sending timed out. Please try again.');
+        },
+      );
+
+      print('EmailJS Response Status: ${response.statusCode}'); // Debug log
+      print('EmailJS Response Body: ${response.body}'); // Debug log
+
+      if (response.statusCode == 200) {
+        print('OTP email sent successfully to $email');
+        return otp;
+      } else {
+        await deleteTemporaryOTP(email);
+
+        String errorMessage = 'Failed to send email. Status: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage += ' - ${errorData['message']}';
+          }
+        } catch (e) {
+          errorMessage += ' - ${response.body}';
+        }
+
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('EmailJS Error: $e'); // Debug log
+
+      try {
+        await deleteTemporaryOTP(email);
+      } catch (_) {}
+
+      if (e.toString().contains('timeout')) {
+        throw Exception('Email sending timed out. Please check your internet connection.');
+      } else if (e.toString().contains('SocketException')) {
+        throw Exception('Network error. Please check your internet connection.');
+      } else {
+        throw Exception('Failed to send OTP email: ${e.toString()}');
+      }
+    }
+  }
+
+  // Send OTP via Cloud Function (fallback)
+  Future<String> sendOTPViaCloudFunction(String email) async {
+    try {
+      String otp = _generateOTP();
+      await storeTemporaryOTP(email, otp);
+
       HttpsCallable callable = _functions.httpsCallable('sendOTPEmail');
-      final result = await callable.call({
-        'email': email,
-        'otp': otp,
-      });
+      final result = await callable.call({'email': email, 'otp': otp});
 
       if (result.data['success']) {
         return otp;
@@ -250,42 +303,7 @@ class AuthService {
     }
   }
 
-  // Alternative: Send OTP via HTTP endpoint - Fixed method
-  Future<String> sendOTPViaHTTP(String email) async {
-    try {
-      String otp = _generateOTP();
-
-      // Store OTP in Firestore first
-      await storeTemporaryOTP(email, otp);
-
-      // Replace with your actual Cloud Function URL
-      const String functionUrl = 'https://your-region-your-project.cloudfunctions.net/sendOTP';
-
-      final response = await http.post(
-        Uri.parse(functionUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'otp': otp,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success']) {
-          return otp;
-        } else {
-          throw Exception('API error: ${data['error'] ?? 'Unknown error'}');
-        }
-      } else {
-        throw Exception('HTTP error: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to send OTP: ${e.toString()}');
-    }
-  }
-
-  // Store temporary OTP in Firestore with improved error handling
+  // Store temporary OTP
   Future<void> storeTemporaryOTP(String email, String otp) async {
     try {
       await _firestore.collection('temp_otps').doc(email).set({
@@ -309,7 +327,7 @@ class AuthService {
     }
   }
 
-  // Verify OTP with improved error handling
+  // Verify OTP
   Future<bool> verifyOTP(String email, String enteredOTP) async {
     try {
       DocumentSnapshot doc = await _firestore.collection('temp_otps').doc(email).get();
@@ -322,23 +340,12 @@ class AuthService {
       String storedOTP = data['otp'];
       int expiresAt = data['expiresAt'];
 
-      // Check if OTP has expired
       if (DateTime.now().millisecondsSinceEpoch > expiresAt) {
-        // Clean up expired OTP
         await deleteTemporaryOTP(email);
         throw Exception('Verification code has expired');
       }
 
-      // Verify OTP
-      bool isValid = storedOTP == enteredOTP;
-
-      // If valid, keep the OTP for account creation, otherwise clean up
-      if (!isValid) {
-        // Don't delete immediately on failure to prevent brute force
-        // Consider implementing rate limiting here
-      }
-
-      return isValid;
+      return storedOTP == enteredOTP;
     } on FirebaseException catch (e) {
       switch (e.code) {
         case 'permission-denied':
@@ -355,39 +362,26 @@ class AuthService {
     }
   }
 
-  // Delete temporary OTP with error handling
+  // Delete temporary OTP
   Future<void> deleteTemporaryOTP(String email) async {
     try {
       await _firestore.collection('temp_otps').doc(email).delete();
-    } on FirebaseException catch (e) {
-      // Don't throw error for delete operations in cleanup
-      print('Warning: Failed to delete temporary OTP: ${e.message}');
     } catch (e) {
-      print('Warning: Failed to delete temporary OTP: ${e.toString()}');
+      print('Warning: Failed to delete temporary OTP: $e');
     }
   }
 
-  // Fixed resend OTP method
-  Future<void> resendOTP(String email) async {
+  // Resend OTP
+  Future<void> resendOTP(String email, {String? userName}) async {
     try {
-      // Generate new OTP
-      String newOTP = _generateOTP();
-
-      // Store new OTP (this will overwrite the old one)
-      await storeTemporaryOTP(email, newOTP);
-
-      // In production, implement actual email sending here
-      // For now, just simulate the process
-      print('New OTP for $email: $newOTP'); // Remove in production
-
-      // If you have Cloud Functions set up, use this instead:
-      // await sendOTPViaCloudFunction(email);
+      await sendOTPViaEmailJS(email, userName: userName);
+      print('OTP resent successfully to $email');
     } catch (e) {
       throw Exception('Failed to resend OTP: ${e.toString()}');
     }
   }
 
-  // Save user data to Firestore with improved error handling
+  // Save user data
   Future<void> saveUserToFirestore(String uid, Map<String, dynamic> userData) async {
     try {
       await _firestore.collection('users').doc(uid).set(userData, SetOptions(merge: true));
@@ -407,7 +401,7 @@ class AuthService {
     }
   }
 
-  // Get user data from Firestore
+  // Get user data
   Future<Map<String, dynamic>?> getUserFromFirestore(String uid) async {
     try {
       DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
@@ -415,46 +409,31 @@ class AuthService {
         return doc.data() as Map<String, dynamic>;
       }
       return null;
-    } on FirebaseException catch (e) {
-      throw Exception('Failed to get user data: ${e.message}');
     } catch (e) {
       throw Exception('Failed to get user data: ${e.toString()}');
     }
   }
 
-  // Update user data in Firestore
+  // Update user data
   Future<void> updateUserInFirestore(String uid, Map<String, dynamic> updates) async {
     try {
       await _firestore.collection('users').doc(uid).update(updates);
-    } on FirebaseException catch (e) {
-      throw Exception('Failed to update user data: ${e.message}');
     } catch (e) {
       throw Exception('Failed to update user data: ${e.toString()}');
     }
   }
 
-  // Check if email exists in Firebase Auth with improved error handling
+  // Check if email is registered
   Future<bool> isEmailRegistered(String email) async {
     try {
       List<String> signInMethods = await _auth.fetchSignInMethodsForEmail(email);
       return signInMethods.isNotEmpty;
-    } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'invalid-email':
-          throw Exception('The email address is not valid.');
-        case 'network-request-failed':
-          throw Exception('Network error. Please check your internet connection.');
-        default:
-        // For other errors, assume email is not registered
-          return false;
-      }
-    } catch (e) {
-      // For unknown errors, assume email is not registered
+    } catch (_) {
       return false;
     }
   }
 
-  // Clean up expired OTPs (call this periodically or on app start)
+  // Cleanup expired OTPs
   Future<void> cleanupExpiredOTPs() async {
     try {
       QuerySnapshot query = await _firestore
@@ -476,33 +455,21 @@ class AuthService {
     }
   }
 
-  // Reset password with improved error handling
+  // Reset password
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'invalid-email':
-          throw Exception('The email address is not valid.');
-        case 'user-not-found':
-          throw Exception('No user found for this email address.');
-        case 'network-request-failed':
-          throw Exception('Network error. Please check your internet connection.');
-        default:
-          throw Exception('Failed to send reset email: ${e.message}');
-      }
     } catch (e) {
       throw Exception('Failed to send reset email: ${e.toString()}');
     }
   }
 
-  // Helper method to check network connectivity (you may want to implement this)
+  // Simple connectivity check
   Future<bool> hasNetworkConnection() async {
     try {
-      // Simple connectivity check - you might want to use a connectivity package
       await _firestore.doc('test/connection').get();
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }

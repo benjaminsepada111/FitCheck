@@ -4,7 +4,6 @@ import 'package:capstone_project/LoginPages/login_page.dart';
 import 'signupverification_page.dart';
 import '../color/colors.dart';
 import '../services/auth_service.dart';
-import 'dart:math';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -45,49 +44,38 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  // Generate random 5-digit OTP
-  String _generateOTP() {
-    Random random = Random();
-    return (10000 + random.nextInt(90000)).toString();
+  // Show success dialog
+  void _showSuccessDialog(String email) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Email Sent!'),
+        content: Text(
+          'A 5-digit verification code has been sent to $email. Please check your email and enter the code.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to verification page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VerificationPage(
+                    email: email,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
   }
 
-  // Send OTP to email with proper timeout and error handling
-  Future<String> _sendOTPToEmail(String email) async {
-    try {
-      // Generate OTP
-      String otp = _generateOTP();
-
-      // Store OTP in Firestore with timeout
-      await _authService.storeTemporaryOTP(email, otp).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Request timed out. Please check your internet connection.');
-        },
-      );
-
-      // For now, we'll simulate sending the email
-      // In production, you should implement actual email sending via:
-      // - Firebase Cloud Functions
-      // - Your own backend API
-      // - Third-party email service
-
-      await Future.delayed(const Duration(milliseconds: 500)); // Simulate API call
-
-      print('OTP sent to $email: $otp'); // For testing - remove in production
-
-      return otp;
-    } catch (e) {
-      // Clean up if storing OTP failed
-      try {
-        await _authService.deleteTemporaryOTP(email);
-      } catch (_) {
-        // Ignore cleanup errors
-      }
-      rethrow;
-    }
-  }
-
-  // Send OTP and navigate to verification
+  // Send OTP via EmailJS and navigate to verification
   Future<void> _sendOTPAndNavigate() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -116,19 +104,13 @@ class _SignUpPageState extends State<SignUpPage> {
         return;
       }
 
-      // Send OTP to email
-      await _sendOTPToEmail(email);
+      // Send OTP via EmailJS
+      String userName = email.split('@')[0]; // Use email prefix as name
+      await _authService.sendOTPViaEmailJS(email, userName: userName);
 
-      // Navigate to verification page
+      // Show success dialog and navigate
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VerificationPage(
-              email: email,
-            ),
-          ),
-        );
+        _showSuccessDialog(email);
       }
     } catch (e) {
       if (mounted) {
@@ -140,6 +122,10 @@ class _SignUpPageState extends State<SignUpPage> {
           errorMessage = 'Permission denied. Please try again.';
         } else if (e.toString().contains('unavailable')) {
           errorMessage = 'Service temporarily unavailable. Please try again later.';
+        } else if (e.toString().contains('Failed to send email')) {
+          errorMessage = 'Failed to send verification email. Please check your email address and try again.';
+        } else if (e.toString().contains('Email sending timed out')) {
+          errorMessage = 'Email sending timed out. Please check your internet connection and try again.';
         }
 
         _showErrorDialog(errorMessage);

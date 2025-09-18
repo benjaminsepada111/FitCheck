@@ -4,7 +4,6 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:capstone_project/color/colors.dart';
 import '../services/auth_service.dart';
 import 'dart:async';
-import 'dart:math';
 
 class VerificationPage extends StatefulWidget {
   final String email;
@@ -135,6 +134,7 @@ class _VerificationPageState extends State<VerificationPage> {
         _showErrorDialog('Invalid verification code. Please try again.');
         setState(() {
           _isLoading = false;
+          code = ""; // Clear the code on failure
         });
       }
     } catch (e) {
@@ -152,6 +152,7 @@ class _VerificationPageState extends State<VerificationPage> {
         _showErrorDialog(errorMessage);
         setState(() {
           _isLoading = false;
+          code = ""; // Clear the code on error
         });
       }
     }
@@ -227,12 +228,7 @@ class _VerificationPageState extends State<VerificationPage> {
     }
   }
 
-  // Generate new OTP for resend
-  String _generateOTP() {
-    Random random = Random();
-    return (10000 + random.nextInt(90000)).toString();
-  }
-
+  // Resend OTP using EmailJS
   Future<void> _resendOTP() async {
     if (resendSeconds > 0) return;
 
@@ -242,27 +238,18 @@ class _VerificationPageState extends State<VerificationPage> {
     });
 
     try {
-      // Generate new OTP
-      String newOTP = _generateOTP();
-
-      // Store new OTP in Firestore with timeout
-      await _authService.storeTemporaryOTP(widget.email, newOTP).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Request timed out. Please try again.');
-        },
-      );
-
-      // In production, send the actual email here
-      print('New OTP sent to ${widget.email}: $newOTP'); // For testing
+      // Resend OTP via EmailJS
+      String userName = widget.email.split('@')[0]; // Use email prefix as name
+      await _authService.resendOTP(widget.email, userName: userName);
 
       if (mounted) {
         _startResendTimer();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Verification code sent successfully!'),
+            content: Text('Verification code sent successfully! Please check your email.'),
             backgroundColor: AppColors.secondary,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -272,6 +259,8 @@ class _VerificationPageState extends State<VerificationPage> {
 
         if (e.toString().contains('timeout') || e.toString().contains('network')) {
           errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+        } else if (e.toString().contains('Failed to send email')) {
+          errorMessage = 'Failed to send verification email. Please try again.';
         }
 
         _showErrorDialog(errorMessage);
@@ -325,7 +314,7 @@ class _VerificationPageState extends State<VerificationPage> {
                 Text(
                   _isCodeVerified
                       ? "Create a secure password for your account"
-                      : "We have sent a code to your email\n${widget.email}",
+                      : "We have sent a 5-digit code to your email\n${widget.email}",
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white70,
@@ -399,7 +388,7 @@ class _VerificationPageState extends State<VerificationPage> {
         ),
         const SizedBox(height: 8),
 
-        // Pin code fields
+        // Pin code fields (5 digits)
         PinCodeTextField(
           length: 5,
           appContext: context,
@@ -476,7 +465,34 @@ class _VerificationPageState extends State<VerificationPage> {
           ),
         ),
 
-        const SizedBox(height: 50),
+        const SizedBox(height: 20),
+
+        // Email hint
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Check your email inbox and spam folder for the verification code.",
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 30),
       ],
     );
   }

@@ -209,7 +209,7 @@ class AuthService {
     return (10000 + random.nextInt(90000)).toString();
   }
 
-  // NEW: Send OTP via EmailJS with detailed error logging
+  // MAIN OTP FUNCTION: Send OTP via EmailJS with complete lifecycle
   Future<String> sendOTPViaEmailJS(String email, {String? userName}) async {
     try {
       String otp = _generateOTP();
@@ -224,7 +224,7 @@ class AuthService {
         'template_params': {
           'to_email': email,
           'to_name': userName ?? email.split('@')[0],
-          'otp_code': otp,
+          'otp_code': otp, // THIS IS CRUCIAL - the OTP must be included
           'expiry_time': '10 minutes',
         },
       };
@@ -248,9 +248,10 @@ class AuthService {
       print('EmailJS Response Body: ${response.body}'); // Debug log
 
       if (response.statusCode == 200) {
-        print('OTP email sent successfully to $email');
+        print('✅ OTP email sent successfully to $email with OTP: $otp');
         return otp;
       } else {
+        // Clean up if email sending failed
         await deleteTemporaryOTP(email);
 
         String errorMessage = 'Failed to send email. Status: ${response.statusCode}';
@@ -266,8 +267,9 @@ class AuthService {
         throw Exception(errorMessage);
       }
     } catch (e) {
-      print('EmailJS Error: $e'); // Debug log
+      print('❌ EmailJS Error: $e'); // Debug log
 
+      // Clean up if anything failed
       try {
         await deleteTemporaryOTP(email);
       } catch (_) {}
@@ -282,35 +284,19 @@ class AuthService {
     }
   }
 
-  // Send OTP via Cloud Function (fallback)
-  Future<String> sendOTPViaCloudFunction(String email) async {
-    try {
-      String otp = _generateOTP();
-      await storeTemporaryOTP(email, otp);
-
-      HttpsCallable callable = _functions.httpsCallable('sendOTPEmail');
-      final result = await callable.call({'email': email, 'otp': otp});
-
-      if (result.data['success']) {
-        return otp;
-      } else {
-        throw Exception('Failed to send email: ${result.data['error'] ?? 'Unknown error'}');
-      }
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception('Cloud function error: ${e.message}');
-    } catch (e) {
-      throw Exception('Failed to send OTP: ${e.toString()}');
-    }
-  }
-
-  // Store temporary OTP
+  // Store temporary OTP with proper expiry
   Future<void> storeTemporaryOTP(String email, String otp) async {
     try {
+      final expiryTime = DateTime.now().add(const Duration(minutes: 10));
+
       await _firestore.collection('temp_otps').doc(email).set({
         'otp': otp,
         'createdAt': FieldValue.serverTimestamp(),
-        'expiresAt': DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch,
+        'expiresAt': expiryTime.millisecondsSinceEpoch,
+        'email': email, // Store email for reference
       });
+
+      print('✅ OTP stored in Firestore for $email, expires at ${expiryTime.toIso8601String()}');
     } on FirebaseException catch (e) {
       switch (e.code) {
         case 'permission-denied':
@@ -327,7 +313,7 @@ class AuthService {
     }
   }
 
-  // Verify OTP
+  // Verify OTP with automatic cleanup and expiry check
   Future<bool> verifyOTP(String email, String enteredOTP) async {
     try {
       DocumentSnapshot doc = await _firestore.collection('temp_otps').doc(email).get();
@@ -340,12 +326,23 @@ class AuthService {
       String storedOTP = data['otp'];
       int expiresAt = data['expiresAt'];
 
+      // Check if OTP has expired
       if (DateTime.now().millisecondsSinceEpoch > expiresAt) {
+        // Clean up expired OTP immediately
         await deleteTemporaryOTP(email);
         throw Exception('Verification code has expired');
       }
 
-      return storedOTP == enteredOTP;
+      // Verify OTP
+      bool isValid = storedOTP == enteredOTP;
+
+      if (isValid) {
+        // IMPORTANT: Delete OTP immediately after successful verification
+        await deleteTemporaryOTP(email);
+        print('✅ OTP verified and deleted for $email');
+      }
+
+      return isValid;
     } on FirebaseException catch (e) {
       switch (e.code) {
         case 'permission-denied':
@@ -362,22 +359,53 @@ class AuthService {
     }
   }
 
-  // Delete temporary OTP
+  // Delete temporary OTP (cleanup function)
   Future<void> deleteTemporaryOTP(String email) async {
     try {
       await _firestore.collection('temp_otps').doc(email).delete();
+      print('🗑️ Temporary OTP deleted for $email');
     } catch (e) {
-      print('Warning: Failed to delete temporary OTP: $e');
+      print('Warning: Failed to delete temporary OTP for $email: $e');
+      // Don't throw error for cleanup operations
     }
   }
 
-  // Resend OTP
+  // Resend OTP - invalidates old OTP and sends new one
   Future<void> resendOTP(String email, {String? userName}) async {
     try {
+      // First, delete any existing OTP
+      await deleteTemporaryOTP(email);
+      print('🔄 Resending OTP: Old OTP deleted for $email');
+
+      // Send new OTP via EmailJS
       await sendOTPViaEmailJS(email, userName: userName);
-      print('OTP resent successfully to $email');
+      print('✅ New OTP sent successfully to $email');
     } catch (e) {
       throw Exception('Failed to resend OTP: ${e.toString()}');
+    }
+  }
+
+  // Send OTP via Cloud Function (fallback method)
+  Future<String> sendOTPViaCloudFunction(String email) async {
+    try {
+      String otp = _generateOTP();
+      await storeTemporaryOTP(email, otp);
+
+      HttpsCallable callable = _functions.httpsCallable('sendOTPEmail');
+      final result = await callable.call({'email': email, 'otp': otp});
+
+      if (result.data['success']) {
+        return otp;
+      } else {
+        await deleteTemporaryOTP(email);
+        throw Exception('Failed to send email: ${result.data['error'] ?? 'Unknown error'}');
+      }
+    } on FirebaseFunctionsException catch (e) {
+      await deleteTemporaryOTP(email);
+      throw Exception('Cloud function error: ${e.message}');
+    } catch (e) {
+      await deleteTemporaryOTP(email);
+      throw Exception('Failed to send OTP: ${e.toString()}');
     }
   }
 
@@ -433,7 +461,7 @@ class AuthService {
     }
   }
 
-  // Cleanup expired OTPs
+  // Cleanup expired OTPs (maintenance function)
   Future<void> cleanupExpiredOTPs() async {
     try {
       QuerySnapshot query = await _firestore
@@ -449,7 +477,7 @@ class AuthService {
       }
       await batch.commit();
 
-      print('Cleaned up ${query.docs.length} expired OTPs');
+      print('🧹 Cleaned up ${query.docs.length} expired OTPs');
     } catch (e) {
       print('Failed to cleanup expired OTPs: ${e.toString()}');
     }

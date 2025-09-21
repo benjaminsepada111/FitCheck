@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/services/user_data_service.dart';
 
-class Slide4 extends StatefulWidget {
-  const Slide4({super.key});
+class Birthdate extends StatefulWidget {
+  const Birthdate({super.key});
 
   @override
-  State<Slide4> createState() => _Slide4State();
+  State<Birthdate> createState() => _BirthdateState();
 }
 
-class _Slide4State extends State<Slide4> {
+class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
   int selectedMonth = 1;
   int selectedDay = 1;
   int selectedYear = 2000;
@@ -17,63 +18,250 @@ class _Slide4State extends State<Slide4> {
   final List<int> days = List.generate(31, (i) => i + 1);
   final List<int> years = List.generate(100, (i) => 2023 - i);
 
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  final List<String> monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _fadeController.forward();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _slideController.forward();
+    });
+
+    _loadSavedDate();
+  }
+
+  Future<void> _loadSavedDate() async {
+    final userData = await UserDataService.loadUserData();
+    if (userData?.birthDate != null) {
+      setState(() {
+        selectedYear = userData!.birthDate!.year;
+        selectedMonth = userData.birthDate!.month;
+        selectedDay = userData.birthDate!.day;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveBirthdate() async {
+    try {
+      final birthDate = DateTime(selectedYear, selectedMonth, selectedDay);
+      await UserDataService.updateUserData(birthDate: birthDate);
+      print('Birthdate saved: $birthDate');
+    } catch (e) {
+      print('Error saving birthdate: $e');
+    }
+  }
+
+  int get calculatedAge {
+    final now = DateTime.now();
+    final birthDate = DateTime(selectedYear, selectedMonth, selectedDay);
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month ||
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          "Birthdate",
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          "Enter your date of birth.",
-          style: TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-        const SizedBox(height: 30),
-
-        // 📌 Pickers Row
-        Row(
+    return Container(
+      width: double.infinity,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Month Picker
-            buildPicker(
-              label: "Month",
-              values: months,
-              selectedValue: selectedMonth,
-              onSelected: (val) => setState(() => selectedMonth = val),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
+              child: Column(
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                    ).createShader(bounds),
+                    child: const Text(
+                      "Birthday",
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    "Enter your date of birth",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.secondary.shade600,
+                      fontWeight: FontWeight.w400,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 20),
 
-            // Day Picker
-            buildPicker(
-              label: "Day",
-              values: days,
-              selectedValue: selectedDay,
-              onSelected: (val) => setState(() => selectedDay = val),
+            const SizedBox(height: 20),
+
+            SlideTransition(
+              position: _slideAnimation,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.cake_outlined,
+                      color: AppColors.secondary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Age: $calculatedAge years",
+                      style: TextStyle(
+                        color: AppColors.secondary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(width: 20),
 
-            // Year Picker
-            buildPicker(
-              label: "Year",
-              values: years,
-              selectedValue: selectedYear,
-              onSelected: (val) => setState(() => selectedYear = val),
+            const SizedBox(height: 40),
+
+            SlideTransition(
+              position: _slideAnimation,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Month Picker - CORRECT
+                    buildPicker(
+                      label: "Month",
+                      values: months,
+                      selectedValue: selectedMonth,
+                      onSelected: (val) {
+                        setState(() => selectedMonth = val);
+                        _saveBirthdate();
+                      },
+                      displayValue: (val) => monthNames[val - 1],
+                    ),
+
+                    // Day Picker - FIXED: was setting selectedMonth
+                    buildPicker(
+                      label: "Day",
+                      values: days,
+                      selectedValue: selectedDay,
+                      onSelected: (val) {
+                        setState(() => selectedDay = val);
+                        _saveBirthdate();
+                      },
+                      displayValue: (val) => val.toString().padLeft(2, '0'),
+                    ),
+
+                    // Year Picker - FIXED: was setting selectedMonth
+                    buildPicker(
+                      label: "Year",
+                      values: years,
+                      selectedValue: selectedYear,
+                      onSelected: (val) {
+                        setState(() => selectedYear = val);
+                        _saveBirthdate();
+                      },
+                      displayValue: (val) => val.toString(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            SlideTransition(
+              position: _slideAnimation,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.secondary.shade200,
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  "${monthNames[selectedMonth - 1]} ${selectedDay.toString().padLeft(2, '0')}, $selectedYear",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
+                    letterSpacing: 0.3,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 
-  // 🔧 Reusable Picker Widget
   Widget buildPicker({
     required String label,
     required List<int> values,
     required int selectedValue,
     required ValueChanged<int> onSelected,
+    required String Function(int) displayValue,
   }) {
     final controller = FixedExtentScrollController(
       initialItem: values.indexOf(selectedValue),
@@ -83,39 +271,85 @@ class _Slide4State extends State<Slide4> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: Colors.black),
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
+
         Container(
-          width: 90,
+          width: 85,
           height: 150,
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.secondary, width: 3),
             borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListWheelScrollView.useDelegate(
-            controller: controller,
-            itemExtent: 40,
-            perspective: 0.005,
-            diameterRatio: 1.5,
-            physics: const FixedExtentScrollPhysics(),
-            onSelectedItemChanged: (index) => onSelected(values[index]),
-            childDelegate: ListWheelChildBuilderDelegate(
-              builder: (context, index) {
-                final isSelected = values[index] == selectedValue;
-                return Center(
-                  child: Text(
-                    values[index].toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.black : Colors.grey,
-                    ),
-                  ),
-                );
-              },
-              childCount: values.length,
+            border: Border.all(
+              color: AppColors.secondary.withOpacity(0.3),
+              width: 1.5,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 55,
+                left: 4,
+                right: 4,
+                height: 40,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: ListWheelScrollView.useDelegate(
+                  controller: controller,
+                  itemExtent: 40,
+                  perspective: 0.002,
+                  diameterRatio: 2.0,
+                  physics: const FixedExtentScrollPhysics(),
+                  onSelectedItemChanged: (index) {
+                    onSelected(values[index]);
+                  },
+                  childDelegate: ListWheelChildBuilderDelegate(
+                    builder: (context, index) {
+                      final isSelected = values[index] == selectedValue;
+
+                      return Container(
+                        alignment: Alignment.center,
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 150),
+                          style: TextStyle(
+                            fontSize: isSelected ? 18 : 16,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected
+                                ? AppColors.secondary
+                                : AppColors.secondary.shade500,
+                            letterSpacing: 0.2,
+                          ),
+                          child: Text(
+                            displayValue(values[index]),
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: values.length,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

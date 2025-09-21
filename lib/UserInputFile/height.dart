@@ -2,6 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/services/user_data_service.dart';
+
+Future<void> _saveHeight(int height) async {
+  try {
+    await UserDataService.updateUserData(height: height);
+    print('Height saved: $height cm');
+  } catch (e) {
+    print('Error saving height: $e');
+  }
+}
+// Global constants for height range
+const int kMinHeight = 100;
+const int kMaxHeight = 320;
 
 class HeightSelectorPage extends StatefulWidget {
   const HeightSelectorPage({super.key});
@@ -10,13 +23,47 @@ class HeightSelectorPage extends StatefulWidget {
   State<HeightSelectorPage> createState() => _HeightSelectorPageState();
 }
 
-class _HeightSelectorPageState extends State<HeightSelectorPage> {
+class _HeightSelectorPageState extends State<HeightSelectorPage>
+    with TickerProviderStateMixin {
   int selectedHeight = 165;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.03,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   void _onHeightChanged(int newHeight) {
-    setState(() {
-      selectedHeight = newHeight;
-    });
+    if (selectedHeight != newHeight) {
+      setState(() {
+        selectedHeight = newHeight;
+      });
+
+      _pulseController.forward().then((_) {
+        _pulseController.reverse();
+      });
+
+      // Save the height
+      _saveHeight(newHeight);
+    }
   }
 
   @override
@@ -25,58 +72,72 @@ class _HeightSelectorPageState extends State<HeightSelectorPage> {
       body: SafeArea(
         child: Column(
           children: [
-
-            const Text(
-              "Height",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+            const SizedBox(height: 30),
+            ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                colors: [AppColors.primary, AppColors.secondary],
+              ).createShader(bounds),
+              child: const Text(
+                "Height",
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              "Enter your height in cm.",
+
+            Text(
+              "Enter your height in CM",
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
+                fontSize: 16,
+                color: AppColors.secondary.shade600,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
               ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+
+            // Selected height with minimal animation
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: Column(
+                    children: [
+                      Text(
+                        selectedHeight.toString(),
+                        style: TextStyle(
+                          fontSize: 52,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                      Text(
+                        "cm",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppColors.secondary.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 20),
-            // Selected height
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  selectedHeight.toString(),
-                  style: const TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  "cm",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 30),
-
-            // Number slider + vertical ruler with compressed spacing
+            // Number slider + vertical ruler with synchronized scrolling
             Expanded(
               child: Row(
                 children: [
-                  // Add left margin to compress number slider
                   const SizedBox(width: 16),
 
-                  // Number slider - reduced flex to compress it
+                  // Number slider
                   Expanded(
                     flex: 3,
                     child: HeightNumberSlider(
@@ -85,73 +146,30 @@ class _HeightSelectorPageState extends State<HeightSelectorPage> {
                     ),
                   ),
 
-                  // Minimal spacing before arrow
                   const SizedBox(width: 8),
 
-                  // Arrow indicator - moved closer to slider
+                  // Arrow indicator
                   Transform.rotate(
                     angle: -90 * 3.1415926535 / 180,
                     child: SvgPicture.asset(
                       "assets/icons/weight_arrow.svg",
-                      width: 20, // Made even smaller
+                      width: 20,
                       color: AppColors.secondary[700],
                     ),
                   ),
 
-                  // Very minimal spacing between arrow and ruler
                   const SizedBox(width: 2),
 
-                  // Vertical ruler - positioned more to the left
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: Container(
-                      width: 90, // Made narrower
-                      decoration: BoxDecoration(
-
-                        border: Border.all(color: AppColors.secondary[700]!, width: 2),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4), // Further reduced horizontal padding
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            ListView.builder(
-                              scrollDirection: Axis.vertical,
-                              itemCount: 200,
-                              itemBuilder: (context, index) {
-                                bool isMajorTick = index % 10 == 0;
-                                bool isHalfTick = index % 5 == 0;
-
-                                double lineWidth = isMajorTick
-                                    ? 40 // Further reduced
-                                    : isHalfTick
-                                    ? 28 // Further reduced
-                                    : 16; // Further reduced
-
-                                return Container(
-                                  height: 12,
-                                  alignment: Alignment.center,
-                                  child: Container(
-                                    height: 2,
-                                    width: lineWidth,
-                                    color: Colors.black54,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  // Vertical ruler
+                  HeightRuler(
+                    selectedHeight: selectedHeight,
+                    onHeightChanged: _onHeightChanged,
                   ),
 
-                  // Larger right margin to balance the layout
                   const SizedBox(width: 50),
                 ],
               ),
             ),
-
-
           ],
         ),
       ),
@@ -159,6 +177,7 @@ class _HeightSelectorPageState extends State<HeightSelectorPage> {
   }
 }
 
+// -------------------- Height Number Slider --------------------
 class HeightNumberSlider extends StatefulWidget {
   final int selectedHeight;
   final ValueChanged<int> onHeightChanged;
@@ -175,16 +194,41 @@ class HeightNumberSlider extends StatefulWidget {
 
 class _HeightNumberSliderState extends State<HeightNumberSlider> {
   late FixedExtentScrollController _scrollController;
-
-  final int minHeight = 100;
-  final int maxHeight = 220;
+  bool _isUpdating = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController = FixedExtentScrollController(
-      initialItem: widget.selectedHeight - minHeight,
+      initialItem: widget.selectedHeight - kMinHeight,
     );
+  }
+
+  @override
+  void didUpdateWidget(HeightNumberSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedHeight != widget.selectedHeight && !_isUpdating) {
+      int targetIndex = widget.selectedHeight - kMinHeight;
+      if (targetIndex >= 0 && targetIndex <= (kMaxHeight - kMinHeight)) {
+        _scrollController.animateToItem(
+          targetIndex,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+  }
+
+  void _onSelectedItemChanged(int index) {
+    if (!mounted) return;
+
+    _isUpdating = true;
+    int newHeight = kMinHeight + index;
+    widget.onHeightChanged(newHeight);
+    HapticFeedback.lightImpact();
+
+    // Immediate reset - no delay
+    _isUpdating = false;
   }
 
   @override
@@ -198,15 +242,17 @@ class _HeightNumberSliderState extends State<HeightNumberSlider> {
     return ListWheelScrollView.useDelegate(
       controller: _scrollController,
       itemExtent: 50,
-      physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: (index) {
-        int newHeight = minHeight + index;
-        widget.onHeightChanged(newHeight);
-        HapticFeedback.selectionClick();
-      },
+      physics: const FixedExtentScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      perspective: 0.003,
+      diameterRatio: 2.0,
+      squeeze: 1.1,
+      onSelectedItemChanged: _onSelectedItemChanged,
       childDelegate: ListWheelChildBuilderDelegate(
+        childCount: kMaxHeight - kMinHeight + 1,
         builder: (context, index) {
-          int height = minHeight + index;
+          int height = kMinHeight + index;
           bool isSelected = height == widget.selectedHeight;
 
           return Center(
@@ -219,16 +265,18 @@ class _HeightNumberSliderState extends State<HeightNumberSlider> {
                   style: TextStyle(
                     fontSize: isSelected ? 36 : 22,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? Colors.black : Colors.grey,
+                    color: isSelected
+                        ? AppColors.secondary
+                        : AppColors.secondary.withOpacity(0.4),
                   ),
                 ),
                 if (isSelected) ...[
                   const SizedBox(width: 4),
-                  const Text(
+                  Text(
                     "cm",
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.black54,
+                      color: AppColors.secondary.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -236,8 +284,129 @@ class _HeightNumberSliderState extends State<HeightNumberSlider> {
             ),
           );
         },
-        childCount: maxHeight - minHeight + 1,
       ),
     );
+  }
+}
+
+// -------------------- Height Ruler --------------------
+class HeightRuler extends StatefulWidget {
+  final int selectedHeight;
+  final ValueChanged<int> onHeightChanged;
+
+  const HeightRuler({
+    super.key,
+    required this.selectedHeight,
+    required this.onHeightChanged,
+  });
+
+  @override
+  State<HeightRuler> createState() => _HeightRulerState();
+}
+
+class _HeightRulerState extends State<HeightRuler> {
+  late ScrollController _rulerController;
+  bool _isUpdating = false;
+  final double rulerItemHeight = 12.0;
+
+  @override
+  void initState() {
+    super.initState();
+    double initialOffset =
+        (widget.selectedHeight - kMinHeight) * rulerItemHeight;
+    _rulerController = ScrollController(initialScrollOffset: initialOffset);
+    _rulerController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_isUpdating || !mounted) return;
+
+    int index = (_rulerController.offset / rulerItemHeight).round();
+    int newHeight = (kMinHeight + index).clamp(kMinHeight, kMaxHeight);
+
+    if (newHeight != widget.selectedHeight) {
+      _isUpdating = true;
+      widget.onHeightChanged(newHeight);
+      HapticFeedback.lightImpact();
+
+      // Immediate reset - no delay
+      _isUpdating = false;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HeightRuler oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedHeight != widget.selectedHeight && !_isUpdating) {
+      double targetOffset =
+          (widget.selectedHeight - kMinHeight) * rulerItemHeight;
+      _rulerController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 90,
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withOpacity(0.05),
+        border: Border.all(
+          color: AppColors.secondary.withOpacity(0.3),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: ListView.builder(
+          controller: _rulerController,
+          physics: const BouncingScrollPhysics(),
+          itemCount: kMaxHeight - kMinHeight + 1,
+          itemBuilder: (context, index) {
+            int currentHeight = kMinHeight + index;
+            bool isMajor = index % 10 == 0;
+            bool isHalf = index % 5 == 0;
+            bool isSelected = currentHeight == widget.selectedHeight;
+
+            double lineWidth = isMajor ? 40 : isHalf ? 28 : 16;
+
+            return Container(
+              height: rulerItemHeight,
+              alignment: Alignment.center,
+              child: Container(
+                height: isSelected ? 3 : 2,
+                width: isSelected ? lineWidth + 5 : lineWidth,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.secondary
+                      : AppColors.secondary.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(1),
+                  boxShadow: isSelected
+                      ? [
+                    BoxShadow(
+                      color: AppColors.secondary.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _rulerController.removeListener(_onScroll);
+    _rulerController.dispose();
+    super.dispose();
   }
 }

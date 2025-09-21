@@ -8,6 +8,9 @@ import 'height.dart';
 import '../LoginPages/login_page.dart';
 import '../color/colors.dart';
 import 'package:capstone_project/main_page.dart';
+import 'goal_page.dart';
+import 'activity_level.dart';
+import 'privacy_consent.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,11 +27,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   late Animation<double> _buttonScaleAnimation;
 
   final List<Widget> slides = const [
+    PrivacyConsentPage(),
     GenderSelection(),
-    Slide4(),
+    Birthdate(),
     WeightSelectorPage(),
     HeightSelectorPage(),
-    Slide1(),
+    ActivityLevelPage(),
+    GoalPage(),
+    Profile(),
   ];
 
   @override
@@ -142,16 +148,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             children: [
+              // ⬅️ NEW Back Button Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  if (currentIndex > 0) // hide on first page
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, size: 28),
+                      color: AppColors.secondary,
+                      onPressed: _isAnimating ? null : _navigateBack,
+                    ),
+                ],
+              ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
               // 📄 PageView with slides
               Expanded(
@@ -159,7 +177,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                   controller: _controller,
                   physics: const NeverScrollableScrollPhysics(), // Disables swipe
                   onPageChanged: (index) {
-                    // This ensures the indicator updates when page changes
                     if (mounted) {
                       setState(() => currentIndex = index);
                     }
@@ -197,7 +214,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                           backgroundColor: _isAnimating
                               ? AppColors.secondary.withOpacity(0.8)
                               : AppColors.secondary,
-                          minimumSize: const Size(double.infinity, 55), // Slightly taller
+                          minimumSize: const Size(double.infinity, 55),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

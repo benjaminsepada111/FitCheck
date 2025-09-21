@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/services/user_data_service.dart';
+import 'package:capstone_project/services/calorie_calculator.dart';
+import 'package:capstone_project/models/user_data.dart';
 
 class CreateChallengeSheet extends StatefulWidget {
   final dynamic Function(Challenge) onChallengeCreated;
@@ -18,13 +21,98 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
-  final TextEditingController _calorieController = TextEditingController(text: '2000');
-  final TextEditingController _waterController = TextEditingController(text: '8');
+  final TextEditingController _calorieController = TextEditingController();
+  final TextEditingController _waterController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isCreating = false;
+  bool _isLoadingCalculations = true;
+  bool _hasValidUserData = false;
+  bool _useCustomGoals = false;
+
+  // Calculated values
+  int _calculatedCalorieGoal = 0;
+  int _calculatedWaterGoal = 0;
+  Map<String, dynamic>? _calorieBreakdown;
+  UserData? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserDataAndCalculateGoals();
+  }
+
+  Future<void> _loadUserDataAndCalculateGoals() async {
+    setState(() => _isLoadingCalculations = true);
+
+    try {
+      // Load user data
+      _userData = await UserDataService.loadUserData();
+      print('Loaded user data: $_userData'); // Debug print
+
+      if (_userData != null) {
+        print('User data exists:');
+        print('  Gender: ${_userData!.gender}');
+        print('  Age: ${_userData!.age}');
+        print('  Weight: ${_userData!.weight}');
+        print('  Height: ${_userData!.height}');
+        print('  Activity Level: ${_userData!.activityLevel}');
+        print('  Goal: ${_userData!.goal}');
+
+        // Check if we have all required data for calorie calculation
+        bool hasValidData = _userData!.gender != null &&
+            _userData!.age != null &&
+            _userData!.weight != null &&
+            _userData!.height != null &&
+            _userData!.activityLevel != null &&
+            _userData!.goal != null;
+
+        print('Has valid data for calculation: $hasValidData'); // Debug print
+
+        if (hasValidData && CalorieCalculator.isValidUserData(_userData!)) {
+          // Calculate personalized goals
+          _calculatedCalorieGoal = CalorieCalculator.calculateDailyCalorieGoal(_userData!);
+          _calculatedWaterGoal = CalorieCalculator.calculateDailyWaterGoal(_userData!);
+          _calorieBreakdown = CalorieCalculator.getCalorieBreakdown(_userData!);
+          _hasValidUserData = true;
+
+          print('Calculated calorie goal: $_calculatedCalorieGoal'); // Debug print
+          print('Calculated water goal: $_calculatedWaterGoal'); // Debug print
+        } else {
+          // Use default values
+          _calculatedCalorieGoal = 2000;
+          _calculatedWaterGoal = 8;
+          _hasValidUserData = false;
+          print('Using default values - insufficient user data'); // Debug print
+        }
+      } else {
+        // No user data found - use defaults
+        _calculatedCalorieGoal = 2000;
+        _calculatedWaterGoal = 8;
+        _hasValidUserData = false;
+        print('No user data found - using defaults'); // Debug print
+      }
+
+      // Set the text controllers with calculated values
+      _calorieController.text = _calculatedCalorieGoal.toString();
+      _waterController.text = _calculatedWaterGoal.toString();
+
+    } catch (e) {
+      print('Error loading user data: $e'); // Debug print
+      // Handle error - use defaults
+      _calculatedCalorieGoal = 2000;
+      _calculatedWaterGoal = 8;
+      _hasValidUserData = false;
+      _calorieController.text = '2000';
+      _waterController.text = '8';
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCalculations = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -43,6 +131,19 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(2025, 12),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.secondary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       setState(() {
@@ -100,6 +201,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -109,6 +212,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -135,14 +240,18 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         dailyCalorieGoal: calorieGoal,
         dailyWaterGoal: waterGoal,
         notes: _notesController.text.trim(),
-        createdAt: DateTime.now(),
       );
 
       // Simulate API call or database save
       await Future.delayed(const Duration(milliseconds: 500));
 
       widget.onChallengeCreated(challenge);
-      _showSuccess('Challenge created successfully!');
+
+      if (_hasValidUserData) {
+        _showSuccess('Challenge created with personalized goals!');
+      } else {
+        _showSuccess('Challenge created! Complete your profile for personalized goals.');
+      }
 
       // Close the bottom sheet
       if (mounted) {
@@ -156,6 +265,523 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           _isCreating = false;
         });
       }
+    }
+  }
+
+  Widget _buildCalculatedGoalsSection() {
+    if (_isLoadingCalculations) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Calculating personalized goals...'),
+          ],
+        ),
+      );
+    }
+
+    if (_hasValidUserData) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.secondary.withOpacity(0.15),
+              AppColors.primary.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.secondary.withOpacity(0.3),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.secondary.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with calculation method
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.calculate,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Personalized Daily Goals",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                      Text(
+                        "Calculated using Mifflin-St Jeor Equation",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Prominent Daily Calorie Goal Display
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.secondary.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.local_fire_department,
+                        color: AppColors.secondary,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "DAILY CALORIE GOAL",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.secondary,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "$_calculatedCalorieGoal",
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.secondary,
+                      height: 1.0,
+                    ),
+                  ),
+                  Text(
+                    "calories per day",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Water Goal Display
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.blue.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.water_drop,
+                    color: Colors.blue.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Daily Water Goal: ",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.blue.shade800,
+                    ),
+                  ),
+                  Text(
+                    "$_calculatedWaterGoal glasses",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            if (_calorieBreakdown != null) ...[
+              const SizedBox(height: 16),
+
+              // Detailed Calculation Breakdown
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.grey.shade200,
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: AppColors.primary,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Calculation Breakdown:",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // BMR
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Base Metabolic Rate (BMR):",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        Text(
+                          "${_calorieBreakdown!['bmr']} cal",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // TDEE
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Total Daily Energy (${_calorieBreakdown!['activityLevel']}):",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        Text(
+                          "${_calorieBreakdown!['tdee']} cal",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Goal Adjustment
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Goal Adjustment (${_calorieBreakdown!['goalType']}):",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        Text(
+                          "${_calorieBreakdown!['adjustment'] > 0 ? '+' : ''}${_calorieBreakdown!['adjustment']} cal",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _calorieBreakdown!['adjustment'] > 0
+                                ? Colors.green.shade700
+                                : _calorieBreakdown!['adjustment'] < 0
+                                ? Colors.red.shade700
+                                : Colors.grey.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const Divider(height: 16),
+
+                    // Final Result
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Your Daily Calorie Target:",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            "${_calorieBreakdown!['dailyGoal']} cal",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Custom Goals Toggle
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Use custom goals instead",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                        Text(
+                          "Override calculated values with your own",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _useCustomGoals,
+                    onChanged: (value) {
+                      setState(() {
+                        _useCustomGoals = value;
+                        if (!value) {
+                          // Reset to calculated values
+                          _calorieController.text = _calculatedCalorieGoal.toString();
+                          _waterController.text = _calculatedWaterGoal.toString();
+                        }
+                      });
+                    },
+                    activeColor: AppColors.secondary,
+                    activeTrackColor: AppColors.secondary.withOpacity(0.3),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.shade200, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.orange.withOpacity(0.1),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    "Complete Profile for Personalized Goals",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Complete your profile (gender, age, weight, height, activity level, goals) to get personalized calorie targets calculated using the scientifically-validated Mifflin-St Jeor equation.",
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Default Values Display
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          "$_calculatedCalorieGoal",
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const Text(
+                          "Default Calories",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.orange.shade200,
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          "$_calculatedWaterGoal",
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const Text(
+                          "Default Water",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -205,7 +831,11 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Calculated Goals Section
+              _buildCalculatedGoalsSection(),
+              const SizedBox(height: 24),
 
               // Challenge Title
               Column(
@@ -454,20 +1084,22 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: _calorieController,
-                          enabled: !_isCreating,
+                          enabled: !_isCreating && (_useCustomGoals || !_hasValidUserData),
                           keyboardType: TextInputType.number,
                           style: const TextStyle(
                             fontSize: 16,
                             color: Colors.black87,
                           ),
                           decoration: InputDecoration(
-                            suffixIcon: const Icon(
-                              Icons.edit_outlined,
-                              color: Color(0xFF666666),
+                            suffixIcon: Icon(
+                              (_useCustomGoals || !_hasValidUserData) ? Icons.edit_outlined : Icons.lock_outlined,
+                              color: const Color(0xFF666666),
                               size: 22,
                             ),
                             filled: true,
-                            fillColor: const Color(0xFFF8F8F8),
+                            fillColor: (_useCustomGoals || !_hasValidUserData)
+                                ? const Color(0xFFF8F8F8)
+                                : Colors.grey.shade100,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
@@ -522,20 +1154,22 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: _waterController,
-                          enabled: !_isCreating,
+                          enabled: !_isCreating && (_useCustomGoals || !_hasValidUserData),
                           keyboardType: TextInputType.number,
                           style: const TextStyle(
                             fontSize: 16,
                             color: Colors.black87,
                           ),
                           decoration: InputDecoration(
-                            suffixIcon: const Icon(
-                              Icons.edit_outlined,
-                              color: Color(0xFF666666),
+                            suffixIcon: Icon(
+                              (_useCustomGoals || !_hasValidUserData) ? Icons.edit_outlined : Icons.lock_outlined,
+                              color: const Color(0xFF666666),
                               size: 22,
                             ),
                             filled: true,
-                            fillColor: const Color(0xFFF8F8F8),
+                            fillColor: (_useCustomGoals || !_hasValidUserData)
+                                ? const Color(0xFFF8F8F8)
+                                : Colors.grey.shade100,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(
@@ -625,69 +1259,58 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _isCreating ? null : () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                          color: Color(0xFFE0E0E0),
-                          width: 1,
-                        ),
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF666666),
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        "Cancel",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+              // Create Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isCreating ? null : _createChallenge,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 0,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isCreating ? null : _createChallenge,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _isCreating
-                          ? const SizedBox(
-                        width: 22,
-                        height: 22,
+                  child: _isCreating
+                      ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                          : const Text(
-                        "Create",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.grey.shade600,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Creating Challenge...",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  )
+                      : const Text(
+                    "Create Challenge",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
-                ],
+                ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

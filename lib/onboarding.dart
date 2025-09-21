@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:capstone_project/LoginPages/login_page.dart';
 import 'package:capstone_project/color/colors.dart';
-
 
 // Responsive utility class
 class ResponsiveUtils {
@@ -62,40 +62,80 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   bool isLastPage = false;
-  bool _isAnimating = false; // Prevent rapid clicks
-  int _currentPage = 0; // Track current page index
+  bool _isAnimating = false;
+  int _currentPage = 0;
+  Timer? _autoSlideTimer;
+  bool _isUserInteracting = false;
 
   final List<Map<String, String>> onboardingData = [
     {
       "image": "🍓",
       "title": "Welcome to FreshMart",
-      "description":
-      "Discover fresh fruits and vegetables delivered right to your doorstep. Quality you can trust, convenience you'll love."
+      "description": "Discover fresh fruits and vegetables delivered right to your doorstep. Quality you can trust, convenience you'll love."
     },
     {
       "image": "⚡",
       "title": "Lightning Fast Delivery",
-      "description":
-      "Get your groceries delivered in under 30 minutes. Fresh produce has never been this accessible and quick."
+      "description": "Get your groceries delivered in under 30 minutes. Fresh produce has never been this accessible and quick."
     },
     {
       "image": "💪",
       "title": "Premium Quality",
-      "description":
-      "Hand-picked products from trusted local farmers. Every item is carefully selected for freshness and quality."
+      "description": "Hand-picked products from trusted local farmers. Every item is carefully selected for freshness and quality."
     },
     {
       "image": "🚀",
       "title": "Ready to Start?",
-      "description":
-      "Join thousands of satisfied customers who trust us for their daily grocery needs. Let's get started!"
+      "description": "Join thousands of satisfied customers who trust us for their daily grocery needs. Let's get started!"
     },
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _startAutoSlide();
+  }
+
+  @override
   void dispose() {
+    _autoSlideTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _startAutoSlide() {
+    _autoSlideTimer?.cancel();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (!_isUserInteracting && mounted) {
+        if (_currentPage < onboardingData.length - 1) {
+          _controller.nextPage(
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOutCubic,
+          );
+        } else {
+          // Reset to first page when reaching the end
+          _controller.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOutCubic,
+          );
+        }
+      }
+    });
+  }
+
+  void _pauseAutoSlide() {
+    setState(() {
+      _isUserInteracting = true;
+    });
+    // Resume auto-slide after 3 seconds of no interaction
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _isUserInteracting = false;
+        });
+      }
+    });
   }
 
   Widget buildImage(BuildContext context, String image) {
@@ -107,7 +147,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         width: imageSize,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
-          // Fallback to emoji if asset fails to load
           return Text(
             "📱",
             style: TextStyle(
@@ -136,9 +175,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  // Smooth navigation with debouncing
   Future<void> _navigateNext() async {
-    if (_isAnimating) return; // Prevent rapid clicks
+    if (_isAnimating) return;
 
     setState(() {
       _isAnimating = true;
@@ -148,13 +186,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (isLastPage) {
         Navigator.pushReplacementNamed(context, '/login');
       } else {
+        _pauseAutoSlide();
         await _controller.nextPage(
-          duration: const Duration(milliseconds: 300), // Faster transition
-          curve: Curves.easeInOutCubic, // Smoother curve
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
         );
       }
     } finally {
-      // Reset animation flag after a short delay
       if (mounted) {
         Future.delayed(const Duration(milliseconds: 350), () {
           if (mounted) {
@@ -167,7 +205,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  // Skip with debouncing
   Future<void> _skipOnboarding() async {
     if (_isAnimating) return;
 
@@ -185,8 +222,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final horizontalPadding = ResponsiveUtils.getResponsivePadding(context, 20);
 
     final rawVerticalPadding = ResponsiveUtils.getResponsivePadding(context, 40);
-    final verticalPadding =
-    min(rawVerticalPadding, MediaQuery.of(context).size.height * 0.06);
+    final verticalPadding = min(rawVerticalPadding, MediaQuery.of(context).size.height * 0.06);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -209,21 +245,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       children: [
         Expanded(
           flex: 8,
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: onboardingData.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-                isLastPage = index == onboardingData.length - 1;
-              });
-            },
-            itemBuilder: (context, index) {
-              return _buildOnboardingPage(context, index);
-            },
+          child: GestureDetector(
+            onTap: _pauseAutoSlide,
+            onPanStart: (_) => _pauseAutoSlide(),
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: onboardingData.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                  isLastPage = index == onboardingData.length - 1;
+                });
+              },
+              itemBuilder: (context, index) {
+                return _buildOnboardingPage(context, index);
+              },
+            ),
           ),
         ),
-        // Fixed: Wrap bottom in SafeArea + tiny bottom padding
         SafeArea(
           top: false,
           child: Padding(
@@ -240,18 +279,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       children: [
         Expanded(
           flex: 3,
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: onboardingData.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-                isLastPage = index == onboardingData.length - 1;
-              });
-            },
-            itemBuilder: (context, index) {
-              return _buildOnboardingPage(context, index, isLandscapeContent: true);
-            },
+          child: GestureDetector(
+            onTap: _pauseAutoSlide,
+            onPanStart: (_) => _pauseAutoSlide(),
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: onboardingData.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                  isLastPage = index == onboardingData.length - 1;
+                });
+              },
+              itemBuilder: (context, index) {
+                return _buildOnboardingPage(context, index, isLandscapeContent: true);
+              },
+            ),
           ),
         ),
         Expanded(
@@ -261,7 +304,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Padding(
               padding: EdgeInsets.only(
                 left: ResponsiveUtils.getResponsivePadding(context, 20),
-                bottom: 2, // fixes overflow
+                bottom: 2,
               ),
               child: _buildBottomSection(context),
             ),
@@ -271,8 +314,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildOnboardingPage(BuildContext context, int index,
-      {bool isLandscapeContent = false}) {
+  Widget _buildOnboardingPage(BuildContext context, int index, {bool isLandscapeContent = false}) {
     final data = onboardingData[index];
     final titleFontSize = ResponsiveUtils.getResponsiveFontSize(context, 24);
     final descriptionFontSize = ResponsiveUtils.getResponsiveFontSize(context, 16);
@@ -289,47 +331,104 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Image section
-                  Container(
-                    height: isLandscapeContent ? constraints.maxHeight * 0.4 : constraints.maxHeight * 0.35,
-                    alignment: Alignment.center,
-                    child: buildImage(context, data["image"]!),
+                  // Auto-sliding image section
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 600),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.1, 0),
+                            end: Offset.zero,
+                          ).animate(CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          )),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      key: ValueKey('image_$index'),
+                      height: isLandscapeContent ? constraints.maxHeight * 0.4 : constraints.maxHeight * 0.35,
+                      alignment: Alignment.center,
+                      child: buildImage(context, data["image"]!),
+                    ),
                   ),
                   SizedBox(height: spacing),
 
-                  // Title section
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: isTablet ? 600 : double.infinity,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      data["title"]!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: titleFontSize.clamp(20, 36),
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                        color: const Color(0xFF2D3748),
+                  // Auto-sliding title section
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 600),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.1),
+                            end: Offset.zero,
+                          ).animate(CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          )),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      key: ValueKey('title_$index'),
+                      constraints: BoxConstraints(
+                        maxWidth: isTablet ? 600 : double.infinity,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        data["title"]!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: titleFontSize.clamp(20, 36),
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ),
                   SizedBox(height: spacing * 0.7),
 
-                  // Description section
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: isTablet ? 500 : double.infinity,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      data["description"]!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: descriptionFontSize.clamp(14, 20),
-                        color: const Color(0xFF4A5568),
-                        height: 1.6,
-                        letterSpacing: 0.2,
+                  // Auto-sliding description section
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 600),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.1),
+                            end: Offset.zero,
+                          ).animate(CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          )),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      key: ValueKey('desc_$index'),
+                      constraints: BoxConstraints(
+                        maxWidth: isTablet ? 500 : double.infinity,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        data["description"]!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: descriptionFontSize.clamp(14, 20),
+                          color: Colors.grey.shade600,
+                          height: 1.6,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                   ),
@@ -345,8 +444,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildBottomSection(BuildContext context) {
     final isTablet = ResponsiveUtils.isTablet(context);
-    final double buttonHeight =
-    ResponsiveUtils.getResponsiveHeight(context, 0.07).clamp(50, 70);
+    final double buttonHeight = ResponsiveUtils.getResponsiveHeight(context, 0.07).clamp(50, 70);
     final spacing = ResponsiveUtils.getResponsiveHeight(context, 0.025);
     final buttonFontSize = ResponsiveUtils.getResponsiveFontSize(context, 16);
     final skipFontSize = ResponsiveUtils.getResponsiveFontSize(context, 14);
@@ -355,20 +453,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        // Page indicator with auto-slide progress
         Container(
           margin: EdgeInsets.only(bottom: spacing),
-          child: SmoothPageIndicator(
-            controller: _controller,
-            count: onboardingData.length,
-            effect: WormEffect(
-              activeDotColor: AppColors.secondary,
-              dotColor: AppColors.secondary.withOpacity(0.4),
-              dotHeight: isTablet ? 12 : 10,
-              dotWidth: isTablet ? 12 : 10,
-              spacing: isTablet ? 8 : 6,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SmoothPageIndicator(
+                controller: _controller,
+                count: onboardingData.length,
+                effect: WormEffect(
+                  activeDotColor: AppColors.secondary,
+                  dotColor: AppColors.secondary.withOpacity(0.4),
+                  dotHeight: isTablet ? 12 : 10,
+                  dotWidth: isTablet ? 12 : 10,
+                  spacing: isTablet ? 8 : 6,
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
         ),
+        // Manual navigation buttons remain the same
         Container(
           constraints: BoxConstraints(
             maxWidth: isTablet ? 400 : double.infinity,
@@ -386,7 +492,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 elevation: _isAnimating ? 1 : 2,
               ),
-              onPressed: _isAnimating ? null : _navigateNext,
+              onPressed: _isAnimating ? null : () {
+                _pauseAutoSlide();
+                _navigateNext();
+              },
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: _isAnimating
@@ -422,7 +531,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             margin: EdgeInsets.only(top: spacing * 0.5),
             child: TextButton(
-              onPressed: _isAnimating ? null : _skipOnboarding,
+              onPressed: _isAnimating ? null : () {
+                _pauseAutoSlide();
+                _skipOnboarding();
+              },
               style: TextButton.styleFrom(
                 minimumSize: const Size(0, 44),
               ),

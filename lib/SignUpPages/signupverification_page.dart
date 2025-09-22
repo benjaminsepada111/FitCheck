@@ -3,8 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:capstone_project/color/colors.dart';
 import '../services/auth_service.dart';
+import '../UserInputFile/onboarding_screen.dart';
 import 'dart:async';
-import 'dart:math';
 
 class VerificationPage extends StatefulWidget {
   final String email;
@@ -28,6 +28,11 @@ class _VerificationPageState extends State<VerificationPage> {
   bool _isCodeVerified = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  // Error states for inline display
+  String? _otpError;
+  String? _passwordError;
+  String? _confirmPasswordError;
 
   @override
   void initState() {
@@ -55,61 +60,128 @@ class _VerificationPageState extends State<VerificationPage> {
     });
   }
 
-  void _showErrorDialog(String message) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  // Clear errors
+  void _clearErrors() {
+    setState(() {
+      _otpError = null;
+      _passwordError = null;
+      _confirmPasswordError = null;
+    });
   }
 
-  void _showSuccessDialog() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Account Created Successfully!'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle,
-              size: 64,
-              color: AppColors.secondary,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Your account has been created and verified successfully.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.popUntil(context, (route) => route.isFirst);
-              // Navigate to main app or login page
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
+  // Set OTP error inline
+  void _setOtpError(String message) {
+    setState(() {
+      _otpError = message;
+    });
   }
 
+  // Set password error inline
+  void _setPasswordError(String message) {
+    setState(() {
+      _passwordError = message;
+    });
+  }
+
+  // Set confirm password error inline
+  void _setConfirmPasswordError(String message) {
+    setState(() {
+      _confirmPasswordError = message;
+    });
+  }
+
+  // ENHANCED: Granular password validation with specific rule feedback
+  String? _validatePassword(String password) {
+    if (password.isEmpty) {
+      return 'Please enter a password';
+    }
+
+    List<String> violations = [];
+
+    // Check each rule and collect violations
+    if (password.length < 8) {
+      violations.add('be at least 8 characters');
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      violations.add('include 1 uppercase letter');
+    }
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      violations.add('include 1 number');
+    }
+    if (!RegExp(r'[!@#\$&*~]').hasMatch(password)) {
+      violations.add('include 1 special character');
+    }
+
+    if (violations.isEmpty) {
+      return null; // Password is valid
+    }
+
+    // Construct error message based on violations
+    if (violations.length == 1) {
+      return 'Password must ${violations.first}';
+    } else if (violations.length == 2) {
+      return 'Password must ${violations[0]} and ${violations[1]}';
+    } else {
+      // For 3+ violations, use comma separation with "and" before the last item
+      String lastViolation = violations.removeLast();
+      return 'Password must ${violations.join(', ')}, and $lastViolation';
+    }
+  }
+
+  // Resend OTP with proper invalidation of old OTP
+  Future<void> _resendOTP() async {
+    if (resendSeconds > 0) return;
+
+    setState(() {
+      _isLoading = true;
+      resendSeconds = 60;
+    });
+
+    try {
+      await _authService.resendOTP(
+        widget.email,
+        userName: widget.email.split('@')[0],
+      );
+
+      if (mounted) {
+        _startResendTimer();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('New verification code sent successfully!'),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Failed to resend code';
+
+        if (e.toString().contains('Email sending timed out')) {
+          errorMessage = 'Email sending timed out. Please check your internet connection';
+        } else if (e.toString().contains('timeout') || e.toString().contains('network')) {
+          errorMessage = 'Connection timeout. Please try again';
+        } else if (e.toString().contains('Failed to send email')) {
+          errorMessage = 'Failed to send verification email. Please try again';
+        }
+
+        _setOtpError(errorMessage);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // OTP verification with automatic cleanup
   Future<void> _verifyOTP() async {
+    _clearErrors();
+
     if (code.length != 5) {
-      _showErrorDialog('Please enter the complete 5-digit code');
+      _setOtpError('Please enter the complete 5-digit code');
       return;
     }
 
@@ -118,7 +190,6 @@ class _VerificationPageState extends State<VerificationPage> {
     });
 
     try {
-      // Verify OTP with timeout
       bool isValid = await _authService.verifyOTP(widget.email, code).timeout(
         const Duration(seconds: 15),
         onTimeout: () {
@@ -131,25 +202,28 @@ class _VerificationPageState extends State<VerificationPage> {
           _isCodeVerified = true;
           _isLoading = false;
         });
+        print('OTP verification successful - proceeding to password creation');
       } else if (mounted) {
-        _showErrorDialog('Invalid verification code. Please try again.');
+        _setOtpError('Invalid verification code. Please try again');
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Verification failed.';
+        String errorMessage = 'Verification failed';
 
         if (e.toString().contains('timeout')) {
-          errorMessage = 'Verification timed out. Please check your internet connection and try again.';
+          errorMessage = 'Verification timed out. Please check your connection and try again';
         } else if (e.toString().contains('expired')) {
-          errorMessage = 'Verification code has expired. Please request a new one.';
+          errorMessage = 'Verification code has expired. Please request a new one';
         } else if (e.toString().contains('not found')) {
-          errorMessage = 'Verification code not found. Please request a new one.';
+          errorMessage = 'Verification code not found. Please request a new one';
+        } else if (e.toString().contains('No verification code found')) {
+          errorMessage = 'Verification code not found. Please request a new one';
         }
 
-        _showErrorDialog(errorMessage);
+        _setOtpError(errorMessage);
         setState(() {
           _isLoading = false;
         });
@@ -157,15 +231,35 @@ class _VerificationPageState extends State<VerificationPage> {
     }
   }
 
+  // ENHANCED: Account creation with granular password validation
   Future<void> _createAccountWithPassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    _clearErrors();
+
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    // Use granular password validation
+    final passwordError = _validatePassword(password);
+    if (passwordError != null) {
+      _setPasswordError(passwordError);
+      return;
+    }
+
+    if (confirmPassword.isEmpty) {
+      _setConfirmPasswordError('Please confirm your password');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _setConfirmPasswordError('Passwords do not match');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Create Firebase Auth user with timeout
       final userCredential = await _authService.signUpWithEmailAndPassword(
         widget.email,
         _passwordController.text,
@@ -177,7 +271,6 @@ class _VerificationPageState extends State<VerificationPage> {
       );
 
       if (userCredential != null && mounted) {
-        // Save user data to Firestore with timeout
         await _authService.saveUserToFirestore(
           userCredential.user!.uid,
           {
@@ -192,89 +285,39 @@ class _VerificationPageState extends State<VerificationPage> {
           },
         );
 
-        // Clean up temporary OTP (don't await to avoid blocking)
         _authService.deleteTemporaryOTP(widget.email).catchError((e) {
-          // Ignore cleanup errors
-          print('Failed to cleanup OTP: $e');
+          print('OTP cleanup during account creation: $e');
         });
+
+        print('Account created successfully for ${widget.email}');
 
         if (mounted) {
-          _showSuccessDialog();
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const OnboardingScreen(),
+            ),
+                (route) => false,
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Account creation failed.';
+        String errorMessage = 'Account creation failed';
 
         if (e.toString().contains('timeout')) {
-          errorMessage = 'Request timed out. Please check your internet connection and try again.';
+          errorMessage = 'Request timed out. Please check your internet connection and try again';
         } else if (e.toString().contains('email-already-in-use')) {
-          errorMessage = 'This email is already registered. Please use a different email.';
+          errorMessage = 'This email is already registered. Please use a different email';
         } else if (e.toString().contains('weak-password')) {
-          errorMessage = 'Password is too weak. Please choose a stronger password.';
+          errorMessage = 'Password is too weak. Please choose a stronger password';
         } else if (e.toString().contains('network-request-failed')) {
-          errorMessage = 'Network error. Please check your internet connection.';
+          errorMessage = 'Network error. Please check your internet connection';
+        } else if (e.toString().contains('Failed to save user data')) {
+          errorMessage = 'Account created but failed to save profile. Please try logging in';
         }
 
-        _showErrorDialog(errorMessage);
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  // Generate new OTP for resend
-  String _generateOTP() {
-    Random random = Random();
-    return (10000 + random.nextInt(90000)).toString();
-  }
-
-  Future<void> _resendOTP() async {
-    if (resendSeconds > 0) return;
-
-    setState(() {
-      _isLoading = true;
-      resendSeconds = 60;
-    });
-
-    try {
-      // Generate new OTP
-      String newOTP = _generateOTP();
-
-      // Store new OTP in Firestore with timeout
-      await _authService.storeTemporaryOTP(widget.email, newOTP).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Request timed out. Please try again.');
-        },
-      );
-
-      // In production, send the actual email here
-      print('New OTP sent to ${widget.email}: $newOTP'); // For testing
-
-      if (mounted) {
-        _startResendTimer();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification code sent successfully!'),
-            backgroundColor: AppColors.secondary,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMessage = 'Failed to resend code.';
-
-        if (e.toString().contains('timeout') || e.toString().contains('network')) {
-          errorMessage = 'Connection timeout. Please check your internet connection and try again.';
-        }
-
-        _showErrorDialog(errorMessage);
+        _setPasswordError(errorMessage);
       }
     } finally {
       if (mounted) {
@@ -290,145 +333,108 @@ class _VerificationPageState extends State<VerificationPage> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFF06111D),
-      body: Stack(
-        children: [
-          // Background SVG
-          Positioned(
-            top: 0,
-            left: -10,
-            right: 175,
-            child: SizedBox(
-              height: 359,
-              child: SvgPicture.asset(
-                "assets/login_svg/bg.svg",
-                color: AppColors.secondary,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // UPDATED: Changed title and removed misleading email verification message
+            Text(
+              _isCodeVerified ? "Create Password" : "Verify Your Account",
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
-          ),
 
-          Positioned(
-            top: 160,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Text(
-                  _isCodeVerified ? "Create Password" : "Verification",
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _isCodeVerified
-                      ? "Create a secure password for your account"
-                      : "We have sent a code to your email\n${widget.email}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
+            const SizedBox(height: 32),
 
-          Positioned(
-            top: 0,
-            left: 100,
-            right: -10,
-            child: SizedBox(
-              height: 230,
-              child: SvgPicture.asset(
-                "assets/login_svg/bg2.svg",
-                color: AppColors.secondary,
-              ),
-            ),
-          ),
-
-          // Content
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SingleChildScrollView(
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                ),
-                child: _isCodeVerified ? _buildPasswordForm() : _buildVerificationForm(),
-              ),
-            ),
-          ),
-
-          // Loading overlay
-          if (_isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-        ],
+            // Show verification form or password form
+            _isCodeVerified ? _buildPasswordForm() : _buildVerificationForm(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildVerificationForm() {
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 12),
-
-        // Code input label
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            "VERIFICATION CODE",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: Colors.black54,
-            ),
+        const Text(
+          "Enter Verification Code",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
         ),
+
         const SizedBox(height: 8),
 
-        // Pin code fields
+        Text(
+          'We sent a 5-digit verification code to ${widget.email}',
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // PIN Code Field
         PinCodeTextField(
-          length: 5,
           appContext: context,
+          length: 5,
           keyboardType: TextInputType.number,
-          animationType: AnimationType.fade,
-          enabled: !_isLoading,
-          onChanged: (value) {
-            setState(() => code = value);
-          },
-          onCompleted: (value) {
-            // Auto-verify when complete
-            if (!_isLoading) {
-              _verifyOTP();
-            }
-          },
+          textStyle: const TextStyle(color: Colors.white, fontSize: 20),
           pinTheme: PinTheme(
             shape: PinCodeFieldShape.box,
             borderRadius: BorderRadius.circular(8),
             fieldHeight: 55,
             fieldWidth: 50,
-            activeFillColor: Colors.grey[200],
-            selectedFillColor: Colors.grey[200],
-            inactiveFillColor: Colors.grey[200],
-            activeColor: Colors.transparent,
+            activeFillColor: const Color(0xFF1A2332),
+            inactiveFillColor: const Color(0xFF1A2332),
+            selectedFillColor: const Color(0xFF1A2332),
+            activeColor: _otpError != null ? Colors.red : AppColors.secondary,
+            inactiveColor: _otpError != null ? Colors.red : Colors.grey,
             selectedColor: AppColors.secondary,
-            inactiveColor: Colors.transparent,
           ),
           enableActiveFill: true,
+          onChanged: (value) {
+            code = value;
+            if (_otpError != null) {
+              setState(() {
+                _otpError = null;
+              });
+            }
+          },
+          onCompleted: (value) {
+            code = value;
+          },
         ),
+
+        // Inline error message for OTP
+        if (_otpError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4),
+            child: Text(
+              _otpError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
 
         const SizedBox(height: 24),
 
@@ -443,7 +449,7 @@ class _VerificationPageState extends State<VerificationPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: _isLoading || code.length != 5 ? null : _verifyOTP,
+            onPressed: code.length == 5 && !_isLoading ? _verifyOTP : null,
             child: _isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Text(
@@ -460,18 +466,20 @@ class _VerificationPageState extends State<VerificationPage> {
         const SizedBox(height: 16),
 
         // Resend timer/button
-        resendSeconds > 0
-            ? Text(
-          "Didn't get the code? Resend in ${resendSeconds}s",
-          style: const TextStyle(color: Colors.grey),
-        )
-            : GestureDetector(
-          onTap: _isLoading ? null : _resendOTP,
-          child: const Text(
-            "Didn't get the code? Resend now",
-            style: TextStyle(
-              color: AppColors.secondary,
-              fontWeight: FontWeight.bold,
+        Center(
+          child: resendSeconds > 0
+              ? Text(
+            "Didn't get the code? Resend in ${resendSeconds}s",
+            style: const TextStyle(color: Colors.grey),
+          )
+              : GestureDetector(
+            onTap: _isLoading ? null : _resendOTP,
+            child: const Text(
+              "Didn't get the code? Resend now",
+              style: TextStyle(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
@@ -482,170 +490,231 @@ class _VerificationPageState extends State<VerificationPage> {
   }
 
   Widget _buildPasswordForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Create a strong password",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
 
-          // Success message
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.check_circle, color: AppColors.secondary),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Email verified successfully! Now create your password.',
-                    style: TextStyle(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w500,
-                    ),
+        const SizedBox(height: 16),
+
+        // Password field with inline error
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              controller: _passwordController,
+              style: const TextStyle(color: Colors.white),
+              obscureText: _obscurePassword,
+              onChanged: (_) => _clearErrors(),
+              decoration: InputDecoration(
+                labelText: "Password",
+                labelStyle: TextStyle(
+                  color: _passwordError != null ? Colors.red : Colors.grey,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF1A2332),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _passwordError != null ? Colors.red : Colors.transparent,
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Password field
-          const Text(
-            "PASSWORD",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            enabled: !_isLoading,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a password';
-              }
-              if (value.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
-              return null;
-            },
-            decoration: InputDecoration(
-              hintText: "Enter your password",
-              filled: true,
-              fillColor: Colors.grey[200],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.red),
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Confirm Password field
-          const Text(
-            "CONFIRM PASSWORD",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _confirmPasswordController,
-            obscureText: _obscureConfirmPassword,
-            enabled: !_isLoading,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please confirm your password';
-              }
-              if (value != _passwordController.text) {
-                return 'Passwords do not match';
-              }
-              return null;
-            },
-            decoration: InputDecoration(
-              hintText: "Confirm your password",
-              filled: true,
-              fillColor: Colors.grey[200],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.red),
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _obscureConfirmPassword = !_obscureConfirmPassword;
-                  });
-                },
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Create Account Button
-          SizedBox(
-            width: double.infinity,
-            height: 55,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.secondary,
-                shape: RoundedRectangleBorder(
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _passwordError != null ? Colors.red : Colors.transparent,
+                  ),
                 ),
-              ),
-              onPressed: _isLoading ? null : _createAccountWithPassword,
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                "CREATE ACCOUNT",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _passwordError != null ? Colors.red : AppColors.secondary,
+                    width: 2,
+                  ),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 50),
+            // Inline error message for password
+            if (_passwordError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: Text(
+                  _passwordError!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+
+            // NEW: Static password requirements guide (always visible)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A2332).withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Password must include:',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildRequirement('At least 8 characters'),
+                  _buildRequirement('1 uppercase letter'),
+                  _buildRequirement('1 number'),
+                  _buildRequirement('1 special character (!@#\$&*~)'),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // Confirm Password field with inline error
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              controller: _confirmPasswordController,
+              style: const TextStyle(color: Colors.white),
+              obscureText: _obscureConfirmPassword,
+              onChanged: (_) => _clearErrors(),
+              decoration: InputDecoration(
+                labelText: "Confirm Password",
+                labelStyle: TextStyle(
+                  color: _confirmPasswordError != null ? Colors.red : Colors.grey,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF1A2332),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _confirmPasswordError != null ? Colors.red : Colors.transparent,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _confirmPasswordError != null ? Colors.red : Colors.transparent,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: _confirmPasswordError != null ? Colors.red : AppColors.secondary,
+                    width: 2,
+                  ),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                ),
+              ),
+            ),
+            // Inline error message for confirm password
+            if (_confirmPasswordError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: Text(
+                  _confirmPasswordError!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
+        ),
+
+        const SizedBox(height: 32),
+
+        // Create Account Button
+        SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: _isLoading ? null : _createAccountWithPassword,
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+              "CREATE ACCOUNT",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 100),
+      ],
+    );
+  }
+
+  // Helper widget for password requirements list
+  Widget _buildRequirement(String requirement) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          const Text(
+            '• ',
+            style: TextStyle(
+              color: AppColors.secondary,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            requirement,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );

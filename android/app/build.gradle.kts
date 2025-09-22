@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.capstone_project"
-    compileSdk = 35  // 👈 set explicitly
+    compileSdk = 36  // 👈 set explicitly
 
     ndkVersion = "29.0.14033849" // 👈 use your installed NDK
 

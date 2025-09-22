@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
+import 'package:capstone_project/services/food_storage_service.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final Function(String foodName, int calories)? onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, Map<String, double>? nutrition})? onFoodAdded;
 
   const AddFoodSheet({
     super.key,
@@ -28,6 +29,13 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   bool _isLoading = false;
   bool _isManualEntry = false;
   String? _errorMessage;
+  List<String> _quickAddSuggestions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQuickAddSuggestions();
+  }
 
   @override
   void dispose() {
@@ -36,6 +44,13 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     _manualFoodController.dispose();
     _manualCaloriesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadQuickAddSuggestions() async {
+    final suggestions = await FoodStorageService.getMealRecommendations(widget.mealName);
+    setState(() {
+      _quickAddSuggestions = suggestions;
+    });
   }
 
   Future<void> _searchFoods(String query) async {
@@ -101,7 +116,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     }
   }
 
-  void _saveSelectedFood() {
+  void _saveSelectedFood() async {
     if (_selectedFood == null) {
       _showError('Please select a food item first');
       return;
@@ -121,8 +136,9 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     final calories = nutrition['calories']!.round();
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
+    // Call the callback without storing here (parent will handle storage)
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories);
+      widget.onFoodAdded!(foodName, calories, grams: grams, nutrition: nutrition);
     }
 
     Navigator.pop(context);
@@ -140,7 +156,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     );
   }
 
-  void _saveManualFood() {
+  void _saveManualFood() async {
     final foodName = _manualFoodController.text.trim();
     final calories = int.tryParse(_manualCaloriesController.text);
 
@@ -154,6 +170,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
+    // Call the callback without storing here (parent will handle storage)
     if (widget.onFoodAdded != null) {
       widget.onFoodAdded!(foodName, calories);
     }
@@ -249,6 +266,21 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         ),
       ],
     );
+  }
+
+  // Simple calorie estimation for quick-add
+  int _estimateCalories(String foodName) {
+    final Map<String, int> estimates = {
+      // Breakfast
+      'Oatmeal': 150, 'Scrambled eggs': 180, 'Greek yogurt': 100, 'Banana': 105, 'Whole wheat toast': 80,
+      // Lunch
+      'Grilled chicken salad': 300, 'Quinoa bowl': 250, 'Sandwich': 350, 'Soup': 150, 'Rice and beans': 220,
+      // Snacks
+      'Apple': 95, 'Nuts': 160, 'Yogurt': 120, 'Crackers': 140, 'Fruit smoothie': 200,
+      // Dinner
+      'Grilled salmon': 280, 'Pasta': 300, 'Stir fry': 250, 'Roasted vegetables': 100, 'Lean beef': 250,
+    };
+    return estimates[foodName] ?? 200;
   }
 
   @override

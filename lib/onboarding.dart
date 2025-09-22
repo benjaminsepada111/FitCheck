@@ -453,25 +453,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        // Page indicator with auto-slide progress
+        // Page indicator with auto-slide progress - CENTERED
         Container(
           margin: EdgeInsets.only(bottom: spacing),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SmoothPageIndicator(
-                controller: _controller,
-                count: onboardingData.length,
-                effect: WormEffect(
-                  activeDotColor: AppColors.secondary,
-                  dotColor: AppColors.secondary.withOpacity(0.4),
-                  dotHeight: isTablet ? 12 : 10,
-                  dotWidth: isTablet ? 12 : 10,
-                  spacing: isTablet ? 8 : 6,
-                ),
+          child: Center(
+            child: SmoothPageIndicator(
+              controller: _controller,
+              count: onboardingData.length,
+              effect: WormEffect(
+                activeDotColor: AppColors.secondary,
+                dotColor: AppColors.secondary.withOpacity(0.4),
+                dotHeight: isTablet ? 12 : 10,
+                dotWidth: isTablet ? 12 : 10,
+                spacing: isTablet ? 8 : 6,
               ),
-              const SizedBox(width: 16),
-            ],
+            ),
           ),
         ),
         // Manual navigation buttons remain the same

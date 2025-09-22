@@ -10,11 +10,13 @@ class FoodPage extends StatefulWidget {
   // Add these parameters to receive challenge data and callback
   final Challenge? currentChallenge;
   final Function(Challenge)? onChallengeCreated;
+  final VoidCallback? onCaloriesUpdated;
 
   const FoodPage({
     super.key,
     this.currentChallenge,
     this.onChallengeCreated,
+    this.onCaloriesUpdated,
   });
 
   @override

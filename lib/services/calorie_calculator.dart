@@ -4,18 +4,18 @@ import '../models/user_data.dart';
 class CalorieCalculator {
   // Activity level multipliers for TDEE calculation
   static const Map<String, double> activityMultipliers = {
-    'Sedentary': 1.2,     // Little or no exercise
-    'Light': 1.375,       // Light exercise 1-3 days/week
-    'Moderate': 1.55,     // Moderate exercise 3-5 days/week
-    'Active': 1.725,      // Hard exercise 6-7 days/week
-    'Very Active': 1.9,   // Hard daily exercise or physical job
+    'sedentary': 1.2,     // Little or no exercise
+    'light': 1.375,       // Light exercise 1-3 days/week
+    'moderate': 1.55,     // Moderate exercise 3-5 days/week
+    'active': 1.725,      // Hard exercise 6-7 days/week
+    'very active': 1.9,   // Hard daily exercise or physical job
   };
 
   // Default calorie adjustments for goals
   static const Map<String, int> defaultGoalAdjustments = {
-    'Maintain': 0,
-    'Fat Loss': -500,     // 1 lb per week loss
-    'Muscle Gain': 500,   // Moderate surplus for muscle gain
+    'maintain': 0,
+    'fat loss': -500,     // 1 lb per week loss
+    'muscle gain': 500,   // Moderate surplus for muscle gain
   };
 
   /// Calculate BMR using Mifflin-St Jeor Equation
@@ -29,11 +29,11 @@ class CalorieCalculator {
     final weight = userData.weight!.toDouble();
     final height = userData.height!.toDouble();
     final age = userData.age!.toDouble();
-    final isMale = userData.gender!.toLowerCase() == 'male';
+    final gender = userData.gender!.toLowerCase();
 
     double bmr = (10 * weight) + (6.25 * height) - (5 * age);
 
-    if (isMale) {
+    if (gender == 'male') {
       bmr += 5;
     } else {
       bmr -= 161;
@@ -46,7 +46,8 @@ class CalorieCalculator {
   /// TDEE = BMR × Activity Level Multiplier
   static double calculateTDEE(UserData userData) {
     final bmr = calculateBMR(userData);
-    final activityMultiplier = activityMultipliers[userData.activityLevel] ?? 1.2;
+    final activityLevel = userData.activityLevel!.toLowerCase();
+    final activityMultiplier = activityMultipliers[activityLevel] ?? 1.2;
     return bmr * activityMultiplier;
   }
 
@@ -57,10 +58,12 @@ class CalorieCalculator {
     }
 
     final tdee = calculateTDEE(userData);
+    final goal = userData.goal!.toLowerCase();
 
     // Use custom adjustment if provided, otherwise use default
     final adjustment = userData.goalAdjustment?.toInt() ??
-        defaultGoalAdjustments[userData.goal] ?? 0;
+        defaultGoalAdjustments[goal] ??
+        0;
 
     final dailyGoal = (tdee + adjustment).round();
 
@@ -72,9 +75,7 @@ class CalorieCalculator {
     }
   }
 
-  /// Calculate daily water goal based on weight and activity
-  /// General recommendation: 35ml per kg of body weight
-  /// Additional 500-750ml for active individuals
+  /// Calculate daily water goal
   static int calculateDailyWaterGoal(UserData userData) {
     if (userData.weight == null) {
       return 8; // Default 8 glasses
@@ -83,16 +84,15 @@ class CalorieCalculator {
     final baseWater = userData.weight! * 35; // ml per day
 
     // Add extra for active individuals
-    final isActive = userData.activityLevel == 'Active' ||
-        userData.activityLevel == 'Very Active';
+    final activity = userData.activityLevel!.toLowerCase();
+    final isActive = activity == 'active' || activity == 'very active';
     final extraWater = isActive ? 625 : 0; // ml
 
     final totalWaterMl = baseWater + extraWater;
 
-    // Convert to 8oz glasses (approximately 237ml per glass)
+    // Convert to 8oz glasses (≈237ml per glass)
     final glasses = (totalWaterMl / 237).round();
 
-    // Reasonable bounds: 6-12 glasses per day
     return glasses.clamp(6, 12);
   }
 
@@ -110,8 +110,10 @@ class CalorieCalculator {
 
     final bmr = calculateBMR(userData).round();
     final tdee = calculateTDEE(userData).round();
+    final goal = userData.goal!.toLowerCase();
     final adjustment = userData.goalAdjustment?.toInt() ??
-        defaultGoalAdjustments[userData.goal] ?? 0;
+        defaultGoalAdjustments[goal] ??
+        0;
     final dailyGoal = calculateDailyCalorieGoal(userData);
 
     return {
@@ -121,7 +123,8 @@ class CalorieCalculator {
       'adjustment': adjustment,
       'dailyGoal': dailyGoal,
       'activityLevel': userData.activityLevel,
-      'activityMultiplier': activityMultipliers[userData.activityLevel] ?? 1.2,
+      'activityMultiplier':
+      activityMultipliers[userData.activityLevel!.toLowerCase()] ?? 1.2,
     };
   }
 
@@ -129,21 +132,19 @@ class CalorieCalculator {
   static Map<String, dynamic> calculateMacros(UserData userData) {
     final dailyCalories = calculateDailyCalorieGoal(userData);
 
-    // Default macro distribution (can be customized based on goals)
+    // Default macro distribution
     double proteinPercentage = 0.25; // 25%
     double fatPercentage = 0.30;     // 30%
     double carbPercentage = 0.45;    // 45%
 
-    // Adjust for muscle gain goals
-    if (userData.goal == 'Muscle Gain') {
-      proteinPercentage = 0.30; // Higher protein for muscle building
+    final goal = userData.goal!.toLowerCase();
+
+    if (goal == 'muscle gain') {
+      proteinPercentage = 0.30;
       fatPercentage = 0.25;
       carbPercentage = 0.45;
-    }
-
-    // Adjust for fat loss goals
-    if (userData.goal == 'Fat Loss') {
-      proteinPercentage = 0.35; // Higher protein to preserve muscle
+    } else if (goal == 'fat loss') {
+      proteinPercentage = 0.35;
       fatPercentage = 0.25;
       carbPercentage = 0.40;
     }
@@ -152,24 +153,19 @@ class CalorieCalculator {
     final fatCalories = (dailyCalories * fatPercentage).round();
     final carbCalories = (dailyCalories * carbPercentage).round();
 
-    // Convert calories to grams (protein: 4 cal/g, fat: 9 cal/g, carbs: 4 cal/g)
-    final proteinGrams = (proteinCalories / 4).round();
-    final fatGrams = (fatCalories / 9).round();
-    final carbGrams = (carbCalories / 4).round();
-
     return {
       'protein': {
-        'grams': proteinGrams,
+        'grams': (proteinCalories / 4).round(),
         'calories': proteinCalories,
         'percentage': (proteinPercentage * 100).round(),
       },
       'fat': {
-        'grams': fatGrams,
+        'grams': (fatCalories / 9).round(),
         'calories': fatCalories,
         'percentage': (fatPercentage * 100).round(),
       },
       'carbs': {
-        'grams': carbGrams,
+        'grams': (carbCalories / 4).round(),
         'calories': carbCalories,
         'percentage': (carbPercentage * 100).round(),
       },
@@ -188,27 +184,28 @@ class CalorieCalculator {
         userData.height! > 0 &&
         userData.activityLevel != null &&
         userData.goal != null &&
-        activityMultipliers.containsKey(userData.activityLevel);
+        activityMultipliers.containsKey(userData.activityLevel!.toLowerCase());
   }
 
   /// Get recommended calorie range for goal
   static Map<String, int> getCalorieRange(UserData userData) {
     final baseGoal = calculateDailyCalorieGoal(userData);
+    final goal = userData.goal!.toLowerCase();
 
-    switch (userData.goal) {
-      case 'Fat Loss':
+    switch (goal) {
+      case 'fat loss':
         return {
           'min': baseGoal - 100,
           'max': baseGoal + 100,
           'recommended': baseGoal,
         };
-      case 'Muscle Gain':
+      case 'muscle gain':
         return {
           'min': baseGoal - 150,
           'max': baseGoal + 150,
           'recommended': baseGoal,
         };
-      case 'Maintain':
+      case 'maintain':
       default:
         return {
           'min': baseGoal - 200,
@@ -222,11 +219,11 @@ class CalorieCalculator {
   static double predictWeeklyWeightChange(UserData userData) {
     if (!isValidUserData(userData)) return 0.0;
 
+    final goal = userData.goal!.toLowerCase();
     final adjustment = userData.goalAdjustment?.toInt() ??
-        defaultGoalAdjustments[userData.goal] ?? 0;
+        defaultGoalAdjustments[goal] ??
+        0;
 
-    // 1 pound = ~3500 calories
-    // Weekly change = (daily deficit/surplus * 7) / 3500
-    return (adjustment * 7) / 3500.0;
+    return (adjustment * 7) / 3500.0; // pounds per week
   }
 }

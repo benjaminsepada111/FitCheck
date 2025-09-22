@@ -28,6 +28,9 @@ class _MainPageState extends State<MainPage> {
   int _currentWater = 0;
   List<Challenge> _challengeHistory = [];
 
+  // Keys for accessing child widget methods - remove this for now since we need to check the actual state class name
+  // final GlobalKey<_TrackersState> _trackersKey = GlobalKey<_TrackersState>();
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -40,11 +43,12 @@ class _MainPageState extends State<MainPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ChallengeHistorySheet(
-        challengeHistory: _challengeHistory, // Your actual challenge list
-        onChallengeCreated: _onChallengeCreated, // Optional callback
+        challengeHistory: _challengeHistory,
+        onChallengeCreated: _onChallengeCreated,
       ),
     );
   }
+
   void _showCreateChallenge() {
     showModalBottomSheet(
       context: context,
@@ -63,10 +67,10 @@ class _MainPageState extends State<MainPage> {
       _currentChallenge = challenge;
       _selectedChallenge = challenge.title;
       _challengeHistory.add(challenge);
-      // Reset daily tracking when new challenge starts
-      _currentCalories = 0;
-      _currentWater = 0;
     });
+
+    // Refresh tracker data when new challenge is created
+    _refreshTrackers();
 
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
@@ -93,7 +97,6 @@ class _MainPageState extends State<MainPage> {
           label: 'View',
           textColor: Colors.white,
           onPressed: () {
-            // Switch to home tab to see the challenge
             setState(() {
               _selectedIndex = 0;
             });
@@ -107,32 +110,34 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       _currentChallenge = null;
       _selectedChallenge = "No Active Challenge";
-      // Reset daily tracking when challenge ends
-      _currentCalories = 0;
-      _currentWater = 0;
     });
+
+    // Refresh tracker data when challenge ends
+    _refreshTrackers();
   }
 
   void _onCaloriesChanged(int calories) {
     setState(() {
       _currentCalories = calories;
     });
-    // Here you can add logic to save to local storage or database
-    _saveDailyProgress();
+    // The new system automatically saves to storage via FoodStorageService
+    // No need to manually save here anymore
   }
 
   void _onWaterChanged(int water) {
     setState(() {
       _currentWater = water;
     });
-    // Here you can add logic to save to local storage or database
-    _saveDailyProgress();
+    // The new system automatically saves to storage via WaterStorageService
+    // No need to manually save here anymore
   }
 
-  void _saveDailyProgress() {
-    // TODO: Implement saving to local storage or database
-    // For example, using SharedPreferences or a local database
-    print('Saving progress: Calories=$_currentCalories, Water=$_currentWater');
+  void _refreshTrackers() {
+    // For now, we'll use a simpler approach without the key reference
+    // The tracker will auto-refresh on challenge changes through setState
+    setState(() {
+      // This will trigger the widget to rebuild and fetch fresh data
+    });
   }
 
   void _onChallengeSelected(String challengeTitle) {
@@ -145,8 +150,6 @@ class _MainPageState extends State<MainPage> {
       _selectedChallenge = challengeTitle;
       if (challengeTitle == "No Active Challenge") {
         _currentChallenge = null;
-        _currentCalories = 0;
-        _currentWater = 0;
       } else {
         // Find challenge in history
         try {
@@ -158,6 +161,9 @@ class _MainPageState extends State<MainPage> {
         }
       }
     });
+
+    // Refresh tracker data when challenge changes
+    _refreshTrackers();
   }
 
   List<PopupMenuEntry<String>> _buildPopupMenuItems() {
@@ -284,13 +290,12 @@ class _MainPageState extends State<MainPage> {
               // Pass both currentChallenge and onCreateChallenge callback
               MilestoneJourney(
                 currentChallenge: _currentChallenge,
-                onCreateChallenge: _showCreateChallenge, // This handles the navigation
+                onCreateChallenge: _showCreateChallenge,
               ),
               const SizedBox(height: 20),
+              // Updated Trackers widget - auto-refreshes when challenge changes
               Trackers(
                 currentChallenge: _currentChallenge,
-                currentCalories: _currentCalories,
-                currentWater: _currentWater,
                 onCaloriesChanged: _onCaloriesChanged,
                 onWaterChanged: _onWaterChanged,
               ),
@@ -307,6 +312,8 @@ class _MainPageState extends State<MainPage> {
         return FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
+          // Remove this line since FoodPage doesn't have this parameter yet
+          // onCaloriesUpdated: _refreshTrackers,
         );
       case 2: // Profile
         return const ProfilePage();

@@ -1,20 +1,20 @@
 {
   "project_info": {
-    "project_number": "546197508463",
-    "project_id": "fitcheck-app-46700",
-    "storage_bucket": "fitcheck-app-46700.firebasestorage.app"
+    "project_number": "189435347287",
+    "project_id": "capstone-project-a9296",
+    "storage_bucket": "capstone-project-a9296.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:546197508463:android:6819bc9ce0ffe5e46e189a",
+        "mobilesdk_app_id": "1:189435347287:android:9ed0358a6bf86e08e53e12",
         "android_client_info": {
           "package_name": "com.example.capstone_project"
         }
       },
       "oauth_client": [
         {
-          "client_id": "546197508463-25gjl3tksgmf8or17e84e7lqr973gn52.apps.googleusercontent.com",
+          "client_id": "189435347287-87qfd0s06ak1h205117vhsh7a82m1lar.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.capstone_project",
@@ -22,32 +22,32 @@
           }
         },
         {
-          "client_id": "546197508463-v1voq33palu4hu77spaeu2r68u1vhh6l.apps.googleusercontent.com",
+          "client_id": "189435347287-v2cdgss88q6oo0bip8nmpq8gq1ob539n.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.capstone_project",
-            "certificate_hash": "94487302e5b73213110e3afac61d8b3b8c79d592"
+            "certificate_hash": "0bb48a84d89ba0d471f4a4f86dc9d8aaa5a35eaa"
           }
         },
         {
-          "client_id": "546197508463-e8uma1k6no8244qerviu28rgdchkivev.apps.googleusercontent.com",
+          "client_id": "189435347287-7v97pc1pnjtmibtjeodsv9sebppd54i4.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDJC9dY7lgA55dc7Co-cuUW9CBelby3M84"
+          "current_key": "AIzaSyCiQITqHOMbfiFezjv2P5Idkf479f2pbt4"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "546197508463-e8uma1k6no8244qerviu28rgdchkivev.apps.googleusercontent.com",
+              "client_id": "189435347287-7v97pc1pnjtmibtjeodsv9sebppd54i4.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "546197508463-0afl53edjmqe0l5k2c79epcl5l5spa46.apps.googleusercontent.com",
+              "client_id": "189435347287-g1fisfer3upq6063m80n9ckp579smj0b.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.example.capstoneProject"

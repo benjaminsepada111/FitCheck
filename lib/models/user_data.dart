@@ -1,5 +1,7 @@
 // models/user_data.dart
 class UserData {
+  final String? name;
+  final String? bio;
   final String? gender;
   final DateTime? birthDate;
   final int? weight; // in kg
@@ -9,6 +11,8 @@ class UserData {
   final double? goalAdjustment; // custom calorie adjustment
 
   UserData({
+    this.name,
+    this.bio,
     this.gender,
     this.birthDate,
     this.weight,
@@ -43,6 +47,8 @@ class UserData {
   // Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
+      'name': name,
+      'bio': bio,
       'gender': gender,
       'birthDate': birthDate?.toIso8601String(),
       'weight': weight,
@@ -56,6 +62,8 @@ class UserData {
   // Create from JSON
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
+      name: json['name'],
+      bio: json['bio'],
       gender: json['gender'],
       birthDate: json['birthDate'] != null
           ? DateTime.parse(json['birthDate'])
@@ -70,6 +78,8 @@ class UserData {
 
   // Create a copy with updated values
   UserData copyWith({
+    String? name,
+    String? bio,
     String? gender,
     DateTime? birthDate,
     int? weight,
@@ -79,6 +89,8 @@ class UserData {
     double? goalAdjustment,
   }) {
     return UserData(
+      name: name ?? this.name,
+      bio: bio ?? this.bio,
       gender: gender ?? this.gender,
       birthDate: birthDate ?? this.birthDate,
       weight: weight ?? this.weight,

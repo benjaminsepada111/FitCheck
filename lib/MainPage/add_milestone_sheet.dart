@@ -4,9 +4,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/services/milestone_service.dart';
 
 class AddMilestoneSheet extends StatefulWidget {
-  final Function(Map<String, dynamic>) onSave; // 👈 callback to parent
+  final Function(Milestone milestone, File? imageFile) onSave;
 
   const AddMilestoneSheet({super.key, required this.onSave});
 
@@ -33,13 +35,17 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
   void _saveMilestone() {
     if (_selectedImage == null) return;
 
-    final milestone = {
-      "file": _selectedImage!.path, // 👈 store path instead of File
-      "note": _noteController.text.trim(),
-      "date": DateTime.now(),
-    };
+    final now = DateTime.now();
+    final milestone = Milestone(
+      id: MilestoneService.generateMilestoneId(),
+      date: now,
+      imagePath: _selectedImage!.path,
+      notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      createdAt: now,
+      updatedAt: now,
+    );
 
-    widget.onSave(milestone);
+    widget.onSave(milestone, _selectedImage);
     Navigator.pop(context);
   }
 
@@ -86,28 +92,56 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _pickImage(ImageSource.camera),
-                    child: DottedBorder(
-                      color: Colors.grey.shade400,
-                      strokeWidth: 1.5,
-                      dashPattern: const [6, 3],
-                      borderType: BorderType.RRect,
-                      radius: const Radius.circular(12),
-                      child: Container(
-                        height: 120,
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.asset(
-                              "assets/icons/capture.svg",
-                              width: 81,
-                              height: 81,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text("Take a Photo"),
-                          ],
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.blue.shade200,
+                          width: 2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 32,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Take Photo",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Use camera",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -119,28 +153,56 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _pickImage(ImageSource.gallery),
-                    child: DottedBorder(
-                      color: Colors.grey.shade400,
-                      strokeWidth: 1.5,
-                      dashPattern: const [6, 3],
-                      borderType: BorderType.RRect,
-                      radius: const Radius.circular(12),
-                      child: Container(
-                        height: 120,
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SvgPicture.asset(
-                              "assets/icons/upload.svg",
-                              width: 81,
-                              height: 81,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text("Upload from Gallery"),
-                          ],
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.green.shade200,
+                          width: 2,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.photo_library,
+                              size: 32,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Gallery",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Choose photo",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green.shade600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

@@ -1,57 +1,83 @@
 // services/user_data_service.dart
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_data.dart';
 import 'calorie_calculator.dart';
 
 class UserDataService {
-  static const String _userDataKey = 'user_data';
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
   static UserData? _cachedUserData;
+  static String? _cachedUserId;
 
-  /// Save user data to local storage
+  static const String _usersCollection = 'users';
+
+  /// Save user data to Firebase Firestore
   static Future<bool> saveUserData(UserData userData) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = jsonEncode(userData.toJson());
-      final success = await prefs.setString(_userDataKey, jsonString);
-
-      if (success) {
-        _cachedUserData = userData;
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('Error: No authenticated user found');
+        return false;
       }
 
-      return success;
+      await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .set(userData.toJson(), SetOptions(merge: true));
+
+      _cachedUserData = userData;
+      _cachedUserId = user.uid;
+
+      print('User data saved successfully to Firebase');
+      return true;
     } catch (e) {
-      print('Error saving user data: $e');
+      print('Error saving user data to Firebase: $e');
       return false;
     }
   }
 
-  /// Load user data from local storage
+  /// Load user data from Firebase Firestore
   static Future<UserData?> loadUserData() async {
-    // Return cached data if available
-    if (_cachedUserData != null) {
-      return _cachedUserData;
-    }
-
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = prefs.getString(_userDataKey);
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('Error: No authenticated user found');
+        return null;
+      }
 
-      if (jsonString != null) {
-        final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
-        _cachedUserData = UserData.fromJson(jsonMap);
+      // Return cached data if it's for the same user
+      if (_cachedUserData != null && _cachedUserId == user.uid) {
         return _cachedUserData;
+      }
+
+      final doc = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final userData = UserData.fromJson(doc.data()!);
+        _cachedUserData = userData;
+        _cachedUserId = user.uid;
+        return userData;
       }
 
       return null;
     } catch (e) {
-      print('Error loading user data: $e');
+      print('Error loading user data from Firebase: $e');
       return null;
     }
   }
 
   /// Update specific field in user data
   static Future<bool> updateUserData({
+    String? name,
+    String? bio,
     String? gender,
     DateTime? birthDate,
     int? weight,
@@ -64,6 +90,8 @@ class UserDataService {
       final currentData = await loadUserData() ?? UserData();
 
       final updatedData = currentData.copyWith(
+        name: name,
+        bio: bio,
         gender: gender,
         birthDate: birthDate,
         weight: weight,
@@ -80,14 +108,27 @@ class UserDataService {
     }
   }
 
-  /// Clear all user data
+  /// Clear all user data from Firebase
   static Future<bool> clearUserData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final user = _auth.currentUser;
+      if (user == null) {
+        print('Error: No authenticated user found');
+        return false;
+      }
+
+      await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .delete();
+
       _cachedUserData = null;
-      return await prefs.remove(_userDataKey);
+      _cachedUserId = null;
+      return true;
     } catch (e) {
-      print('Error clearing user data: $e');
+      print('Error clearing user data from Firebase: $e');
       return false;
     }
   }
@@ -134,32 +175,57 @@ class UserDataService {
   /// Force refresh cached data
   static Future<UserData?> refreshUserData() async {
     _cachedUserData = null;
+    _cachedUserId = null;
     return await loadUserData();
   }
 
-  /// Export user data as JSON string for backup
-  static Future<String?> exportUserData() async {
+  /// Check if current user has user data
+  static Future<bool> hasUserData() async {
     try {
-      final userData = await loadUserData();
-      if (userData == null) return null;
+      final user = _auth.currentUser;
+      if (user == null) return false;
 
-      return jsonEncode(userData.toJson());
+      final doc = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection('profile')
+          .doc('data')
+          .get();
+
+      return doc.exists && doc.data() != null;
     } catch (e) {
-      print('Error exporting user data: $e');
-      return null;
+      print('Error checking user data existence: $e');
+      return false;
     }
   }
 
-  /// Import user data from JSON string
-  static Future<bool> importUserData(String jsonString) async {
-    try {
-      final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
-      final userData = UserData.fromJson(jsonMap);
-      return await saveUserData(userData);
-    } catch (e) {
-      print('Error importing user data: $e');
-      return false;
+  /// Get current user ID
+  static String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
+
+  /// Listen to user data changes in real-time
+  static Stream<UserData?> getUserDataStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value(null);
     }
+
+    return _firestore
+        .collection(_usersCollection)
+        .doc(user.uid)
+        .collection('profile')
+        .doc('data')
+        .snapshots()
+        .map((doc) {
+      if (doc.exists && doc.data() != null) {
+        final userData = UserData.fromJson(doc.data()!);
+        _cachedUserData = userData;
+        _cachedUserId = user.uid;
+        return userData;
+      }
+      return null;
+    });
   }
 
   /// Get daily calorie goal using CalorieCalculator

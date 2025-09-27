@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
+import 'weightselectorpage.dart';
 
-class Birthdate extends StatefulWidget {
-  const Birthdate({super.key});
+class BirthdatePage extends StatefulWidget {
+  const BirthdatePage({super.key});
 
   @override
-  State<Birthdate> createState() => _BirthdateState();
+  State<BirthdatePage> createState() => _BirthdatePageState();
 }
 
-class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
+class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateMixin {
+  bool _isLoading = false;
   int selectedMonth = 1;
   int selectedDay = 1;
   int selectedYear = 2000;
@@ -78,14 +80,48 @@ class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<void> _saveBirthdate() async {
+  Future<void> _saveAndContinue() async {
+    if (_isLoading) return;
+
+    // Validate age (must be at least 13)
+    if (calculatedAge < 13) {
+      _showErrorSnackBar('You must be at least 13 years old to use this app.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
       final birthDate = DateTime(selectedYear, selectedMonth, selectedDay);
-      await UserDataService.updateUserData(birthDate: birthDate);
-      print('Birthdate saved: $birthDate');
+      final success = await UserDataService.updateUserData(birthDate: birthDate);
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WeightSelectorPage()),
+        );
+      } else if (mounted) {
+        _showErrorSnackBar('Failed to save birth date. Please try again.');
+      }
     } catch (e) {
-      print('Error saving birthdate: $e');
+      if (mounted) {
+        _showErrorSnackBar('An error occurred. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   int get calculatedAge {
@@ -101,8 +137,17 @@ class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Container(
+        width: double.infinity,
       child: FadeTransition(
         opacity: _fadeAnimation,
         child: Column(
@@ -190,7 +235,6 @@ class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
                       selectedValue: selectedMonth,
                       onSelected: (val) {
                         setState(() => selectedMonth = val);
-                        _saveBirthdate();
                       },
                       displayValue: (val) => monthNames[val - 1],
                     ),
@@ -202,7 +246,6 @@ class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
                       selectedValue: selectedDay,
                       onSelected: (val) {
                         setState(() => selectedDay = val);
-                        _saveBirthdate();
                       },
                       displayValue: (val) => val.toString().padLeft(2, '0'),
                     ),
@@ -214,7 +257,6 @@ class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
                       selectedValue: selectedYear,
                       onSelected: (val) {
                         setState(() => selectedYear = val);
-                        _saveBirthdate();
                       },
                       displayValue: (val) => val.toString(),
                     ),
@@ -250,8 +292,42 @@ class _BirthdateState extends State<Birthdate> with TickerProviderStateMixin {
                 ),
               ),
             ),
+
+            const SizedBox(height: 40),
+
+            // Continue Button
+            SlideTransition(
+              position: _slideAnimation,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveAndContinue,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'CONTINUE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
+      ),
       ),
     );
   }

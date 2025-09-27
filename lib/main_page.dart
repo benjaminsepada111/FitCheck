@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/services/challenge_service.dart';
+import 'app_text_styles.dart';
 import '../MainPage/milestone_journey.dart';
 import '../MainPage/trackers.dart';
 import '../MainPage/challenge_calendar.dart';
@@ -10,6 +12,8 @@ import '../MainPage/create_challenge_sheet.dart';
 // add your other page imports
 import 'food_page.dart';
 import 'profile.dart';
+import 'services/user_data_service.dart';
+import 'UserInputFile/genderselection.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -30,6 +34,46 @@ class _MainPageState extends State<MainPage> {
 
   // Keys for accessing child widget methods - remove this for now since we need to check the actual state class name
   // final GlobalKey<_TrackersState> _trackersKey = GlobalKey<_TrackersState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChallengeData();
+  }
+
+  Future<void> _loadChallengeData() async {
+    try {
+      // Load all challenges first
+      final allChallenges = await ChallengeService.getUserChallenges();
+
+      // Get active challenges
+      final activeChallenges = await ChallengeService.getActiveChallenges();
+
+      if (mounted) {
+        setState(() {
+          _challengeHistory = allChallenges;
+
+          // Set the first active challenge as current (since we only allow one active challenge)
+          if (activeChallenges.isNotEmpty) {
+            _currentChallenge = activeChallenges.first;
+            _selectedChallenge = _currentChallenge!.title;
+          } else {
+            _currentChallenge = null;
+            _selectedChallenge = "No Active Challenge";
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading challenge data: $e');
+      if (mounted) {
+        setState(() {
+          _challengeHistory = [];
+          _currentChallenge = null;
+          _selectedChallenge = "No Active Challenge";
+        });
+      }
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -62,12 +106,83 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
+  void _showDeleteChallengeDialog() {
+    if (_currentChallenge == null) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Challenge'),
+          content: Text(
+            'Are you sure you want to delete "${_currentChallenge!.title}"?\n\nThis action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteCurrentChallenge();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteCurrentChallenge() async {
+    if (_currentChallenge == null) return;
+
+    try {
+      // Delete from Firebase database
+      final success = await ChallengeService.deleteChallenge(_currentChallenge!.id);
+
+      if (success) {
+        // Refresh challenge data from Firebase to ensure consistency
+        await _loadChallengeData();
+      } else {
+        throw Exception('Failed to delete from database');
+      }
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Challenge deleted successfully'),
+          backgroundColor: Colors.green,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+
+      _refreshTrackers();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete challenge'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _onChallengeCreated(Challenge challenge) {
     setState(() {
       _currentChallenge = challenge;
       _selectedChallenge = challenge.title;
       _challengeHistory.add(challenge);
     });
+
+    // Refresh challenge data from Firebase to ensure consistency
+    _loadChallengeData();
 
     // Refresh tracker data when new challenge is created
     _refreshTrackers();
@@ -146,6 +261,11 @@ class _MainPageState extends State<MainPage> {
       return;
     }
 
+    if (challengeTitle == "Delete Challenge") {
+      _showDeleteChallengeDialog();
+      return;
+    }
+
     setState(() {
       _selectedChallenge = challengeTitle;
       if (challengeTitle == "No Active Challenge") {
@@ -169,36 +289,43 @@ class _MainPageState extends State<MainPage> {
   List<PopupMenuEntry<String>> _buildPopupMenuItems() {
     List<PopupMenuEntry<String>> items = [];
 
-    // Current challenge or "No Active Challenge"
-    items.add(
-      PopupMenuItem(
-        value: "No Active Challenge",
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: _currentChallenge == null ? Colors.green : Colors.grey,
-                shape: BoxShape.circle,
+    // Only show "No Active Challenge" if there's no current challenge
+    if (_currentChallenge == null) {
+      items.add(
+        PopupMenuItem(
+          value: "No Active Challenge",
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.grey,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              "No Active Challenge",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Colors.black87,
+              const SizedBox(width: 10),
+              const Text(
+                "No Active Challenge",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
-    // Add recent challenges from history
+    // Add recent challenges from history (only inactive ones when there's an active challenge)
     for (Challenge challenge in _challengeHistory.take(3)) {
+      // If there's a current challenge, only show it in the list
+      if (_currentChallenge != null && challenge.id != _currentChallenge!.id) {
+        continue;
+      }
+
       items.add(
         PopupMenuItem(
           value: challenge.title,
@@ -234,26 +361,48 @@ class _MainPageState extends State<MainPage> {
 
     items.add(const PopupMenuDivider());
 
-    // Create new challenge option
-    items.add(
-      const PopupMenuItem(
-        value: "Create New Challenge",
-        child: Row(
-          children: [
-            Icon(Icons.add_circle_outline, color: Colors.blue, size: 20),
-            SizedBox(width: 10),
-            Text(
-              "Create New Challenge",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.blue,
+    // Show "Create New Challenge" only if no active challenge, otherwise show "Delete Challenge"
+    if (_currentChallenge == null) {
+      items.add(
+        const PopupMenuItem(
+          value: "Create New Challenge",
+          child: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: Colors.blue, size: 20),
+              SizedBox(width: 10),
+              Text(
+                "Create New Challenge",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      items.add(
+        const PopupMenuItem(
+          value: "Delete Challenge",
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.red, size: 20),
+              SizedBox(width: 10),
+              Text(
+                "Delete Challenge",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // View challenge history
     items.add(
@@ -283,23 +432,51 @@ class _MainPageState extends State<MainPage> {
     switch (_selectedIndex) {
       case 0: // Home
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Add informational text when no challenge is active
+              if (_currentChallenge == null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Start a challenge to begin tracking your milestone journey and progress photos!",
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               // Pass both currentChallenge and onCreateChallenge callback
               MilestoneJourney(
                 currentChallenge: _currentChallenge,
                 onCreateChallenge: _showCreateChallenge,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               // Updated Trackers widget - auto-refreshes when challenge changes
               Trackers(
                 currentChallenge: _currentChallenge,
                 onCaloriesChanged: _onCaloriesChanged,
                 onWaterChanged: _onWaterChanged,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               ChallengeCalendar(
                 currentChallenge: _currentChallenge,
                 onChallengeCreated: _onChallengeCreated,
@@ -327,6 +504,7 @@ class _MainPageState extends State<MainPage> {
     // Profile page should not have the FitCheck header
     if (_selectedIndex == 2) {
       return Scaffold(
+        backgroundColor: Colors.white,
         body: _getBody(),
         bottomNavigationBar: CustomBottomNavBar(
           currentIndex: _selectedIndex,
@@ -337,25 +515,24 @@ class _MainPageState extends State<MainPage> {
 
     // Home & Food keep the header
     return Scaffold(
+      backgroundColor: Colors.white,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverAppBar(
               automaticallyImplyLeading: false,
               backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
               pinned: true,
-              elevation: 0,
-              toolbarHeight: 70,
+              elevation: 4,
+              shadowColor: Colors.black.withOpacity(0.1),
+              toolbarHeight: 60,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     "FitCheck",
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                    style: AppTextStyles.appTitle,
                   ),
                   PopupMenuButton<String>(
                     offset: const Offset(0, 20),
@@ -430,5 +607,67 @@ class _MainPageState extends State<MainPage> {
         onTap: _onItemTapped,
       ),
     );
+  }
+}
+
+// Wrapper to check user data and onboarding status
+class MainPageWrapper extends StatefulWidget {
+  const MainPageWrapper({super.key});
+
+  @override
+  State<MainPageWrapper> createState() => _MainPageWrapperState();
+}
+
+class _MainPageWrapperState extends State<MainPageWrapper> {
+  bool _isLoading = true;
+  bool _isProfileComplete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserProfile();
+  }
+
+  Future<void> _checkUserProfile() async {
+    try {
+      // Check if user has completed their profile
+      final hasData = await UserDataService.hasUserData();
+      final profileComplete = await UserDataService.isProfileComplete();
+
+      if (mounted) {
+        setState(() {
+          _isProfileComplete = hasData && profileComplete;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking user profile: $e');
+      if (mounted) {
+        setState(() {
+          _isProfileComplete = false;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF06111D),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (_isProfileComplete) {
+      // User has completed profile setup - show main app
+      return const MainPage();
+    } else {
+      // User needs to complete profile setup - show input flow
+      return const GenderSelection();
+    }
   }
 }

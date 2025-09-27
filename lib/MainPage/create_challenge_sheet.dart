@@ -3,6 +3,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/calorie_calculator.dart';
+import 'package:capstone_project/services/challenge_service.dart';
 import 'package:capstone_project/models/user_data.dart';
 
 class CreateChallengeSheet extends StatefulWidget {
@@ -221,41 +222,59 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   Future<void> _createChallenge() async {
     if (!_validateForm()) return;
 
+    // Prevent multiple submissions
+    if (_isCreating) return;
+
     setState(() {
       _isCreating = true;
     });
 
     try {
-      // Extract numeric values from the text fields
-      final calorieText = _calorieController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      final waterText = _waterController.text.replaceAll(RegExp(r'[^0-9]'), '');
+      // Use calculated values if available, otherwise parse from text fields
+      int calorieGoal;
+      int waterGoal;
 
-      final calorieGoal = int.tryParse(calorieText) ?? 2000;
-      final waterGoal = int.tryParse(waterText) ?? 8;
+      if (_hasValidUserData) {
+        // Use the calculated personalized goals
+        calorieGoal = _calculatedCalorieGoal;
+        waterGoal = _calculatedWaterGoal;
+      } else {
+        // Parse from text fields if user modified them or no user data available
+        final calorieText = _calorieController.text.replaceAll(RegExp(r'[^0-9]'), '');
+        final waterText = _waterController.text.replaceAll(RegExp(r'[^0-9]'), '');
+        calorieGoal = int.tryParse(calorieText) ?? 2000;
+        waterGoal = int.tryParse(waterText) ?? 8;
+      }
 
       final challenge = Challenge(
+        id: ChallengeService.generateChallengeId(),
         title: _titleController.text.trim(),
         startDate: _startDate!,
         endDate: _endDate!,
         dailyCalorieGoal: calorieGoal,
         dailyWaterGoal: waterGoal,
+        createdAt: DateTime.now(),
         notes: _notesController.text.trim(),
       );
 
-      // Simulate API call or database save
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Save challenge to Firebase database
+      final success = await ChallengeService.createChallenge(challenge);
 
-      widget.onChallengeCreated(challenge);
+      if (success) {
+        widget.onChallengeCreated(challenge);
 
-      if (_hasValidUserData) {
-        _showSuccess('Challenge created with personalized goals!');
+        if (_hasValidUserData) {
+          _showSuccess('Challenge created and saved! Ready to start your fitness journey.');
+        } else {
+          _showSuccess('Challenge created! Complete your profile for personalized goals.');
+        }
+
+        // Close the bottom sheet after successful creation
+        if (mounted) {
+          Navigator.pop(context);
+        }
       } else {
-        _showSuccess('Challenge created! Complete your profile for personalized goals.');
-      }
-
-      // Close the bottom sheet
-      if (mounted) {
-        Navigator.pop(context);
+        throw Exception('Failed to save challenge to database');
       }
     } catch (e) {
       _showError('Failed to create challenge. Please try again.');

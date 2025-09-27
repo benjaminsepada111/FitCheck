@@ -1,10 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 // 👉 import your real pages here
 import 'package:capstone_project/Accounts/personal_info_page.dart';
 import 'package:capstone_project/Accounts/change_password_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Signing out...'),
+            ],
+          ),
+        ),
+      );
+
+      // Sign out from Firebase
+      await FirebaseAuth.instance.signOut();
+
+      // Navigate to auth wrapper (which will show login page)
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
+      }
+    } catch (e) {
+      // Close loading dialog if it's open
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to sign out. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Sign Out'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +169,7 @@ class ProfilePage extends StatelessWidget {
 
           // Logout
           _buildSection([
-            _buildListTile(Icons.logout, "Log Out"),
+            _buildListTile(Icons.logout, "Log Out", () => _showLogoutDialog(context)),
           ]),
         ],
       ),

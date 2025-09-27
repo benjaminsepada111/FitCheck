@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'create_challenge_sheet.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
+import '../app_text_styles.dart';
 import 'daily_logs.dart';
 
 class ChallengeCalendar extends StatefulWidget {
@@ -142,13 +143,12 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       days.add(_buildDateCell('$day', day: day));
     }
 
-    // Add next month's leading days to fill the grid
-    int remainingDays = 42 - days.length; // 6 rows * 7 days = 42
-    if (remainingDays > 7)
-      remainingDays = 42 - days.length; // Ensure we don't add too many
-
-    for (int day = 1; day <= remainingDays && days.length < 42; day++) {
-      days.add(_buildDateCell('$day', isOtherMonth: true));
+    // Add next month's leading days to fill the grid (max 5 weeks = 35 days)
+    int remainingDays = 35 - days.length; // 5 rows * 7 days = 35
+    if (remainingDays > 0 && remainingDays <= 7) {
+      for (int day = 1; day <= remainingDays && days.length < 35; day++) {
+        days.add(_buildDateCell('$day', isOtherMonth: true));
+      }
     }
 
     return days;
@@ -316,11 +316,11 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       children: [
         const Text(
           "Challenge Calendar",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          style: AppTextStyles.heading2,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(color: Colors.grey.shade300),
@@ -341,11 +341,13 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                 children: [
                   IconButton(
                     onPressed: () => _changeMonth(false),
-                    icon: const Icon(Icons.chevron_left),
+                    icon: const Icon(Icons.chevron_left, size: 28),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.grey.shade100,
+                      padding: const EdgeInsets.all(12),
+                      minimumSize: const Size(48, 48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
@@ -376,11 +378,13 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                   ),
                   IconButton(
                     onPressed: () => _changeMonth(true),
-                    icon: const Icon(Icons.chevron_right),
+                    icon: const Icon(Icons.chevron_right, size: 28),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.grey.shade100,
+                      padding: const EdgeInsets.all(12),
+                      minimumSize: const Size(48, 48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
@@ -394,7 +398,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                 children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
                     .map((day) =>
                     SizedBox(
-                      width: 32,
+                      width: 48,
                       child: Text(
                         day,
                         textAlign: TextAlign.center,
@@ -413,77 +417,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
               // Calendar grid - dynamically built weeks
               Column(children: weeks),
 
-              // Challenge info section (show when challenge is active)
-              if (widget.currentChallenge != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.secondary.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Active Challenge',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _handleEndChallenge,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Icon(
-                                Icons.more_horiz,
-                                color: AppColors.secondary,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Goals: ${widget.currentChallenge!
-                            .dailyCalorieGoal} cal • ${widget.currentChallenge!
-                            .dailyWaterGoal} glasses',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (widget.currentChallenge!.notes.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.currentChallenge!.notes,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -601,8 +534,8 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
     );
 
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: 48,
+      height: 48,
       child: isClickable && day != null
           ? InkWell(
         onTap: () {

@@ -38,9 +38,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   final List<Widget> slides = [
     const PrivacyConsentPage(),
     const GenderSelection(),
-    const Birthdate(),
+    const BirthdatePage(),
     const WeightSelectorPage(),
-    const HeightSelectorPage(),
+    const HeightPage(),
     ValidatedActivityLevelPage(),
     ValidatedGoalPage(),
     const Profile(),

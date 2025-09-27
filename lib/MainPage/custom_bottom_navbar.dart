@@ -14,37 +14,60 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap, // ✅ Always let MainPage handle navigation
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      items: [
-        BottomNavigationBarItem(
-          icon: SvgPicture.asset(
-            "assets/icons/home.svg",
-            color: currentIndex == 0 ? AppColors.secondary : Colors.grey,
-            height: 28,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-          label: "",
-        ),
-        BottomNavigationBarItem(
-          icon: SvgPicture.asset(
-            "assets/icons/food.svg",
-            color: currentIndex == 1 ? AppColors.secondary : Colors.grey,
-            height: 28,
+        ],
+      ),
+      child: SafeArea(
+        child: Container(
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(0, "assets/icons/home.svg"),
+              _buildNavItem(1, "assets/icons/food.svg"),
+              _buildNavItem(2, "assets/icons/profile.svg"),
+            ],
           ),
-          label: "",
         ),
-        BottomNavigationBarItem(
-          icon: SvgPicture.asset(
-            "assets/icons/profile.svg",
-            color: currentIndex == 2 ? AppColors.secondary : Colors.grey,
-            height: 28,
-          ),
-          label: "",
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, String iconPath) {
+    final isSelected = currentIndex == index;
+    return GestureDetector(
+      onTap: () => onTap(index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.secondary.withOpacity(0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: SvgPicture.asset(
+                iconPath,
+                color: isSelected ? AppColors.secondary : Colors.grey.shade600,
+                height: 28,
+                width: 28,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

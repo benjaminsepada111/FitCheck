@@ -127,12 +127,10 @@ class _LoginPageState extends State<LoginPage> {
 
       if (userCredential != null && mounted) {
         // Navigate directly to main app - NO SUCCESS MESSAGE
-        Navigator.pushAndRemoveUntil(
+        Navigator.pushNamedAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) => const OnboardingScreen(),
-          ),
-              (route) => false,
+          '/auth',
+          (route) => false,
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -190,12 +188,10 @@ class _LoginPageState extends State<LoginPage> {
 
       if (userCredential != null && mounted) {
         // Navigate directly to main app - NO SUCCESS MESSAGE
-        Navigator.pushAndRemoveUntil(
+        Navigator.pushNamedAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) => const OnboardingScreen(),
-          ),
-              (route) => false,
+          '/auth',
+          (route) => false,
         );
       }
       // If userCredential is null, user cancelled - no error to show
@@ -244,12 +240,10 @@ class _LoginPageState extends State<LoginPage> {
 
       if (userCredential != null && mounted) {
         // Navigate directly to main app - NO SUCCESS MESSAGE
-        Navigator.pushAndRemoveUntil(
+        Navigator.pushNamedAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) => const OnboardingScreen(),
-          ),
-              (route) => false,
+          '/auth',
+          (route) => false,
         );
       }
       // If userCredential is null, user cancelled - no error to show
@@ -290,12 +284,10 @@ class _LoginPageState extends State<LoginPage> {
 
       if (userCredential != null && mounted) {
         // Navigate directly to main app - NO SUCCESS MESSAGE
-        Navigator.pushAndRemoveUntil(
+        Navigator.pushNamedAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) => const OnboardingScreen(),
-          ),
-              (route) => false,
+          '/auth',
+          (route) => false,
         );
       }
       // If userCredential is null, user cancelled - no error to show

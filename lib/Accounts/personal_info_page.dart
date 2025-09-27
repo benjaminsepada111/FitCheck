@@ -32,7 +32,7 @@ class PersonalInfoPage extends StatelessWidget {
                  CircleAvatar(
                   backgroundColor: AppColors.secondary.shade200,
                   radius: 60,
-                  backgroundImage: AssetImage("assets/profile.jpg"), // 👈 replace with user image
+                  child: Icon(Icons.person, size: 50, color: Colors.white), // 👈 default avatar
                 ),
                 FloatingActionButton(
                   mini: true,

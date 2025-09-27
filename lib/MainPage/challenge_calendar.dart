@@ -318,7 +318,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
           "Challenge Calendar",
           style: AppTextStyles.heading2,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(

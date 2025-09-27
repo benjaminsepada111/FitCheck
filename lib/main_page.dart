@@ -432,7 +432,7 @@ class _MainPageState extends State<MainPage> {
     switch (_selectedIndex) {
       case 0: // Home
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -462,21 +462,21 @@ class _MainPageState extends State<MainPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
               ],
               // Pass both currentChallenge and onCreateChallenge callback
               MilestoneJourney(
                 currentChallenge: _currentChallenge,
                 onCreateChallenge: _showCreateChallenge,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               // Updated Trackers widget - auto-refreshes when challenge changes
               Trackers(
                 currentChallenge: _currentChallenge,
                 onCaloriesChanged: _onCaloriesChanged,
                 onWaterChanged: _onWaterChanged,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               ChallengeCalendar(
                 currentChallenge: _currentChallenge,
                 onChallengeCreated: _onChallengeCreated,
@@ -526,7 +526,7 @@ class _MainPageState extends State<MainPage> {
               pinned: true,
               elevation: 4,
               shadowColor: Colors.black.withOpacity(0.1),
-              toolbarHeight: 70,
+              toolbarHeight: 60,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

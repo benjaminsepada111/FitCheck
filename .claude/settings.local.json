@@ -10,7 +10,9 @@
       "Bash(nc localhost 55975)",
       "Bash(flutter build:*)",
       "Bash(dart analyze:*)",
-      "Bash(flutter clean:*)"
+      "Bash(flutter clean:*)",
+      "Bash(flutter:*)",
+      "Bash(timeout 15 flutter run -d emulator-5554)"
     ],
     "deny": [],
     "ask": []

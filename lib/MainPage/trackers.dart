@@ -129,7 +129,8 @@ class _TrackersState extends State<Trackers> {
   }
 
   Widget _buildTracker(String label, int current, int goal, double progress, {bool isClickable = true}) {
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
         onTap: () {
           if (label == "Water" && isClickable) {
@@ -180,7 +181,7 @@ class _TrackersState extends State<Trackers> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 11),
             Text(
               label,
               style: const TextStyle(
@@ -189,22 +190,13 @@ class _TrackersState extends State<Trackers> {
                 color: Color(0xFF1A1A1A),
               ),
             ),
-            const SizedBox(height: 4),
             Text(
               _getDisplayText(label, current, goal),
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
                 fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _getStatusText(label),
-              style: TextStyle(
-                fontSize: 12,
-                color: _getStatusColor(label),
-                fontStyle: FontStyle.italic,
+                height: 0.8,
               ),
             ),
           ],
@@ -364,79 +356,44 @@ class _TrackersState extends State<Trackers> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Today's Progress",
-              style: AppTextStyles.heading2,
-            ),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    widget.currentChallenge!.title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    onPressed: refreshData,
-                    icon: const Icon(Icons.refresh, size: 24),
-                    tooltip: "Refresh data",
-                    padding: const EdgeInsets.all(12),
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                  ),
-                ),
-              ],
-            ),
-          ],
+        const Text(
+          "Today's Progress",
+          style: AppTextStyles.heading2,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: Colors.grey.shade200, width: 1),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false),
-              Container(
-                width: 1,
-                height: 80,
-                color: Colors.grey.shade300,
-              ),
-              _buildTracker("Water", _currentWater, waterGoal, waterProgress),
-              Container(
-                width: 1,
-                height: 80,
-                color: Colors.grey.shade300,
-              ),
-              _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
-            ],
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false),
+                ),
+                Container(
+                  width: 1,
+                  color: Colors.grey.shade300,
+                ),
+                Expanded(
+                  flex: 1,
+                  child: _buildTracker("Water", _currentWater, waterGoal, waterProgress),
+                ),
+                Container(
+                  width: 1,
+                  color: Colors.grey.shade300,
+                ),
+                Expanded(
+                  flex: 1,
+                  child: _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
+                ),
+              ],
+            ),
           ),
         ),
       ],

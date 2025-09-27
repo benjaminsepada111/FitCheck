@@ -4,9 +4,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/services/milestone_service.dart';
 
 class AddMilestoneSheet extends StatefulWidget {
-  final Function(Map<String, dynamic>) onSave; // 👈 callback to parent
+  final Function(Milestone milestone, File? imageFile) onSave;
 
   const AddMilestoneSheet({super.key, required this.onSave});
 
@@ -33,13 +35,17 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
   void _saveMilestone() {
     if (_selectedImage == null) return;
 
-    final milestone = {
-      "file": _selectedImage!.path, // 👈 store path instead of File
-      "note": _noteController.text.trim(),
-      "date": DateTime.now(),
-    };
+    final now = DateTime.now();
+    final milestone = Milestone(
+      id: MilestoneService.generateMilestoneId(),
+      date: now,
+      imagePath: _selectedImage!.path,
+      notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      createdAt: now,
+      updatedAt: now,
+    );
 
-    widget.onSave(milestone);
+    widget.onSave(milestone, _selectedImage);
     Navigator.pop(context);
   }
 

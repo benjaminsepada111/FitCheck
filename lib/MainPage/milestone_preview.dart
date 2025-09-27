@@ -5,16 +5,21 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/services/milestone_service.dart';
 
 
 class MilestonePreviewPage extends StatefulWidget {
-  final List<Map<String, dynamic>> milestones;
+  final List<Milestone> milestones;
   final int initialIndex;
+  final VoidCallback? onMilestonesChanged;
 
   const MilestonePreviewPage({
     super.key,
     required this.milestones,
     this.initialIndex = 0,
+    this.onMilestonesChanged,
   });
 
   @override
@@ -102,10 +107,10 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       // Copy all milestone images to export folder
       for (int i = 0; i < widget.milestones.length; i++) {
         final milestone = widget.milestones[i];
-        final originalFile = File(milestone["file"] as String);
+        final originalFile = milestone.imagePath != null ? File(milestone.imagePath!) : null;
 
-        if (await originalFile.exists()) {
-          final date = milestone["date"] as DateTime;
+        if (originalFile != null && await originalFile.exists()) {
+          final date = milestone.date;
           final dateStr = DateFormat('yyyy-MM-dd_HH-mm-ss').format(date);
           final fileName = 'milestone_${i + 1}_$dateStr.jpg';
           final newPath = '$exportPath/$fileName';
@@ -125,8 +130,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
       for (int i = 0; i < widget.milestones.length; i++) {
         final milestone = widget.milestones[i];
-        final date = milestone["date"] as DateTime;
-        final note = milestone["note"] as String;
+        final date = milestone.date;
+        final note = milestone.notes ?? '';
 
         summary.writeln('--- Milestone ${i + 1} ---');
         summary.writeln('Date: ${DateFormat('MMM d, yyyy - HH:mm').format(date)}');
@@ -289,7 +294,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         ),
         title: Text(
           "${_currentIndex + 1} of ${milestones.length} · "
-              "${DateFormat("MMM d, yyyy").format(milestones[_currentIndex]["date"])}",
+              "${DateFormat("MMM d, yyyy").format(milestones[_currentIndex].date)}",
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         actions: [
@@ -301,21 +306,49 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             ),
             onPressed: _isSlideshow ? _stopSlideshow : () => _showSlideshowSettings(),
           ),
-          // Export button
-          _isExporting
-              ? Container(
-            margin: const EdgeInsets.all(8),
-            width: 24,
-            height: 24,
-            child: const CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          )
-              : TextButton.icon(
-            onPressed: _exportMilestones,
-            icon: const Icon(Icons.ios_share, color: Colors.white),
-            label: const Text("EXPORT", style: TextStyle(color: Colors.white)),
+          // Burger menu with options
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) => _handleMenuAction(value),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'change_image',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 12),
+                    Text('Change Image'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete_image',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 12),
+                    Text('Delete Image', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    _isExporting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.ios_share, size: 20),
+                    const SizedBox(width: 12),
+                    Text(_isExporting ? 'Exporting...' : 'Export All'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -335,10 +368,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 return Stack(
                   children: [
                     Center(
-                      child: Image.file(
-                        File(milestone["file"] as String),
-                        fit: BoxFit.contain,
-                      ),
+                      child: milestone.imageUrl != null
+                        ? Image.network(
+                            milestone.imageUrl!,
+                            fit: BoxFit.contain,
+                          )
+                        : milestone.imagePath != null
+                          ? Image.file(
+                              File(milestone.imagePath!),
+                              fit: BoxFit.contain,
+                            )
+                          : const Icon(Icons.image_not_supported, size: 100),
                     ),
                     // Show slideshow indicator
                     if (_isSlideshow)
@@ -373,7 +413,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                         ),
                       ),
                     // Show note if available
-                    if ((milestone["note"] as String).isNotEmpty)
+                    if (milestone.notes != null && milestone.notes!.isNotEmpty)
                       Positioned(
                         bottom: 110,
                         left: 20,
@@ -385,7 +425,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            milestone["note"] as String,
+                            milestone.notes!,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -424,12 +464,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(milestone["file"] as String),
-                        width: 60,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ),
+                      child: _buildImageWidget(milestone),
                     ),
                   ),
                 );
@@ -439,5 +474,251 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         ],
       ),
     );
+  }
+
+  void _handleMenuAction(String action) {
+    if (_isExporting && action != 'export') return; // Prevent actions during export
+
+    switch (action) {
+      case 'change_image':
+        _changeCurrentImage();
+        break;
+      case 'delete_image':
+        _deleteCurrentImage();
+        break;
+      case 'export':
+        _exportMilestones();
+        break;
+    }
+  }
+
+  void _changeCurrentImage() async {
+    if (widget.milestones.isEmpty) return;
+
+    final milestone = widget.milestones[_currentIndex];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Change Image',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildImageSourceButton(
+                  icon: Icons.camera_alt,
+                  label: 'Camera',
+                  onTap: () => _pickImageForChange(ImageSource.camera, milestone),
+                ),
+                _buildImageSourceButton(
+                  icon: Icons.photo_library,
+                  label: 'Gallery',
+                  onTap: () => _pickImageForChange(ImageSource.gallery, milestone),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSourceButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: Colors.grey.shade600),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(color: Colors.grey.shade600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickImageForChange(ImageSource source, Milestone milestone) async {
+    Navigator.pop(context); // Close bottom sheet
+
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+
+      if (pickedFile != null) {
+        // Show loading indicator
+        setState(() => _isExporting = true);
+
+        // Update milestone with new image
+        final updatedMilestone = milestone.copyWith(
+          imagePath: pickedFile.path,
+          updatedAt: DateTime.now(),
+        );
+
+        // Save to Firebase with new image
+        final success = await MilestoneService.updateMilestone(
+          updatedMilestone,
+          newImageFile: File(pickedFile.path),
+        );
+
+        if (success) {
+          // Update local list
+          setState(() {
+            widget.milestones[_currentIndex] = updatedMilestone;
+          });
+
+          // Notify parent to refresh
+          widget.onMilestonesChanged?.call();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to update image. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isExporting = false);
+    }
+  }
+
+  void _deleteCurrentImage() {
+    if (widget.milestones.isEmpty) return;
+
+    final milestone = widget.milestones[_currentIndex];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Image'),
+        content: const Text('Are you sure you want to delete this milestone image? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => _confirmDelete(milestone),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(Milestone milestone) async {
+    Navigator.pop(context); // Close dialog
+
+    try {
+      setState(() => _isExporting = true);
+
+      // Delete from Firebase
+      final success = await MilestoneService.deleteMilestone(milestone.id);
+
+      if (success) {
+        // Remove from local list
+        setState(() {
+          final index = _currentIndex;
+          widget.milestones.removeAt(index);
+
+          // Adjust current index if needed
+          if (widget.milestones.isEmpty) {
+            Navigator.pop(context); // Close preview if no more images
+            return;
+          } else if (index >= widget.milestones.length) {
+            _currentIndex = widget.milestones.length - 1;
+            _pageController.animateToPage(
+              _currentIndex,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+
+        // Notify parent to refresh
+        widget.onMilestonesChanged?.call();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete image. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isExporting = false);
+    }
+  }
+
+  Widget _buildImageWidget(Milestone milestone) {
+    if (milestone.imageUrl != null) {
+      return Image.network(
+        milestone.imageUrl!,
+        width: 60,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    } else if (milestone.imagePath != null) {
+      return Image.file(
+        File(milestone.imagePath!),
+        width: 60,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    } else {
+      return Container(
+        width: 60,
+        height: 80,
+        color: Colors.grey.shade200,
+        child: const Icon(Icons.image_not_supported),
+      );
+    }
   }
 }

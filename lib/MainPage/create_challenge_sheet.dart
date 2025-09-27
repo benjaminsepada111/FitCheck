@@ -222,6 +222,9 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   Future<void> _createChallenge() async {
     if (!_validateForm()) return;
 
+    // Prevent multiple submissions
+    if (_isCreating) return;
+
     setState(() {
       _isCreating = true;
     });
@@ -265,13 +268,13 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         } else {
           _showSuccess('Challenge created! Complete your profile for personalized goals.');
         }
+
+        // Close the bottom sheet after successful creation
+        if (mounted) {
+          Navigator.pop(context);
+        }
       } else {
         throw Exception('Failed to save challenge to database');
-      }
-
-      // Close the bottom sheet
-      if (mounted) {
-        Navigator.pop(context);
       }
     } catch (e) {
       _showError('Failed to create challenge. Please try again.');

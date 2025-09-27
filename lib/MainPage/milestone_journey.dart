@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'dart:convert'; // for json
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'add_milestone_sheet.dart';
 import 'milestone_preview.dart';
 import 'package:capstone_project/color/colors.dart';
-import 'package:capstone_project/models/challenge.dart'; // Add this import
+import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/services/milestone_service.dart';
 import '../app_text_styles.dart';
 
 class MilestoneJourney extends StatefulWidget {
@@ -25,7 +25,8 @@ class MilestoneJourney extends StatefulWidget {
 }
 
 class _MilestoneJourneyState extends State<MilestoneJourney> {
-  List<Map<String, dynamic>> _milestones = [];
+  List<Milestone> _milestones = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -34,32 +35,65 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
   }
 
   Future<void> _loadMilestones() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getStringList('milestones') ?? [];
     setState(() {
-      _milestones = data.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
-      // Convert date string back to DateTime
-      for (var m in _milestones) {
-        m["date"] = DateTime.parse(m["date"]);
+      _isLoading = true;
+    });
+
+    try {
+      final milestones = await MilestoneService.getAllMilestones();
+      setState(() {
+        _milestones = milestones;
+      });
+    } catch (e) {
+      print('Error loading milestones: $e');
+      // Show error to user if needed
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _addMilestone(Milestone milestone, {File? imageFile}) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await MilestoneService.saveMilestone(milestone, imageFile: imageFile);
+      if (success) {
+        setState(() {
+          _milestones.insert(0, milestone);
+        });
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Milestone saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save milestone. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
-  }
-
-  Future<void> _saveMilestones() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = _milestones.map((e) {
-      final copy = Map<String, dynamic>.from(e);
-      copy["date"] = (copy["date"] as DateTime).toIso8601String();
-      return jsonEncode(copy);
-    }).toList();
-    await prefs.setStringList('milestones', data);
-  }
-
-  void _addMilestone(Map<String, dynamic> milestone) async {
-    setState(() {
-      _milestones.insert(0, milestone);
-    });
-    await _saveMilestones();
+    } catch (e) {
+      print('Error saving milestone: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An error occurred while saving milestone.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _showNoChallengeMessage() {
@@ -168,8 +202,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
   bool _hasTodayMilestone() {
     final today = DateTime.now();
     return _milestones.any((m) {
-      final d = m["date"] as DateTime;
-      return d.year == today.year && d.month == today.month && d.day == today.day;
+      return m.date.year == today.year && m.date.month == today.month && m.date.day == today.day;
     });
   }
 
@@ -198,6 +231,10 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                   MaterialPageRoute(
                     builder: (_) => MilestonePreviewPage(
                       milestones: _milestones,
+                      onMilestonesChanged: () {
+                        // Refresh milestones when changes are made
+                        _loadMilestones();
+                      },
                     ),
                   ),
                 );
@@ -228,7 +265,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
 
         // --- Horizontal List ---
@@ -250,7 +287,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                       ),
                       builder: (context) => AddMilestoneSheet(
-                        onSave: _addMilestone,
+                        onSave: (milestone, imageFile) => _addMilestone(milestone, imageFile: imageFile),
                       ),
                     );
                   }
@@ -340,10 +377,20 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 width: 120,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: FileImage(File(milestone["file"] as String)),
-                    fit: BoxFit.cover,
-                  ),
+                  image: milestone.imageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(milestone.imageUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : milestone.imagePath != null
+                      ? DecorationImage(
+                          image: FileImage(File(milestone.imagePath!)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                  color: milestone.imageUrl == null && milestone.imagePath == null
+                    ? Colors.grey.shade200
+                    : null,
                 ),
                 child: Align(
                   alignment: Alignment.bottomCenter,
@@ -355,7 +402,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
                     ),
                     child: Text(
-                      _formatDate(milestone["date"] as DateTime),
+                      _formatDate(milestone.date),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,

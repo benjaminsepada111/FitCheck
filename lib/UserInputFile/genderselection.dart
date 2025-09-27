@@ -1,16 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-
-
-Future<void> _saveGenderSelection(String gender) async {
-  try {
-    await UserDataService.updateUserData(gender: gender);
-    print('Gender saved: $gender');
-  } catch (e) {
-    print('Error saving gender: $e');
-  }
-}
+import 'birthdate.dart';
 
 class GenderSelection extends StatefulWidget {
   const GenderSelection({super.key});
@@ -21,6 +12,7 @@ class GenderSelection extends StatefulWidget {
 
 class _GenderSelectionState extends State<GenderSelection> with TickerProviderStateMixin {
   String selectedGender = "Female"; // Default selected
+  bool _isLoading = false;
   late AnimationController _fadeController;
   late AnimationController _scaleController;
   late Animation<double> _fadeAnimation;
@@ -72,13 +64,56 @@ class _GenderSelectionState extends State<GenderSelection> with TickerProviderSt
     setState(() {
       selectedGender = gender;
     });
-    _saveGenderSelection(gender);
+  }
 
+  Future<void> _saveAndContinue() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await UserDataService.updateUserData(gender: selectedGender);
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const BirthdatePage()),
+        );
+      } else if (mounted) {
+        _showErrorSnackBar('Failed to save gender selection. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('An error occurred. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Container(
         width: double.infinity,
         child: SafeArea(
@@ -221,6 +256,33 @@ class _GenderSelectionState extends State<GenderSelection> with TickerProviderSt
                           ),
                         ],
                       ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // Continue Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveAndContinue,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'CONTINUE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],

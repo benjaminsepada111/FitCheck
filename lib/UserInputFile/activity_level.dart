@@ -1,15 +1,7 @@
 import 'package:flutter/material.dart';
 import '../color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-
-Future<void> _saveActivityLevel(String level) async {
-  try {
-    await UserDataService.updateUserData(activityLevel: level);
-    print('Activity level saved: $level');
-  } catch (e) {
-    print('Error saving activity level: $e');
-  }
-}
+import 'goal_selection.dart';
 
 class ActivityLevelPage extends StatefulWidget {
   const ActivityLevelPage({super.key});
@@ -20,6 +12,7 @@ class ActivityLevelPage extends StatefulWidget {
 
 class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProviderStateMixin {
   String? _selectedLevel;
+  bool _isLoading = false;
   late AnimationController _fadeController;
   late AnimationController _listController;
   late Animation<double> _fadeAnimation;
@@ -27,30 +20,35 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
 
   final List<Map<String, dynamic>> activityLevels = [
     {
+      "value": "sedentary",
       "label": "Sedentary",
       "desc": "Little or no exercise",
       "icon": Icons.chair_outlined,
       "detail": "Office job, minimal physical activity"
     },
     {
+      "value": "light",
       "label": "Light",
       "desc": "Light exercise/sports 1–3 days/week",
       "icon": Icons.directions_walk_outlined,
       "detail": "Walking, light yoga, casual sports"
     },
     {
+      "value": "moderate",
       "label": "Moderate",
       "desc": "Moderate exercise 3–5 days/week",
       "icon": Icons.directions_run_outlined,
       "detail": "Regular gym, jogging, swimming"
     },
     {
+      "value": "active",
       "label": "Active",
       "desc": "Hard exercise 6–7 days/week",
       "icon": Icons.fitness_center_outlined,
       "detail": "Daily workouts, intensive training"
     },
     {
+      "value": "very active",
       "label": "Very Active",
       "desc": "Hard daily exercise or physical job",
       "icon": Icons.sports_outlined,
@@ -88,6 +86,59 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
     Future.delayed(const Duration(milliseconds: 200), () {
       _listController.forward();
     });
+
+    _loadSavedActivityLevel();
+  }
+
+  Future<void> _loadSavedActivityLevel() async {
+    final userData = await UserDataService.loadUserData();
+    if (userData?.activityLevel != null && mounted) {
+      setState(() {
+        _selectedLevel = userData!.activityLevel!;
+      });
+    }
+  }
+
+  Future<void> _saveAndContinue() async {
+    if (_selectedLevel == null) {
+      _showErrorSnackBar('Please select an activity level first.');
+      return;
+    }
+
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await UserDataService.updateUserData(activityLevel: _selectedLevel);
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const GoalSelectionPage()),
+        );
+      } else if (mounted) {
+        _showErrorSnackBar('Failed to save activity level. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('An error occurred. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -99,7 +150,19 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: FadeTransition(
       opacity: _fadeAnimation,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +207,7 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
                 padding: EdgeInsets.zero,
                 itemBuilder: (context, index) {
                   final item = activityLevels[index];
-                  final isSelected = _selectedLevel == item["label"];
+                  final isSelected = _selectedLevel == item["value"];
 
                   return AnimatedContainer(
                     duration: Duration(milliseconds: 200 + (index * 50)),
@@ -159,8 +222,7 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () {
-                          setState(() => _selectedLevel = item["label"]);
-                          _saveActivityLevel(item["label"]!);
+                          setState(() => _selectedLevel = item["value"]);
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
@@ -245,7 +307,7 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
                                 child: Transform.scale(
                                   scale: 1.1,
                                   child: Radio<String>(
-                                    value: item["label"]!,
+                                    value: item["value"]!,
                                     groupValue: _selectedLevel,
                                     activeColor: AppColors.secondary,
                                     fillColor: MaterialStateProperty.resolveWith(
@@ -273,7 +335,36 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> with TickerProvid
             ),
           ),
 
+          const SizedBox(height: 32),
+
+          // Continue Button
+          SizedBox(
+            width: double.infinity,
+            height: 55,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _saveAndContinue,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      'CONTINUE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }

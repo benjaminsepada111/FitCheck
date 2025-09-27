@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../LoginPages/login_page.dart';
-import '../UserInputFile/onboarding_screen.dart';
 import '../main_page.dart';
+import '../color/colors.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -54,6 +54,8 @@ class EmailVerificationScreen extends StatefulWidget {
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   bool _isLoading = false;
+  bool _isResendLoading = false;
+  String? _errorMessage;
   Timer? _timer;
 
   @override
@@ -84,30 +86,19 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _sendVerificationEmail() async {
-    setState(() => _isLoading = true);
+    setState(() => _isResendLoading = true);
 
     try {
       await FirebaseAuth.instance.currentUser?.sendEmailVerification();
-
+      // No popup notification - just clear any error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification email sent! Please check your inbox.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() => _errorMessage = null);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to send verification email. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // No popup - silently handle error
+      print('Error sending verification email: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isResendLoading = false);
     }
   }
 
@@ -115,12 +106,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     await _checkEmailVerificationStatus();
 
     if (mounted && !(FirebaseAuth.instance.currentUser?.emailVerified ?? false)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email not verified yet. Please check your email and click the verification link.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      setState(() {
+        _errorMessage = 'Email not verified yet';
+      });
     }
   }
 
@@ -186,13 +174,27 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               ),
               const SizedBox(height: 32),
 
+              // Error message
+              if (_errorMessage != null) ...[
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // I've Verified Button
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: AppColors.secondary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -217,18 +219,18 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 height: 55,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white),
+                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: _isLoading ? null : _sendVerificationEmail,
-                  child: _isLoading
+                  onPressed: _isResendLoading ? null : _sendVerificationEmail,
+                  child: _isResendLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
+                      : Text(
                     "RESEND VERIFICATION EMAIL",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.secondary.withOpacity(0.8),
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -241,11 +243,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               // Sign out button
               TextButton(
                 onPressed: _signOut,
-                child: const Text(
+                child: Text(
                   'Use Different Account',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: AppColors.secondary.withOpacity(0.7),
                     fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

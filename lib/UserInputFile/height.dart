@@ -3,29 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-
-Future<void> _saveHeight(int height) async {
-  try {
-    await UserDataService.updateUserData(height: height);
-    print('Height saved: $height cm');
-  } catch (e) {
-    print('Error saving height: $e');
-  }
-}
+import 'activity_level.dart';
 // Global constants for height range
 const int kMinHeight = 100;
 const int kMaxHeight = 320;
 
-class HeightSelectorPage extends StatefulWidget {
-  const HeightSelectorPage({super.key});
+class HeightPage extends StatefulWidget {
+  const HeightPage({super.key});
 
   @override
-  State<HeightSelectorPage> createState() => _HeightSelectorPageState();
+  State<HeightPage> createState() => _HeightPageState();
 }
 
-class _HeightSelectorPageState extends State<HeightSelectorPage>
+class _HeightPageState extends State<HeightPage>
     with TickerProviderStateMixin {
   int selectedHeight = 165;
+  bool _isLoading = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -43,6 +36,16 @@ class _HeightSelectorPageState extends State<HeightSelectorPage>
       parent: _pulseController,
       curve: Curves.easeOut,
     ));
+    _loadSavedHeight();
+  }
+
+  Future<void> _loadSavedHeight() async {
+    final userData = await UserDataService.loadUserData();
+    if (userData?.height != null && mounted) {
+      setState(() {
+        selectedHeight = userData!.height!;
+      });
+    }
   }
 
   @override
@@ -60,15 +63,63 @@ class _HeightSelectorPageState extends State<HeightSelectorPage>
       _pulseController.forward().then((_) {
         _pulseController.reverse();
       });
-
-      // Save the height
-      _saveHeight(newHeight);
     }
+  }
+
+  Future<void> _saveAndContinue() async {
+    if (_isLoading) return;
+
+    // Validate height (must be between 100-320 cm)
+    if (selectedHeight < 100 || selectedHeight > 320) {
+      _showErrorSnackBar('Please select a valid height between 100-320 cm.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await UserDataService.updateUserData(height: selectedHeight);
+
+      if (success && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ActivityLevelPage()),
+        );
+      } else if (mounted) {
+        _showErrorSnackBar('Failed to save height. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('An error occurred. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -168,6 +219,34 @@ class _HeightSelectorPageState extends State<HeightSelectorPage>
 
                   const SizedBox(width: 50),
                 ],
+              ),
+            ),
+
+            // Continue Button
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveAndContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'CONTINUE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
               ),
             ),
           ],

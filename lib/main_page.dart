@@ -10,6 +10,8 @@ import '../MainPage/create_challenge_sheet.dart';
 // add your other page imports
 import 'food_page.dart';
 import 'profile.dart';
+import 'services/user_data_service.dart';
+import 'UserInputFile/genderselection.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -434,13 +436,63 @@ class _MainPageState extends State<MainPage> {
 }
 
 // Wrapper to check user data and onboarding status
-class MainPageWrapper extends StatelessWidget {
+class MainPageWrapper extends StatefulWidget {
   const MainPageWrapper({super.key});
 
   @override
+  State<MainPageWrapper> createState() => _MainPageWrapperState();
+}
+
+class _MainPageWrapperState extends State<MainPageWrapper> {
+  bool _isLoading = true;
+  bool _isProfileComplete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserProfile();
+  }
+
+  Future<void> _checkUserProfile() async {
+    try {
+      // Check if user has completed their profile
+      final hasData = await UserDataService.hasUserData();
+      final profileComplete = await UserDataService.isProfileComplete();
+
+      if (mounted) {
+        setState(() {
+          _isProfileComplete = hasData && profileComplete;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking user profile: $e');
+      if (mounted) {
+        setState(() {
+          _isProfileComplete = false;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // For now, directly show MainPage
-    // Later you can add logic to check if user has completed onboarding
-    return const MainPage();
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF06111D),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (_isProfileComplete) {
+      // User has completed profile setup - show main app
+      return const MainPage();
+    } else {
+      // User needs to complete profile setup - show input flow
+      return const GenderSelection();
+    }
   }
 }

@@ -3,24 +3,29 @@ import '../services/user_data_service.dart';
 
 
 class Challenge {
+  final String id;
   final String title;
   final DateTime startDate;
   final DateTime endDate;
   final int dailyCalorieGoal;
   final int dailyWaterGoal;
   final String notes;
+  final DateTime createdAt;
 
   Challenge({
+    required this.id,
     required this.title,
     required this.startDate,
     required this.endDate,
     required this.dailyCalorieGoal,
     required this.dailyWaterGoal,
+    required this.createdAt,
     this.notes = '',
   });
 
   /// Create a challenge with automatically calculated goals
   static Future<Challenge> createWithCalculatedGoals({
+    required String id,
     required String title,
     required DateTime startDate,
     required DateTime endDate,
@@ -32,11 +37,13 @@ class Challenge {
     int waterGoal = customWaterGoal ?? await UserDataService.getDailyWaterGoal();
 
     return Challenge(
+      id: id,
       title: title,
       startDate: startDate,
       endDate: endDate,
       dailyCalorieGoal: calorieGoal,
       dailyWaterGoal: waterGoal,
+      createdAt: DateTime.now(),
       notes: notes,
     );
   }
@@ -149,11 +156,13 @@ class Challenge {
   /// Convert to JSON for storage
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'title': title,
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
       'dailyCalorieGoal': dailyCalorieGoal,
       'dailyWaterGoal': dailyWaterGoal,
+      'createdAt': createdAt.toIso8601String(),
       'notes': notes,
     };
   }
@@ -161,30 +170,36 @@ class Challenge {
   /// Create from JSON
   factory Challenge.fromJson(Map<String, dynamic> json) {
     return Challenge(
+      id: json['id'],
       title: json['title'],
       startDate: DateTime.parse(json['startDate']),
       endDate: DateTime.parse(json['endDate']),
       dailyCalorieGoal: json['dailyCalorieGoal'],
       dailyWaterGoal: json['dailyWaterGoal'],
+      createdAt: DateTime.parse(json['createdAt']),
       notes: json['notes'] ?? '',
     );
   }
 
   /// Create a copy with updated values
   Challenge copyWith({
+    String? id,
     String? title,
     DateTime? startDate,
     DateTime? endDate,
     int? dailyCalorieGoal,
     int? dailyWaterGoal,
+    DateTime? createdAt,
     String? notes,
   }) {
     return Challenge(
+      id: id ?? this.id,
       title: title ?? this.title,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       dailyCalorieGoal: dailyCalorieGoal ?? this.dailyCalorieGoal,
       dailyWaterGoal: dailyWaterGoal ?? this.dailyWaterGoal,
+      createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
     );
   }
@@ -198,23 +213,93 @@ class Challenge {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Challenge &&
+        other.id == id &&
         other.title == title &&
         other.startDate == startDate &&
         other.endDate == endDate &&
         other.dailyCalorieGoal == dailyCalorieGoal &&
         other.dailyWaterGoal == dailyWaterGoal &&
+        other.createdAt == createdAt &&
         other.notes == notes;
   }
 
   @override
   int get hashCode {
     return Object.hash(
+      id,
       title,
       startDate,
       endDate,
       dailyCalorieGoal,
       dailyWaterGoal,
+      createdAt,
       notes,
+    );
+  }
+}
+
+class ChallengeDay {
+  final String dayId;
+  final int dayNumber;
+  final DateTime date;
+  final bool completed;
+  final String? notes;
+  final DateTime? completedAt;
+  final Map<String, dynamic>? data; // For custom data per challenge type
+
+  ChallengeDay({
+    required this.dayId,
+    required this.dayNumber,
+    required this.date,
+    required this.completed,
+    this.notes,
+    this.completedAt,
+    this.data,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'dayId': dayId,
+      'dayNumber': dayNumber,
+      'date': date.toIso8601String(),
+      'completed': completed,
+      'notes': notes,
+      'completedAt': completedAt?.toIso8601String(),
+      'data': data,
+    };
+  }
+
+  factory ChallengeDay.fromJson(Map<String, dynamic> json) {
+    return ChallengeDay(
+      dayId: json['dayId'],
+      dayNumber: json['dayNumber'],
+      date: DateTime.parse(json['date']),
+      completed: json['completed'],
+      notes: json['notes'],
+      completedAt: json['completedAt'] != null
+          ? DateTime.parse(json['completedAt'])
+          : null,
+      data: json['data'],
+    );
+  }
+
+  ChallengeDay copyWith({
+    String? dayId,
+    int? dayNumber,
+    DateTime? date,
+    bool? completed,
+    String? notes,
+    DateTime? completedAt,
+    Map<String, dynamic>? data,
+  }) {
+    return ChallengeDay(
+      dayId: dayId ?? this.dayId,
+      dayNumber: dayNumber ?? this.dayNumber,
+      date: date ?? this.date,
+      completed: completed ?? this.completed,
+      notes: notes ?? this.notes,
+      completedAt: completedAt ?? this.completedAt,
+      data: data ?? this.data,
     );
   }
 }

@@ -11,6 +11,26 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
+      // Users can access their own challenges
+      match /challenges/{challengeId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+
+        // Daily challenge logs
+        match /days/{dayId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
+
+      // Users can access their own food logs
+      match /foodlogs/{logId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Users can access their own milestones
+      match /milestones/{milestoneId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // Users can access their own other subcollections (future use)
       match /{subcollection}/{document} {
         allow read, write: if request.auth != null && request.auth.uid == userId;

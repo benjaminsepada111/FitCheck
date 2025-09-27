@@ -11,8 +11,6 @@ class UserDataService {
   static String? _cachedUserId;
 
   static const String _usersCollection = 'users';
-  static const String _userDataSubcollection = 'profile';
-  static const String _userDataDocument = 'data';
 
   /// Save user data to Firebase Firestore
   static Future<bool> saveUserData(UserData userData) async {
@@ -26,8 +24,8 @@ class UserDataService {
       await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
-          .collection(_userDataSubcollection)
-          .doc(_userDataDocument)
+          .collection('profile')
+          .doc('data')
           .set(userData.toJson(), SetOptions(merge: true));
 
       _cachedUserData = userData;
@@ -58,8 +56,8 @@ class UserDataService {
       final doc = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
-          .collection(_userDataSubcollection)
-          .doc(_userDataDocument)
+          .collection('profile')
+          .doc('data')
           .get();
 
       if (doc.exists && doc.data() != null) {
@@ -122,8 +120,8 @@ class UserDataService {
       await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
-          .collection(_userDataSubcollection)
-          .doc(_userDataDocument)
+          .collection('profile')
+          .doc('data')
           .delete();
 
       _cachedUserData = null;
@@ -190,8 +188,8 @@ class UserDataService {
       final doc = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
-          .collection(_userDataSubcollection)
-          .doc(_userDataDocument)
+          .collection('profile')
+          .doc('data')
           .get();
 
       return doc.exists && doc.data() != null;
@@ -216,8 +214,8 @@ class UserDataService {
     return _firestore
         .collection(_usersCollection)
         .doc(user.uid)
-        .collection(_userDataSubcollection)
-        .doc(_userDataDocument)
+        .collection('profile')
+        .doc('data')
         .snapshots()
         .map((doc) {
       if (doc.exists && doc.data() != null) {

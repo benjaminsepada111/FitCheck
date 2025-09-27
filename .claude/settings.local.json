@@ -9,7 +9,8 @@
       "Bash(flutter run:*)",
       "Bash(nc localhost 55975)",
       "Bash(flutter build:*)",
-      "Bash(dart analyze:*)"
+      "Bash(dart analyze:*)",
+      "Bash(flutter clean:*)"
     ],
     "deny": [],
     "ask": []

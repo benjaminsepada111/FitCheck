@@ -8,6 +8,7 @@ import 'add_milestone_sheet.dart';
 import 'milestone_preview.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart'; // Add this import
+import '../app_text_styles.dart';
 
 class MilestoneJourney extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -186,7 +187,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
           children: [
             const Text(
               "Milestone Journey",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: AppTextStyles.heading2,
             ),
             TextButton.icon(
               onPressed: _milestones.isEmpty
@@ -206,14 +207,16 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 backgroundColor: _milestones.isEmpty
                     ? Colors.grey.shade200
                     : AppColors.secondary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                minimumSize: const Size(100, 48),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               icon: SvgPicture.asset(
                 "assets/icons/play.svg",
-                height: 23,
-                width: 23,
+                height: 20,
+                width: 20,
                 color: _milestones.isEmpty ? Colors.grey : Colors.white,
               ),
               label: Text(
@@ -226,6 +229,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
           ],
         ),
         const SizedBox(height: 10),
+
 
         // --- Horizontal List ---
         SizedBox(
@@ -313,13 +317,15 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                           Positioned.fill(
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withOpacity(0.8),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(
-                                Icons.lock_outline,
-                                color: Colors.grey,
-                                size: 20,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.lock_outline,
+                                  color: Colors.grey,
+                                  size: 32,
+                                ),
                               ),
                             ),
                           ),
@@ -365,34 +371,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
           ),
         ),
 
-        // Add informational text when no challenge is active
-        if (!hasActiveChallenge) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "Start a challenge to begin tracking your milestone journey and progress photos!",
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_storage_service.dart';
+import '../app_text_styles.dart';
 
 class Trackers extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -272,11 +273,7 @@ class _TrackersState extends State<Trackers> {
         children: [
           const Text(
             "Today's Progress",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A1A),
-            ),
+            style: AppTextStyles.heading2,
           ),
           const SizedBox(height: 20),
           Container(
@@ -372,11 +369,7 @@ class _TrackersState extends State<Trackers> {
           children: [
             const Text(
               "Today's Progress",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
-              ),
+              style: AppTextStyles.heading2,
             ),
             Row(
               children: [
@@ -396,10 +389,18 @@ class _TrackersState extends State<Trackers> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  onPressed: refreshData,
-                  icon: const Icon(Icons.refresh, size: 20),
-                  tooltip: "Refresh data",
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: refreshData,
+                    icon: const Icon(Icons.refresh, size: 24),
+                    tooltip: "Refresh data",
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  ),
                 ),
               ],
             ),

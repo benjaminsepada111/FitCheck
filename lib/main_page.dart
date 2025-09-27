@@ -432,3 +432,15 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
+
+// Wrapper to check user data and onboarding status
+class MainPageWrapper extends StatelessWidget {
+  const MainPageWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // For now, directly show MainPage
+    // Later you can add logic to check if user has completed onboarding
+    return const MainPage();
+  }
+}

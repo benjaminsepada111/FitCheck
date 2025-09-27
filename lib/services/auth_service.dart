@@ -451,11 +451,22 @@ class AuthService {
     }
   }
 
-  // Check if email is registered
+  // Check if email is registered (using safer approach)
   Future<bool> isEmailRegistered(String email) async {
     try {
-      List<String> signInMethods = await _auth.fetchSignInMethodsForEmail(email);
-      return signInMethods.isNotEmpty;
+      // Try to create a temporary user - if email exists, it will throw email-already-in-use
+      await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: 'temp_password_for_check'
+      );
+      // If we get here, email is not registered, delete the temp user
+      await _auth.currentUser?.delete();
+      return false;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }

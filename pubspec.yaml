@@ -60,14 +60,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-flutter_lints: ^5.0.0
+  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -79,10 +72,7 @@ flutter:
   - assets/images/success.png
   - assets/icons/
   - assets/login_svg/bg.svg
-  - assets/login_svg/bg2.svg
   - assets/login_svg/google.svg
-  - assets/login_svg/facebook.svg
-  - assets/login_svg/apple.svg
   - assets/images/banana.png
   - assets/images/apple.png
   - assets/images/strawberry.png
@@ -92,7 +82,6 @@ flutter:
   - assets/icons/lunch.svg
   - assets/icons/weight_arrow.svg
   - assets/icons/success.svg
-  - assets/images/banana.png
 
 
   # The following line ensures that the Material Icons font is
@@ -107,7 +96,6 @@ flutter:
         - asset: assets/fonts/Sen-Bold.ttf
         - asset: assets/fonts/Sen-ExtraBold.ttf
         - asset: assets/fonts/Sen-SemiBold.ttf
-        - asset: assets/fonts/Sen-Regular.ttf
 
 
 

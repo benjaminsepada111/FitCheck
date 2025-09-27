@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../LoginPages/login_page.dart';
 import '../UserInputFile/onboarding_screen.dart';
+import '../main_page.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -26,12 +28,13 @@ class AuthWrapper extends StatelessWidget {
           // User is signed in
           User user = snapshot.data!;
 
-          // Check if email is verified
-          if (user.emailVerified) {
-            return const OnboardingScreen();
-          } else {
-            // Show email verification screen
+          // Check if email is verified for email/password users
+          if (user.providerData.any((info) => info.providerId == 'password') && !user.emailVerified) {
+            // Show email verification screen for email/password users only
             return const EmailVerificationScreen();
+          } else {
+            // User is verified or using social auth - check if onboarding is complete
+            return const MainPageWrapper();
           }
         } else {
           // User is not signed in
@@ -51,11 +54,37 @@ class EmailVerificationScreen extends StatefulWidget {
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   bool _isLoading = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check email verification status every 3 seconds
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _checkEmailVerificationStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkEmailVerificationStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await user.reload();
+      if (user.emailVerified && mounted) {
+        _timer?.cancel();
+        // Email is verified, let AuthWrapper handle navigation
+        Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
+      }
+    }
+  }
 
   Future<void> _sendVerificationEmail() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       await FirebaseAuth.instance.currentUser?.sendEmailVerification();
@@ -63,7 +92,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Verification email sent!'),
+            content: Text('Verification email sent! Please check your inbox.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -71,44 +100,32 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
+          const SnackBar(
+            content: Text('Failed to send verification email. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _checkEmailVerified() async {
-    await FirebaseAuth.instance.currentUser?.reload();
+  Future<void> _manualCheck() async {
+    await _checkEmailVerificationStatus();
 
-    if (FirebaseAuth.instance.currentUser?.emailVerified ?? false) {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email not verified yet. Please check your email.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+    if (mounted && !(FirebaseAuth.instance.currentUser?.emailVerified ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email not verified yet. Please check your email and click the verification link.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 
   Future<void> _signOut() async {
+    _timer?.cancel();
     await FirebaseAuth.instance.signOut();
   }
 
@@ -180,7 +197,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: _checkEmailVerified,
+                  onPressed: _manualCheck,
                   child: const Text(
                     "I'VE VERIFIED MY EMAIL",
                     style: TextStyle(

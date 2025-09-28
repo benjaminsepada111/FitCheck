@@ -129,77 +129,96 @@ class _TrackersState extends State<Trackers> {
   }
 
   Widget _buildTracker(String label, int current, int goal, double progress, {bool isClickable = true}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: () {
-          if (label == "Water" && isClickable) {
-            _showWaterUpdateSheet();
-          }
-          // Calories are auto-synced, so no manual input needed
-          // Streak is not clickable
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Circular progress ring
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 10,
-                    backgroundColor: AppColors.secondary.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _getProgressColor(progress),
-                    ),
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: GestureDetector(
+          onTap: () {
+            if (label == "Water" && isClickable) {
+              _showWaterUpdateSheet();
+            }
+            // Calories are auto-synced, so no manual input needed
+            // Streak is not clickable
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Circular progress ring with fixed aspect ratio
+              Center(
+                child: AspectRatio(
+                  aspectRatio: 1.0,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Use the minimum dimension to ensure perfect circle
+                      final size = constraints.maxWidth.clamp(60.0, 80.0);
+                      return Container(
+                        width: size,
+                        height: size,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: size,
+                              height: size,
+                              child: CircularProgressIndicator(
+                                value: progress,
+                                strokeWidth: (size * 0.125).clamp(6.0, 10.0),
+                                backgroundColor: AppColors.secondary.withOpacity(0.2),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _getProgressColor(progress),
+                                ),
+                              ),
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "${(progress * 100).toInt()}%",
+                                  style: TextStyle(
+                                    fontSize: (size * 0.2).clamp(12.0, 16.0),
+                                    fontWeight: FontWeight.bold,
+                                    color: _getProgressColor(progress),
+                                  ),
+                                ),
+                                if (label == "Streak")
+                                  Text(
+                                    "${current}d",
+                                    style: TextStyle(
+                                      fontSize: (size * 0.15).clamp(10.0, 12.0),
+                                      color: _getProgressColor(progress),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "${(progress * 100).toInt()}%",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: _getProgressColor(progress),
-                      ),
-                    ),
-                    if (label == "Streak")
-                      Text(
-                        "${current}d",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _getProgressColor(progress),
-                        ),
-                      ),
-                  ],
+              ),
+              const SizedBox(height: 11),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
                 ),
-              ],
-            ),
-            const SizedBox(height: 11),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
+                textAlign: TextAlign.center,
               ),
-            ),
-            Text(
-              _getDisplayText(label, current, goal),
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
-                height: 0.8,
+              Text(
+                _getDisplayText(label, current, goal),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                  height: 0.8,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -372,26 +391,17 @@ class _TrackersState extends State<Trackers> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
-                  flex: 1,
-                  child: _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false),
-                ),
+                _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false),
                 Container(
                   width: 1,
                   color: Colors.grey.shade300,
                 ),
-                Expanded(
-                  flex: 1,
-                  child: _buildTracker("Water", _currentWater, waterGoal, waterProgress),
-                ),
+                _buildTracker("Water", _currentWater, waterGoal, waterProgress),
                 Container(
                   width: 1,
                   color: Colors.grey.shade300,
                 ),
-                Expanded(
-                  flex: 1,
-                  child: _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
-                ),
+                _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
               ],
             ),
           ),

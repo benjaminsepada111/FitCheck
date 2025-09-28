@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class SpoonacularService {
   static const String _baseUrl = 'https://api.spoonacular.com';
-  static const String _apiKey = ' 8bf544f05b374c6491f2d6f32980d39e'; // Replace with your key
+  static const String _apiKey = '8bf544f05b374c6491f2d6f32980d39e'; // Replace with your key
 
   // Get meal-specific food recommendations
   static Future<List<RecommendedFood>> getRecommendedFoods({
@@ -205,9 +205,6 @@ class RecommendedFood {
   final String name;
   final String image;
   final double calories;
-  final double protein;
-  final double carbs;
-  final double fat;
   final String source; // 'spoonacular' or 'ingredient'
 
   RecommendedFood({
@@ -215,9 +212,6 @@ class RecommendedFood {
     required this.name,
     required this.image,
     required this.calories,
-    required this.protein,
-    required this.carbs,
-    required this.fat,
     required this.source,
   });
 
@@ -226,9 +220,9 @@ class RecommendedFood {
     final nutrition = json['nutrition'] ?? {};
     final nutrients = nutrition['nutrients'] as List<dynamic>? ?? [];
 
-    double getMultrient(String name) {
+    double getCalories() {
       final nutrient = nutrients.firstWhere(
-            (n) => n['name'].toString().toLowerCase().contains(name.toLowerCase()),
+            (n) => n['name'].toString().toLowerCase().contains('calories'),
         orElse: () => {'amount': 0.0},
       );
       return (nutrient['amount'] ?? 0.0).toDouble();
@@ -238,10 +232,7 @@ class RecommendedFood {
       id: json['id'] ?? 0,
       name: json['title'] ?? 'Unknown Food',
       image: json['image'] ?? '',
-      calories: getMultrient('calories'),
-      protein: getMultrient('protein'),
-      carbs: getMultrient('carbohydrates'),
-      fat: getMultrient('fat'),
+      calories: getCalories(),
       source: 'spoonacular',
     );
   }
@@ -250,9 +241,9 @@ class RecommendedFood {
   factory RecommendedFood.fromIngredientJson(Map<String, dynamic> json, Map<String, dynamic> nutrition) {
     final nutrients = nutrition['nutrients'] as List<dynamic>? ?? [];
 
-    double getNutrient(String name) {
+    double getCalories() {
       final nutrient = nutrients.firstWhere(
-            (n) => n['name'].toString().toLowerCase().contains(name.toLowerCase()),
+            (n) => n['name'].toString().toLowerCase().contains('calories'),
         orElse: () => {'amount': 0.0},
       );
       return (nutrient['amount'] ?? 0.0).toDouble();
@@ -262,14 +253,10 @@ class RecommendedFood {
       id: json['id'] ?? 0,
       name: json['name'] ?? 'Unknown Food',
       image: 'https://spoonacular.com/cdn/ingredients_250x250/${json['image'] ?? ''}',
-      calories: getNutrient('calories'),
-      protein: getNutrient('protein'),
-      carbs: getNutrient('carbohydrates'),
-      fat: getNutrient('fat'),
+      calories: getCalories(),
       source: 'ingredient',
     );
   }
 
   String get caloriesText => '${calories.round()} kcal/100g';
-  String get nutritionSummary => '${protein.toStringAsFixed(1)}g protein • ${carbs.toStringAsFixed(1)}g carbs';
 }

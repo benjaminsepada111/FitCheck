@@ -1,44 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:capstone_project/services/food_storage_service.dart';
+import 'package:capstone_project/services/food_log_service.dart';
 
-class DailyNutritionSummary extends StatefulWidget {
+class DailyCalorieSummary extends StatefulWidget {
   final DateTime date;
 
-  const DailyNutritionSummary({
+  const DailyCalorieSummary({
     super.key,
     required this.date,
   });
 
   @override
-  State<DailyNutritionSummary> createState() => _DailyNutritionSummaryState();
+  State<DailyCalorieSummary> createState() => _DailyCalorieSummaryState();
 }
 
-class _DailyNutritionSummaryState extends State<DailyNutritionSummary> {
-  Map<String, double> _nutrition = {};
+class _DailyCalorieSummaryState extends State<DailyCalorieSummary> {
+  double _totalCalories = 0.0;
   bool _isLoading = true;
   final int _dailyCalorieGoal = 2000; // This could be user-configurable
 
   @override
   void initState() {
     super.initState();
-    _loadNutritionData();
+    _loadCalorieData();
   }
 
   @override
-  void didUpdateWidget(DailyNutritionSummary oldWidget) {
+  void didUpdateWidget(DailyCalorieSummary oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.date != oldWidget.date) {
-      _loadNutritionData();
+      _loadCalorieData();
     }
   }
 
-  Future<void> _loadNutritionData() async {
+  Future<void> _loadCalorieData() async {
     setState(() => _isLoading = true);
 
-    final nutrition = await FoodStorageService.getNutritionSummary(widget.date);
+    final calories = await FoodLogService.getDailyCalories(widget.date);
 
     setState(() {
-      _nutrition = nutrition;
+      _totalCalories = calories;
       _isLoading = false;
     });
   }
@@ -54,11 +54,7 @@ class _DailyNutritionSummaryState extends State<DailyNutritionSummary> {
       );
     }
 
-    final totalCalories = _nutrition['calories'] ?? 0;
-    final protein = _nutrition['protein'] ?? 0;
-    final carbs = _nutrition['carbs'] ?? 0;
-    final fat = _nutrition['totalFat'] ?? 0;
-    final progress = totalCalories / _dailyCalorieGoal;
+    final progress = _totalCalories / _dailyCalorieGoal;
 
     return Card(
       elevation: 2,
@@ -103,7 +99,7 @@ class _DailyNutritionSummaryState extends State<DailyNutritionSummary> {
                   ),
                 ),
                 Text(
-                  '${totalCalories.round()}/${_dailyCalorieGoal}',
+                  '${_totalCalories.round()}/$_dailyCalorieGoal',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -120,67 +116,36 @@ class _DailyNutritionSummaryState extends State<DailyNutritionSummary> {
                 progress > 1.0 ? Colors.red : Colors.green,
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Macronutrients
-            Row(
-              children: [
-                Expanded(
-                  child: _MacronutrientCard(
-                    label: 'Protein',
-                    value: protein.toStringAsFixed(1),
-                    unit: 'g',
-                    color: Colors.blue,
-                    icon: Icons.fitness_center,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _MacronutrientCard(
-                    label: 'Carbs',
-                    value: carbs.toStringAsFixed(1),
-                    unit: 'g',
-                    color: Colors.orange,
-                    icon: Icons.grain,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _MacronutrientCard(
-                    label: 'Fat',
-                    value: fat.toStringAsFixed(1),
-                    unit: 'g',
-                    color: Colors.purple,
-                    icon: Icons.opacity,
-                  ),
-                ),
-              ],
-            ),
-
-            if (totalCalories > 0) ...[
+            if (_totalCalories > 0) ...[
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _CalorieBreakdown(
-                    label: 'Protein',
-                    calories: (protein * 4).round(),
-                    percentage: ((protein * 4) / totalCalories * 100).round(),
-                    color: Colors.blue,
-                  ),
-                  _CalorieBreakdown(
-                    label: 'Carbs',
-                    calories: (carbs * 4).round(),
-                    percentage: ((carbs * 4) / totalCalories * 100).round(),
-                    color: Colors.orange,
-                  ),
-                  _CalorieBreakdown(
-                    label: 'Fat',
-                    calories: (fat * 9).round(),
-                    percentage: ((fat * 9) / totalCalories * 100).round(),
-                    color: Colors.purple,
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.local_fire_department, color: Colors.orange, size: 32),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(_dailyCalorieGoal - _totalCalories).abs().round()}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                        color: progress > 1.0 ? Colors.red : Colors.green,
+                      ),
+                    ),
+                    Text(
+                      progress > 1.0 ? 'calories over goal' : 'calories remaining',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -209,95 +174,3 @@ class _DailyNutritionSummaryState extends State<DailyNutritionSummary> {
   }
 }
 
-class _MacronutrientCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final String unit;
-  final Color color;
-  final IconData icon;
-
-  const _MacronutrientCard({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            '$value$unit',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CalorieBreakdown extends StatelessWidget {
-  final String label;
-  final int calories;
-  final int percentage;
-  final Color color;
-
-  const _CalorieBreakdown({
-    required this.label,
-    required this.calories,
-    required this.percentage,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          '${calories}cal',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: color,
-          ),
-        ),
-        Text(
-          '${percentage}%',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade500,
-          ),
-        ),
-      ],
-    );
-  }
-}

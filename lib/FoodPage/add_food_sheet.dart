@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
-import 'package:capstone_project/services/food_storage_service.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final Function(String foodName, int calories, {double? grams, Map<String, double>? nutrition})? onFoodAdded;
+  final Function(String foodName, int calories, {double? grams})? onFoodAdded;
 
   const AddFoodSheet({
     super.key,
@@ -29,12 +28,10 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   bool _isLoading = false;
   bool _isManualEntry = false;
   String? _errorMessage;
-  List<String> _quickAddSuggestions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadQuickAddSuggestions();
   }
 
   @override
@@ -46,12 +43,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     super.dispose();
   }
 
-  Future<void> _loadQuickAddSuggestions() async {
-    final suggestions = await FoodStorageService.getMealRecommendations(widget.mealName);
-    setState(() {
-      _quickAddSuggestions = suggestions;
-    });
-  }
 
   Future<void> _searchFoods(String query) async {
     if (query.trim().isEmpty) {
@@ -70,18 +61,44 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
     try {
       final response = await USDAApiService.searchFoods(
-        query: query,
-        pageSize: 10,
+        query: query.trim(),
+        pageSize: 15,
       );
 
-      setState(() {
-        _searchResults = response.foods;
-        _selectedFood = null;
-        _isLoading = false;
-      });
+      if (response.foods.isEmpty) {
+        setState(() {
+          _searchResults = [];
+          _selectedFood = null;
+          _isLoading = false;
+          _errorMessage = 'No foods found for "$query". Try a different search term.';
+        });
+      } else {
+        setState(() {
+          _searchResults = response.foods;
+          _selectedFood = null;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
     } catch (e) {
+      // Log error (replace with proper logging framework in production)
+      debugPrint('USDA API Error: $e');
+      String errorMessage = 'Unable to search foods. ';
+
+      if (e.toString().contains('Failed to search foods: 400')) {
+        errorMessage += 'Please check your search term.';
+      } else if (e.toString().contains('Failed to search foods: 403')) {
+        errorMessage += 'API access denied. Please try again later.';
+      } else if (e.toString().contains('Failed to search foods: 429')) {
+        errorMessage += 'Too many requests. Please wait and try again.';
+      } else if (e.toString().contains('SocketException') || e.toString().contains('TimeoutException')) {
+        errorMessage += 'Please check your internet connection.';
+      } else {
+        errorMessage += 'Please try again later.';
+      }
+
       setState(() {
-        _errorMessage = 'Error searching foods: ${e.toString()}';
+        _errorMessage = errorMessage;
         _searchResults = [];
         _isLoading = false;
       });
@@ -122,23 +139,38 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    final grams = double.tryParse(_gramsController.text);
-    if (grams == null || grams <= 0) {
-      _showError('Please enter a valid amount in grams');
+    final gramsText = _gramsController.text.trim();
+    if (gramsText.isEmpty) {
+      _showError('Please enter the amount in grams');
       return;
     }
 
-    final nutrition = USDAApiService.calculateNutritionForAmount(
+    final grams = double.tryParse(gramsText);
+    if (grams == null || grams <= 0) {
+      _showError('Please enter a valid amount greater than 0');
+      return;
+    }
+
+    if (grams > 5000) {
+      _showError('Amount seems too large. Please enter a reasonable amount.');
+      return;
+    }
+
+    // Check if food has calorie data
+    if (_selectedFood!.calories <= 0) {
+      _showError('This food item doesn\'t have calorie information available');
+      return;
+    }
+
+    final calories = USDAApiService.calculateCaloriesForAmount(
       food: _selectedFood!,
       grams: grams,
-    );
-
-    final calories = nutrition['calories']!.round();
+    ).round();
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
     // Call the callback without storing here (parent will handle storage)
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, grams: grams, nutrition: nutrition);
+      widget.onFoodAdded!(foodName, calories, grams: grams);
     }
 
     Navigator.pop(context);
@@ -147,7 +179,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Added ${grams}g $foodName ($calories calories) to ${widget.mealName}'
+            'Added ${grams.toStringAsFixed(0)}g $foodName ($calories calories) to ${widget.mealName}'
         ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
@@ -158,15 +190,31 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
   void _saveManualFood() async {
     final foodName = _manualFoodController.text.trim();
-    final calories = int.tryParse(_manualCaloriesController.text);
+    final caloriesText = _manualCaloriesController.text.trim();
 
     if (foodName.isEmpty) {
       _showError('Please enter a food name');
       return;
     }
 
+    if (foodName.length < 2) {
+      _showError('Food name must be at least 2 characters');
+      return;
+    }
+
+    if (caloriesText.isEmpty) {
+      _showError('Please enter the calories');
+      return;
+    }
+
+    final calories = int.tryParse(caloriesText);
     if (calories == null || calories <= 0) {
-      _showError('Please enter valid calories');
+      _showError('Please enter valid calories greater than 0');
+      return;
+    }
+
+    if (calories > 10000) {
+      _showError('Calories seem too high. Please enter a reasonable amount.');
       return;
     }
 
@@ -199,7 +247,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     );
   }
 
-  Widget _buildNutritionPreview() {
+  Widget _buildCaloriePreview() {
     if (_selectedFood == null || _gramsController.text.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -207,7 +255,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     final grams = double.tryParse(_gramsController.text);
     if (grams == null || grams <= 0) return const SizedBox.shrink();
 
-    final nutrition = USDAApiService.calculateNutritionForAmount(
+    final calories = USDAApiService.calculateCaloriesForAmount(
       food: _selectedFood!,
       grams: grams,
     );
@@ -216,15 +264,15 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       margin: const EdgeInsets.symmetric(vertical: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.1),
+        color: AppColors.secondary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Nutrition for ${grams.toStringAsFixed(0)}g:',
+            'Calories for ${grams.toStringAsFixed(0)}g:',
             style: TextStyle(
               fontWeight: FontWeight.w600,
               color: AppColors.secondary,
@@ -232,56 +280,20 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildNutrientInfo('Calories', '${nutrition['calories']!.round()}'),
-              _buildNutrientInfo('Protein', '${nutrition['protein']!.toStringAsFixed(1)}g'),
-              _buildNutrientInfo('Carbs', '${nutrition['carbs']!.toStringAsFixed(1)}g'),
-              _buildNutrientInfo('Fat', '${nutrition['totalFat']!.toStringAsFixed(1)}g'),
-            ],
+          Text(
+            '${calories.round()} calories',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.secondary,
+              fontSize: 18,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNutrientInfo(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.secondary,
-            fontSize: 12,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
-  }
 
-  // Simple calorie estimation for quick-add
-  int _estimateCalories(String foodName) {
-    final Map<String, int> estimates = {
-      // Breakfast
-      'Oatmeal': 150, 'Scrambled eggs': 180, 'Greek yogurt': 100, 'Banana': 105, 'Whole wheat toast': 80,
-      // Lunch
-      'Grilled chicken salad': 300, 'Quinoa bowl': 250, 'Sandwich': 350, 'Soup': 150, 'Rice and beans': 220,
-      // Snacks
-      'Apple': 95, 'Nuts': 160, 'Yogurt': 120, 'Crackers': 140, 'Fruit smoothie': 200,
-      // Dinner
-      'Grilled salmon': 280, 'Pasta': 300, 'Stir fry': 250, 'Roasted vegetables': 100, 'Lean beef': 250,
-    };
-    return estimates[foodName] ?? 200;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -407,11 +419,36 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             onChanged: (value) {
               if (value.length > 2) {
                 _searchFoods(value);
+              } else if (value.length <= 2) {
+                // Clear results when search is too short
+                setState(() {
+                  _searchResults = [];
+                  _selectedFood = null;
+                  _errorMessage = null;
+                });
+              }
+            },
+            onSubmitted: (value) {
+              if (value.length > 2) {
+                _searchFoods(value);
               }
             },
             decoration: InputDecoration(
               hintText: "Search for foods (e.g., 'chicken breast', 'apple')",
               prefixIcon: const Icon(Icons.search, color: Color(0xFF666666)),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Color(0xFF666666)),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchResults = [];
+                          _selectedFood = null;
+                          _errorMessage = null;
+                        });
+                      },
+                    )
+                  : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
@@ -447,7 +484,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
           ],
 
-          // Search Results
+          // Search Results or Suggestions
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text('Search Results:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -456,7 +493,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               final food = _searchResults[index];
               final isSelected = _selectedFood?.fdcId == food.fdcId;
               return Card(
-                color: isSelected ? AppColors.secondary.withOpacity(0.1) : null,
+                color: isSelected ? AppColors.secondary.withValues(alpha: 0.1) : null,
                 child: ListTile(
                   title: Text(
                     USDAApiService.formatFoodDescription(food),
@@ -471,6 +508,58 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 ),
               );
             }),
+          ] else if (_searchController.text.isEmpty && !_isLoading) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Popular searches:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      'chicken breast', 'apple', 'banana', 'rice', 'egg',
+                      'salmon', 'broccoli', 'oatmeal', 'yogurt', 'almonds'
+                    ].map((suggestion) => GestureDetector(
+                      onTap: () {
+                        _searchController.text = suggestion;
+                        _searchFoods(suggestion);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          suggestion,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                      ),
+                    )).toList(),
+                  ),
+                ],
+              ),
+            ),
           ],
 
           if (_selectedFood != null) ...[
@@ -480,7 +569,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             TextField(
               controller: _gramsController,
               keyboardType: TextInputType.number,
-              onChanged: (value) => setState(() {}), // Trigger nutrition preview update
+              onChanged: (value) => setState(() {}), // Trigger calorie preview update
               decoration: InputDecoration(
                 hintText: "Enter amount in grams",
                 suffixText: 'g',
@@ -491,7 +580,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 ),
               ),
             ),
-            _buildNutritionPreview(),
+            _buildCaloriePreview(),
           ],
         ],
       ),

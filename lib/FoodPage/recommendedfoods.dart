@@ -40,16 +40,43 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
         number: 6,
       );
 
-      setState(() {
-        _recommendedFoods = foods;
-        _isLoading = false;
-      });
+      if (foods.isNotEmpty) {
+        setState(() {
+          _recommendedFoods = foods;
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('No foods returned from API');
+      }
     } catch (e) {
-      // If API fails, show fallback foods based on time
+      // Log error (replace with proper logging framework in production)
+      debugPrint('Spoonacular API error: $e');
+
+      // Try the recipe-based recommendations as fallback
+      try {
+        final recipeFoods = await SpoonacularService.getRecommendedFoods(
+          mealType: _currentMealType,
+          number: 3,
+        );
+
+        if (recipeFoods.isNotEmpty) {
+          setState(() {
+            _recommendedFoods = recipeFoods;
+            _isLoading = false;
+            _errorMessage = '';
+          });
+          return;
+        }
+      } catch (e2) {
+        // Log error (replace with proper logging framework in production)
+        debugPrint('Recipe API also failed: $e2');
+      }
+
+      // If both API calls fail, show curated fallback foods
       setState(() {
         _recommendedFoods = _getFallbackFoods();
         _isLoading = false;
-        _errorMessage = 'Using offline recommendations';
+        _errorMessage = 'Showing popular ${SpoonacularService.getMealTypeDisplayName(_currentMealType).toLowerCase()} foods';
       });
     }
   }
@@ -62,64 +89,52 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
       // Breakfast foods
       return [
         RecommendedFood(
-          id: 1, name: 'Oatmeal', image: '', calories: 389,
-          protein: 16.9, carbs: 66.3, fat: 6.9, source: 'fallback',
+          id: 1, name: 'Oatmeal', image: '', calories: 389, source: 'fallback',
         ),
         RecommendedFood(
-          id: 2, name: 'Banana', image: '', calories: 89,
-          protein: 1.1, carbs: 22.8, fat: 0.3, source: 'fallback',
+          id: 2, name: 'Banana', image: '', calories: 89, source: 'fallback',
         ),
         RecommendedFood(
-          id: 3, name: 'Eggs', image: '', calories: 155,
-          protein: 13.0, carbs: 1.1, fat: 11.0, source: 'fallback',
+          id: 3, name: 'Eggs', image: '', calories: 155, source: 'fallback',
         ),
       ];
     } else if (hour >= 11 && hour < 15) {
       // Lunch foods
       return [
         RecommendedFood(
-          id: 4, name: 'Chicken Breast', image: '', calories: 165,
-          protein: 31.0, carbs: 0, fat: 3.6, source: 'fallback',
+          id: 4, name: 'Chicken Breast', image: '', calories: 165, source: 'fallback',
         ),
         RecommendedFood(
-          id: 5, name: 'Quinoa', image: '', calories: 120,
-          protein: 4.4, carbs: 22.0, fat: 1.9, source: 'fallback',
+          id: 5, name: 'Quinoa', image: '', calories: 120, source: 'fallback',
         ),
         RecommendedFood(
-          id: 6, name: 'Broccoli', image: '', calories: 25,
-          protein: 3.0, carbs: 5.0, fat: 0.4, source: 'fallback',
+          id: 6, name: 'Broccoli', image: '', calories: 25, source: 'fallback',
         ),
       ];
     } else if (hour >= 15 && hour < 18) {
       // Snack foods
       return [
         RecommendedFood(
-          id: 7, name: 'Apple', image: '', calories: 52,
-          protein: 0.3, carbs: 14.0, fat: 0.2, source: 'fallback',
+          id: 7, name: 'Apple', image: '', calories: 52, source: 'fallback',
         ),
         RecommendedFood(
-          id: 8, name: 'Almonds', image: '', calories: 579,
-          protein: 21.0, carbs: 22.0, fat: 50.0, source: 'fallback',
+          id: 8, name: 'Almonds', image: '', calories: 579, source: 'fallback',
         ),
         RecommendedFood(
-          id: 9, name: 'Greek Yogurt', image: '', calories: 100,
-          protein: 17.0, carbs: 6.0, fat: 0.4, source: 'fallback',
+          id: 9, name: 'Greek Yogurt', image: '', calories: 100, source: 'fallback',
         ),
       ];
     } else {
       // Dinner foods
       return [
         RecommendedFood(
-          id: 10, name: 'Salmon', image: '', calories: 142,
-          protein: 25.0, carbs: 0, fat: 4.4, source: 'fallback',
+          id: 10, name: 'Salmon', image: '', calories: 142, source: 'fallback',
         ),
         RecommendedFood(
-          id: 11, name: 'Sweet Potato', image: '', calories: 76,
-          protein: 1.4, carbs: 17.0, fat: 0.1, source: 'fallback',
+          id: 11, name: 'Sweet Potato', image: '', calories: 76, source: 'fallback',
         ),
         RecommendedFood(
-          id: 12, name: 'Brown Rice', image: '', calories: 123,
-          protein: 2.3, carbs: 23.0, fat: 0.9, source: 'fallback',
+          id: 12, name: 'Brown Rice', image: '', calories: 123, source: 'fallback',
         ),
       ];
     }
@@ -129,81 +144,11 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
     if (widget.onFoodTapped != null) {
       widget.onFoodTapped!(food.name, food.calories.round());
     }
-
-    // Show food details
-    _showFoodDetails(food);
+    // Note: Food details dialog is now handled by the parent component
+    // to avoid duplicate dialogs and overlay issues
   }
 
-  void _showFoodDetails(RecommendedFood food) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(food.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (food.image.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  food.image,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      Container(height: 120, color: Colors.grey.shade200,
-                          child: const Icon(Icons.image_not_supported)),
-                ),
-              ),
-            const SizedBox(height: 16),
-            _buildNutrientRow('Calories', '${food.calories.round()}', 'kcal'),
-            _buildNutrientRow('Protein', food.protein.toStringAsFixed(1), 'g'),
-            _buildNutrientRow('Carbs', food.carbs.toStringAsFixed(1), 'g'),
-            _buildNutrientRow('Fat', food.fat.toStringAsFixed(1), 'g'),
-            const SizedBox(height: 8),
-            Text(
-              'Values per 100g',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (widget.onFoodTapped != null) {
-                widget.onFoodTapped!(food.name, food.calories.round());
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add to Log'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildNutrientRow(String label, String value, String unit) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text('$value$unit', style: TextStyle(color: AppColors.secondary)),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +168,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                 if (_errorMessage.isNotEmpty)
                   Text(
                     _errorMessage,
-                    style: TextStyle(fontSize: 12, color: Colors.orange.shade600),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   ),
               ],
             ),
@@ -312,7 +257,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
               color: Colors.grey.shade100,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha:0.1),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -342,8 +287,8 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                     borderRadius: BorderRadius.circular(12),
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withOpacity(0.7),
-                        Colors.black.withOpacity(0.3),
+                        Colors.black.withValues(alpha:0.7),
+                        Colors.black.withValues(alpha:0.3),
                         Colors.transparent
                       ],
                       begin: Alignment.bottomCenter,
@@ -382,14 +327,6 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                             fontSize: 12,
                           ),
                         ),
-                        if (food.protein > 0)
-                          Text(
-                            '${food.protein.toStringAsFixed(1)}g protein',
-                            style: const TextStyle(
-                              color: Colors.white60,
-                              fontSize: 10,
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -402,7 +339,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _getMealTypeColor().withOpacity(0.9),
+                      color: _getMealTypeColor().withValues(alpha:0.9),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -429,8 +366,8 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
           colors: [
-            AppColors.secondary.withOpacity(0.7),
-            AppColors.secondary.withOpacity(0.5),
+            AppColors.secondary.withValues(alpha:0.7),
+            AppColors.secondary.withValues(alpha:0.5),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

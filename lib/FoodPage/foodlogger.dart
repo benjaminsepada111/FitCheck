@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
-import 'package:capstone_project/services/food_storage_service.dart';
+import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 
 class FoodLogger extends StatefulWidget {
@@ -61,9 +61,9 @@ class _FoodLoggerState extends State<FoodLogger> {
         }
       }
 
-      // Get consumed calories from logged foods
+      // Get consumed calories from Firebase
       final today = DateTime.now();
-      final consumed = await FoodStorageService.getTotalCaloriesForDay(today);
+      final consumed = (await FoodLogService.getDailyCalories(today)).round();
 
       if (mounted) {
         setState(() {
@@ -79,14 +79,26 @@ class _FoodLoggerState extends State<FoodLogger> {
         }
       }
     } catch (e) {
+      // Log error (replace with proper logging framework in production)
+      debugPrint('Error loading calorie data: $e');
       if (mounted) {
         setState(() {
-          // Fallback: try to get from challenge, then default to 2000
+          // Fallback: use challenge goal or default to 2000, no consumed calories
           _dailyGoal = widget.currentChallenge?.dailyCalorieGoal ?? 2000;
           _consumed = 0;
           _hasPersonalizedGoal = widget.currentChallenge?.dailyCalorieGoal != null;
           _isLoading = false;
         });
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to load calorie data. Please check your connection.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
       }
     }
   }
@@ -163,7 +175,7 @@ class _FoodLoggerState extends State<FoodLogger> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
+                  color: AppColors.secondary.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -181,19 +193,19 @@ class _FoodLoggerState extends State<FoodLogger> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+            border: Border.all(color: AppColors.secondary.withValues(alpha:0.3)),
             borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
                 Colors.white,
-                AppColors.secondary.withOpacity(0.02),
+                AppColors.secondary.withValues(alpha:0.02),
               ],
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha:0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -317,49 +329,38 @@ class _FoodLoggerState extends State<FoodLogger> {
 
               const SizedBox(height: 16),
 
-              // Auto-sync indicator with personalization status
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _hasPersonalizedGoal
-                      ? Colors.blue.shade50
-                      : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _hasPersonalizedGoal
-                        ? Colors.blue.shade200
-                        : Colors.orange.shade200,
+              // Personalization status
+              if (!_hasPersonalizedGoal)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Colors.blue.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          "Complete your profile for a personalized calorie goal",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      _hasPersonalizedGoal ? Icons.calculate : Icons.warning_outlined,
-                      size: 16,
-                      color: _hasPersonalizedGoal
-                          ? Colors.blue.shade600
-                          : Colors.orange.shade600,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        _hasPersonalizedGoal
-                            ? "Goal calculated using Mifflin-St Jeor equation"
-                            : "Using default goal - complete profile for personalized target",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _hasPersonalizedGoal
-                              ? Colors.blue.shade700
-                              : Colors.orange.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),

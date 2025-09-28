@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'add_food_sheet.dart';
-import 'package:capstone_project/services/food_storage_service.dart';
+import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/models/food_models.dart';
 
 class MealsSection extends StatefulWidget {
   final VoidCallback? onCaloriesUpdated; // Add callback for tracker updates
@@ -30,58 +31,193 @@ class _MealsSectionState extends State<MealsSection> {
   Future<void> _loadMealData() async {
     setState(() => _isLoading = true);
 
-    final meals = ['Snack', 'Breakfast', 'Lunch', 'Dinner'];
-    Map<String, List<FoodEntry>> entries = {};
-    Map<String, int> calories = {};
+    try {
+      // Load from Firebase
+      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate);
 
-    for (String meal in meals) {
-      entries[meal] = await FoodStorageService.getFoodEntriesForMeal(meal, _currentDate);
-      calories[meal] = await FoodStorageService.getTotalCaloriesForMeal(meal, _currentDate);
+      final meals = ['Snack', 'Breakfast', 'Lunch', 'Dinner'];
+      Map<String, List<FoodEntry>> entries = {};
+      Map<String, int> calories = {};
+
+      // Group Firebase data by meal type
+      for (String meal in meals) {
+        final mealLogs = foodLogs.where((log) => log.mealType == meal);
+        final mealLog = mealLogs.isNotEmpty ? mealLogs.first : null;
+        entries[meal] = mealLog?.entries ?? [];
+        calories[meal] = mealLog?.totalCalories.round() ?? 0;
+      }
+
+      setState(() {
+        _mealEntries = entries;
+        _mealCalories = calories;
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Log error (replace with proper logging framework in production)
+      debugPrint('Error loading meal data: $e');
+      setState(() => _isLoading = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to load meal data. Please check your connection.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
     }
-
-    setState(() {
-      _mealEntries = entries;
-      _mealCalories = calories;
-      _isLoading = false;
-    });
   }
 
-  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams, Map<String, double>? nutrition}) async {
-    // Create and store the food entry
-    final entry = FoodEntry(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: foodName,
-      calories: calories,
-      mealType: mealType,
-      dateLogged: _currentDate,
-      grams: grams,
-      nutrition: nutrition,
-    );
 
-    await FoodStorageService.storeFoodEntry(entry);
-    await FoodStorageService.updateMealRecommendations(mealType, foodName);
+  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams}) async {
+    try {
+      // Create new food entry
+      final foodEntry = FoodEntry(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        fdcId: 0, // Set default fdcId since we're only tracking calories
+        foodName: foodName,
+        servingSize: grams ?? 100.0,
+        servingUnit: 'g',
+        caloriesPer100g: grams != null && grams > 0
+            ? (calories / grams) * 100
+            : calories.toDouble(),
+      );
 
-    // Reload the meal data to show the new entry
-    await _loadMealData();
+      // Save to Firebase
+      final success = await FoodLogService.addFoodEntry(
+        _currentDate,
+        mealType,
+        foodEntry,
+      );
 
-    // Notify parent (tracker) that calories have been updated
-    if (widget.onCaloriesUpdated != null) {
-      widget.onCaloriesUpdated!();
+      if (success) {
+        // Show success feedback
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$foodName added successfully!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+        }
+
+        // Reload the meal data to show the new entry
+        await _loadMealData();
+
+        // Notify parent (tracker) that calories have been updated
+        if (widget.onCaloriesUpdated != null) {
+          widget.onCaloriesUpdated!();
+        }
+      } else {
+        throw Exception('Failed to save to Firebase');
+      }
+    } catch (e) {
+      // Log error (replace with proper logging framework in production)
+      debugPrint('Error adding food: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save $foodName. Please try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
     }
   }
 
   void _removeFoodEntry(FoodEntry entry) async {
-    await FoodStorageService.removeFoodEntry(entry.id, _currentDate);
-    await _loadMealData();
+    try {
+      // Find the meal log containing this entry and remove it
+      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate);
 
-    // Notify parent (tracker) that calories have been updated
-    if (widget.onCaloriesUpdated != null) {
-      widget.onCaloriesUpdated!();
+      // Find which meal contains this entry
+      FoodLog? targetMeal;
+      for (final log in foodLogs) {
+        if (log.entries.any((e) => e.id == entry.id)) {
+          targetMeal = log;
+          break;
+        }
+      }
+
+      if (targetMeal != null) {
+        // Remove the entry from the meal
+        final updatedEntries = targetMeal.entries.where((e) => e.id != entry.id).toList();
+
+        bool success;
+        if (updatedEntries.isEmpty) {
+          // Delete the entire meal if no entries left
+          success = await FoodLogService.deleteFoodLog(targetMeal.id);
+        } else {
+          // Update the meal with remaining entries
+          final updatedMeal = targetMeal.copyWith(
+            entries: updatedEntries,
+            updatedAt: DateTime.now(),
+          );
+          success = await FoodLogService.updateFoodLog(updatedMeal);
+        }
+
+        if (success) {
+          // Show success feedback
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${entry.foodName} removed successfully'),
+                backgroundColor: Colors.blue,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            );
+          }
+
+          await _loadMealData();
+
+          // Notify parent (tracker) that calories have been updated
+          if (widget.onCaloriesUpdated != null) {
+            widget.onCaloriesUpdated!();
+          }
+        } else {
+          throw Exception('Failed to remove from Firebase');
+        }
+      }
+    } catch (e) {
+      // Log error (replace with proper logging framework in production)
+      debugPrint('Error removing food entry: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove ${entry.foodName}. Please try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
+  }
+
+  // Get current meal type based on time
+  String _getCurrentMealType() {
+    final hour = DateTime.now().hour;
+
+    if (hour >= 6 && hour < 11) {
+      return 'Breakfast';
+    } else if (hour >= 11 && hour < 15) {
+      return 'Lunch';
+    } else if (hour >= 15 && hour < 18) {
+      return 'Snack';
+    } else {
+      return 'Dinner';
     }
   }
 
   List<Map<String, dynamic>> _getOrderedMeals() {
-    final currentMeal = FoodStorageService.getCurrentMealType();
+    final currentMeal = _getCurrentMealType();
     final allMeals = [
       {
         "name": "Breakfast",
@@ -147,9 +283,20 @@ class _MealsSectionState extends State<MealsSection> {
               "Meals",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            Text(
-              "Today • ${_formatDate(_currentDate)}",
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            Row(
+              children: [
+                Text(
+                  "Today • ${_formatDate(_currentDate)}",
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _loadMealData,
+                  icon: const Icon(Icons.refresh, size: 20),
+                  tooltip: 'Refresh meals',
+                  color: Colors.grey.shade600,
+                ),
+              ],
             ),
           ],
         ),
@@ -160,12 +307,11 @@ class _MealsSectionState extends State<MealsSection> {
           iconPath: meal["icon"] as String,
           isRecommended: meal["isRecommended"] as bool,
           foodEntries: _mealEntries[meal["name"]] ?? [],
-          onFoodAdded: (foodName, calories, {grams, nutrition}) => _onFoodAdded(
+          onFoodAdded: (foodName, calories, {grams}) => _onFoodAdded(
             foodName,
             calories,
             meal["name"] as String,
             grams: grams,
-            nutrition: nutrition,
           ),
           onFoodRemoved: _removeFoodEntry,
         )),
@@ -188,7 +334,7 @@ class _MealCard extends StatefulWidget {
   final String iconPath;
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
-  final Function(String foodName, int calories, {double? grams, Map<String, double>? nutrition}) onFoodAdded;
+  final Function(String foodName, int calories, {double? grams}) onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
 
   const _MealCard({
@@ -206,17 +352,45 @@ class _MealCard extends StatefulWidget {
 }
 
 class _MealCardState extends State<_MealCard> {
+  void _confirmRemoveFood(BuildContext context, FoodEntry entry) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove Food'),
+        content: Text('Remove ${entry.foodName} from your ${widget.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onFoodRemoved(entry);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         border: Border.all(
-          color: widget.isRecommended ? Colors.orange.withOpacity(0.5) : Colors.black12,
+          color: widget.isRecommended ? Colors.orange.withValues(alpha:0.5) : Colors.black12,
           width: widget.isRecommended ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: widget.isRecommended ? Colors.orange.withOpacity(0.05) : null,
+        color: widget.isRecommended ? Colors.orange.withValues(alpha:0.05) : null,
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -228,7 +402,7 @@ class _MealCardState extends State<_MealCard> {
                 widget.iconPath,
                 width: 28,
                 height: 28,
-                color: Colors.black87,
+                colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
               ),
               if (widget.isRecommended)
                 Positioned(
@@ -298,8 +472,8 @@ class _MealCardState extends State<_MealCard> {
                         backgroundColor: Colors.transparent,
                         builder: (context) => AddFoodSheet(
                           mealName: widget.name,
-                          onFoodAdded: (foodName, calories, {grams, nutrition}) {
-                            widget.onFoodAdded(foodName, calories, grams: grams, nutrition: nutrition);
+                          onFoodAdded: (foodName, calories, {grams}) {
+                            widget.onFoodAdded(foodName, calories, grams: grams);
                           },
                         ),
                       );
@@ -343,7 +517,7 @@ class _MealCardState extends State<_MealCard> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        entry.name,
+                                        entry.foodName,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
                                           fontSize: 14,
@@ -353,16 +527,16 @@ class _MealCardState extends State<_MealCard> {
                                       Row(
                                         children: [
                                           Text(
-                                            '${entry.calories} cal',
+                                            '${entry.totalCalories.round()} cal',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade600,
                                             ),
                                           ),
-                                          if (entry.grams != null) ...[
+                                          if (entry.servingSize > 0) ...[
                                             const Text(' • ', style: TextStyle(color: Colors.grey)),
                                             Text(
-                                              '${entry.grams!.toStringAsFixed(0)}g',
+                                              '${entry.servingSize.toStringAsFixed(0)}g',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.grey.shade600,
@@ -375,10 +549,11 @@ class _MealCardState extends State<_MealCard> {
                                   ),
                                 ),
                                 IconButton(
-                                  onPressed: () => widget.onFoodRemoved(entry),
+                                  onPressed: () => _confirmRemoveFood(context, entry),
                                   icon: const Icon(Icons.remove_circle_outline),
                                   color: Colors.red.shade400,
                                   iconSize: 20,
+                                  tooltip: 'Remove food',
                                 ),
                               ],
                             ),
@@ -386,9 +561,35 @@ class _MealCardState extends State<_MealCard> {
                       ).toList(),
                     ),
                   ] else ...[
-                    const Text(
-                      "No foods logged yet",
-                      style: TextStyle(color: Colors.black54),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.restaurant_outlined,
+                            size: 32,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "No foods logged for ${widget.name.toLowerCase()} yet",
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Tap 'Add ${widget.name}' to get started",
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),

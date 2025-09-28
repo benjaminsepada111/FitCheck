@@ -5,6 +5,8 @@ import 'package:capstone_project/FoodPage/recommendedfoods.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/MainPage/create_challenge_sheet.dart';
 import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/models/food_models.dart';
+import 'package:capstone_project/services/food_log_service.dart';
 
 class FoodPage extends StatefulWidget {
   // Add these parameters to receive challenge data and callback
@@ -156,6 +158,172 @@ class _FoodPageState extends State<FoodPage>
     }
   }
 
+  // Add recommended food to appropriate meal based on current time
+  void _addRecommendedFoodToMeal(String foodName, int calories) {
+    // Determine current meal type
+    final hour = DateTime.now().hour;
+    String mealType;
+
+    if (hour >= 6 && hour < 11) {
+      mealType = 'Breakfast';
+    } else if (hour >= 11 && hour < 15) {
+      mealType = 'Lunch';
+    } else if (hour >= 15 && hour < 18) {
+      mealType = 'Snack';
+    } else {
+      mealType = 'Dinner';
+    }
+
+    // Show enhanced confirmation dialog with food details
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              _getFoodIcon(foodName),
+              color: AppColors.secondary,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(foodName)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Calories (per 100g)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  Text(
+                    '$calories kcal',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Add this food to your $mealType?',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _confirmAddFood(foodName, calories, mealType);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Add to $mealType'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper method to get appropriate icon for food items
+  IconData _getFoodIcon(String foodName) {
+    final name = foodName.toLowerCase();
+    if (name.contains('chicken') || name.contains('meat')) return Icons.set_meal;
+    if (name.contains('fish') || name.contains('salmon')) return Icons.set_meal;
+    if (name.contains('apple') || name.contains('banana') || name.contains('fruit')) return Icons.apple;
+    if (name.contains('rice') || name.contains('grain')) return Icons.grain;
+    if (name.contains('egg')) return Icons.egg_alt;
+    if (name.contains('milk') || name.contains('yogurt')) return Icons.local_drink;
+    if (name.contains('vegetable') || name.contains('broccoli')) return Icons.grass;
+    return Icons.restaurant_menu;
+  }
+
+  // Confirm and add food to meal
+  void _confirmAddFood(String foodName, int calories, String mealType) async {
+    try {
+      // Import the necessary service if not already imported
+      final foodEntry = FoodEntry(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        fdcId: 0, // Default for recommended foods
+        foodName: foodName,
+        servingSize: 100.0, // Default serving size
+        servingUnit: 'g',
+        caloriesPer100g: calories.toDouble(),
+      );
+
+      final success = await FoodLogService.addFoodEntry(
+        DateTime.now(),
+        mealType,
+        foodEntry,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$foodName added to $mealType!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+
+        // Notify parent that calories were updated
+        if (widget.onCaloriesUpdated != null) {
+          widget.onCaloriesUpdated!();
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add $foodName. Please try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } catch (e) {
+      // Log error (replace with proper logging framework in production)
+      debugPrint('Error adding recommended food: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding $foodName. Please try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!hasChallenge) {
@@ -174,9 +342,9 @@ class _FoodPageState extends State<FoodPage>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.secondary.withOpacity(0.1),
+              AppColors.secondary.withValues(alpha: 0.1),
               Colors.white,
-              AppColors.secondary.withOpacity(0.05),
+              AppColors.secondary.withValues(alpha: 0.05),
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
@@ -205,14 +373,14 @@ class _FoodPageState extends State<FoodPage>
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
                               colors: [
-                                AppColors.secondary.withOpacity(0.2),
-                                AppColors.secondary.withOpacity(0.1),
-                                AppColors.secondary.withOpacity(0.05),
+                                AppColors.secondary.withValues(alpha: 0.2),
+                                AppColors.secondary.withValues(alpha: 0.1),
+                                AppColors.secondary.withValues(alpha: 0.05),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.secondary.withOpacity(0.2),
+                                color: AppColors.secondary.withValues(alpha: 0.2),
                                 blurRadius: 30,
                                 spreadRadius: 10,
                                 offset: const Offset(0, 10),
@@ -228,7 +396,7 @@ class _FoodPageState extends State<FoodPage>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: AppColors.secondary.withOpacity(0.3),
+                                    color: AppColors.secondary.withValues(alpha: 0.3),
                                     width: 2,
                                   ),
                                 ),
@@ -238,7 +406,7 @@ class _FoodPageState extends State<FoodPage>
                                 height: 140,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: AppColors.secondary.withOpacity(0.15),
+                                  color: AppColors.secondary.withValues(alpha: 0.15),
                                 ),
                                 child: const Icon(
                                   Icons.restaurant_menu_rounded,
@@ -305,7 +473,7 @@ class _FoodPageState extends State<FoodPage>
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.secondary.withOpacity(0.3),
+                          color: AppColors.secondary.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -330,7 +498,7 @@ class _FoodPageState extends State<FoodPage>
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
@@ -366,16 +534,16 @@ class _FoodPageState extends State<FoodPage>
                     icon: Icon(
                       Icons.help_outline_rounded,
                       size: 18,
-                      color: AppColors.secondary.withOpacity(0.7),
+                      color: AppColors.secondary.withValues(alpha: 0.7),
                     ),
                     label: Text(
                       'Learn about nutrition challenges',
                       style: TextStyle(
-                        color: AppColors.secondary.withOpacity(0.7),
+                        color: AppColors.secondary.withValues(alpha: 0.7),
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         decoration: TextDecoration.underline,
-                        decorationColor: AppColors.secondary.withOpacity(0.7),
+                        decorationColor: AppColors.secondary.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -402,10 +570,10 @@ class _FoodPageState extends State<FoodPage>
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
+                color: AppColors.secondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppColors.secondary.withOpacity(0.3),
+                  color: AppColors.secondary.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -413,7 +581,7 @@ class _FoodPageState extends State<FoodPage>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.2),
+                      color: AppColors.secondary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -431,7 +599,7 @@ class _FoodPageState extends State<FoodPage>
                           'Active Challenge',
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.secondary.withOpacity(0.8),
+                            color: AppColors.secondary.withValues(alpha: 0.8),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -459,11 +627,20 @@ class _FoodPageState extends State<FoodPage>
               ),
             ),
           ],
-          const FoodLogger(),
+          FoodLogger(
+            currentChallenge: widget.currentChallenge,
+            onCaloriesUpdated: widget.onCaloriesUpdated,
+          ),
           const SizedBox(height: 20),
-          const RecommendedFoods(),
+          RecommendedFoods(
+            onFoodTapped: (foodName, calories) {
+              _addRecommendedFoodToMeal(foodName, calories);
+            },
+          ),
           const SizedBox(height: 20),
-          const MealsSection(),
+          MealsSection(
+            onCaloriesUpdated: widget.onCaloriesUpdated,
+          ),
         ],
       ),
     );
@@ -578,10 +755,10 @@ class _FoodPageState extends State<FoodPage>
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -591,7 +768,7 @@ class _FoodPageState extends State<FoodPage>
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: color, size: 28),

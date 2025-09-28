@@ -1,24 +1,22 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-// Model for storing food entries
-class FoodEntry {
+// Model for storing food entries (local storage only)
+class StoredFoodEntry {
   final String id;
   final String name;
   final int calories;
   final String mealType;
   final DateTime dateLogged;
   final double? grams;
-  final Map<String, double>? nutrition; // protein, carbs, fat, etc.
 
-  FoodEntry({
+  StoredFoodEntry({
     required this.id,
     required this.name,
     required this.calories,
     required this.mealType,
     required this.dateLogged,
     this.grams,
-    this.nutrition,
   });
 
   Map<String, dynamic> toJson() {
@@ -29,21 +27,17 @@ class FoodEntry {
       'mealType': mealType,
       'dateLogged': dateLogged.toIso8601String(),
       'grams': grams,
-      'nutrition': nutrition,
     };
   }
 
-  factory FoodEntry.fromJson(Map<String, dynamic> json) {
-    return FoodEntry(
+  factory StoredFoodEntry.fromJson(Map<String, dynamic> json) {
+    return StoredFoodEntry(
       id: json['id'],
       name: json['name'],
       calories: json['calories'],
       mealType: json['mealType'],
       dateLogged: DateTime.parse(json['dateLogged']),
       grams: json['grams']?.toDouble(),
-      nutrition: json['nutrition'] != null
-          ? Map<String, double>.from(json['nutrition'])
-          : null,
     );
   }
 }
@@ -69,7 +63,7 @@ class FoodStorageService {
   }
 
   // Store a food entry
-  static Future<void> storeFoodEntry(FoodEntry entry) async {
+  static Future<void> storeFoodEntry(StoredFoodEntry entry) async {
     final prefs = await SharedPreferences.getInstance();
     final existingEntries = await getFoodEntriesForDate(entry.dateLogged);
     existingEntries.add(entry);
@@ -80,7 +74,7 @@ class FoodStorageService {
   }
 
   // Get food entries for a specific date
-  static Future<List<FoodEntry>> getFoodEntriesForDate(DateTime date) async {
+  static Future<List<StoredFoodEntry>> getFoodEntriesForDate(DateTime date) async {
     final prefs = await SharedPreferences.getInstance();
     final dateKey = '${_foodEntriesKey}_${_formatDate(date)}';
     final jsonString = prefs.getString(dateKey);
@@ -88,11 +82,11 @@ class FoodStorageService {
     if (jsonString == null) return [];
 
     final jsonList = jsonDecode(jsonString) as List;
-    return jsonList.map((json) => FoodEntry.fromJson(json)).toList();
+    return jsonList.map((json) => StoredFoodEntry.fromJson(json)).toList();
   }
 
   // Get food entries for a specific meal type and date
-  static Future<List<FoodEntry>> getFoodEntriesForMeal(String mealType, DateTime date) async {
+  static Future<List<StoredFoodEntry>> getFoodEntriesForMeal(String mealType, DateTime date) async {
     final allEntries = await getFoodEntriesForDate(date);
     return allEntries.where((entry) => entry.mealType == mealType).toList();
   }
@@ -181,30 +175,10 @@ class FoodStorageService {
     }
   }
 
-  // Get nutrition summary for a day
-  static Future<Map<String, double>> getNutritionSummary(DateTime date) async {
+  // Get calorie summary for a day
+  static Future<double> getDailyCalories(DateTime date) async {
     final entries = await getFoodEntriesForDate(date);
-
-    double totalCalories = 0;
-    double totalProtein = 0;
-    double totalCarbs = 0;
-    double totalFat = 0;
-
-    for (final entry in entries) {
-      totalCalories += entry.calories.toDouble();
-      if (entry.nutrition != null) {
-        totalProtein += entry.nutrition!['protein'] ?? 0;
-        totalCarbs += entry.nutrition!['carbs'] ?? 0;
-        totalFat += entry.nutrition!['totalFat'] ?? 0;
-      }
-    }
-
-    return {
-      'calories': totalCalories,
-      'protein': totalProtein,
-      'carbs': totalCarbs,
-      'totalFat': totalFat,
-    };
+    return entries.fold<double>(0, (total, entry) => total + entry.calories);
   }
 
   // Helper method to format date for storage keys

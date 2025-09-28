@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/food_models.dart';
 
 class FoodLogService {
@@ -14,7 +15,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -25,10 +27,12 @@ class FoodLogService {
           .doc(foodLog.id)
           .set(foodLog.toJson());
 
-      print('Food log saved: ${foodLog.mealType} for ${foodLog.date}');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Food log saved: ${foodLog.mealType} for ${foodLog.date}');
       return true;
     } catch (e) {
-      print('Error saving food log: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error saving food log: $e');
       return false;
     }
   }
@@ -38,7 +42,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -59,7 +64,8 @@ class FoodLogService {
           .map((doc) => FoodLog.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      print('Error getting food logs for date: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error getting food logs for date: $e');
       return [];
     }
   }
@@ -72,7 +78,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -89,7 +96,8 @@ class FoodLogService {
           .map((doc) => FoodLog.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      print('Error getting food logs for date range: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error getting food logs for date range: $e');
       return [];
     }
   }
@@ -99,7 +107,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -115,7 +124,8 @@ class FoodLogService {
       }
       return null;
     } catch (e) {
-      print('Error getting food log: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error getting food log: $e');
       return null;
     }
   }
@@ -125,7 +135,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -138,10 +149,12 @@ class FoodLogService {
           .doc(foodLog.id)
           .update(updatedLog.toJson());
 
-      print('Food log updated: ${foodLog.id}');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Food log updated: ${foodLog.id}');
       return true;
     } catch (e) {
-      print('Error updating food log: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error updating food log: $e');
       return false;
     }
   }
@@ -151,7 +164,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -162,10 +176,12 @@ class FoodLogService {
           .doc(logId)
           .delete();
 
-      print('Food log deleted: $logId');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Food log deleted: $logId');
       return true;
     } catch (e) {
-      print('Error deleting food log: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error deleting food log: $e');
       return false;
     }
   }
@@ -177,11 +193,24 @@ class FoodLogService {
     FoodEntry foodEntry,
   ) async {
     try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found when adding food entry');
+        return false;
+      }
+
+      // Validate inputs
+      if (mealType.isEmpty || foodEntry.foodName.isEmpty) {
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: Invalid meal type or food name');
+        return false;
+      }
+
       // Try to find existing meal for this date and meal type
       final existingLogs = await getFoodLogsForDate(date);
-      final existingMeal = existingLogs
-          .where((log) => log.mealType == mealType)
-          .firstOrNull;
+      final existingMealLogs = existingLogs.where((log) => log.mealType == mealType);
+      final existingMeal = existingMealLogs.isNotEmpty ? existingMealLogs.first : null;
 
       if (existingMeal != null) {
         // Add to existing meal
@@ -190,6 +219,8 @@ class FoodLogService {
           entries: updatedEntries,
           updatedAt: DateTime.now(),
         );
+        // Log (replace with proper logging framework in production)
+      debugPrint('Updating existing meal log with new food entry: ${foodEntry.foodName}');
         return await updateFoodLog(updatedLog);
       } else {
         // Create new meal
@@ -201,67 +232,64 @@ class FoodLogService {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
+        // Log (replace with proper logging framework in production)
+      debugPrint('Creating new meal log for $mealType with food entry: ${foodEntry.foodName}');
         return await saveFoodLog(newLog);
       }
     } catch (e) {
-      print('Error adding food entry: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error adding food entry to $mealType: $e');
       return false;
     }
   }
 
-  /// Calculate daily totals for a specific date
-  static Future<Map<String, double>> getDailyTotals(DateTime date) async {
+  /// Calculate daily calorie total for a specific date
+  static Future<double> getDailyCalories(DateTime date) async {
     try {
-      final foodLogs = await getFoodLogsForDate(date);
-
-      double totalCalories = 0;
-      double totalProtein = 0;
-      double totalFat = 0;
-      double totalCarbs = 0;
-
-      for (final log in foodLogs) {
-        totalCalories += log.totalCalories;
-        totalProtein += log.totalProtein;
-        totalFat += log.totalFat;
-        totalCarbs += log.totalCarbs;
+      final user = _auth.currentUser;
+      if (user == null) {
+        // Log (replace with proper logging framework in production)
+      debugPrint('Warning: No authenticated user when calculating daily calories');
+        return 0.0;
       }
 
-      return {
-        'calories': totalCalories,
-        'protein': totalProtein,
-        'fat': totalFat,
-        'carbs': totalCarbs,
-      };
+      final foodLogs = await getFoodLogsForDate(date);
+      double totalCalories = 0;
+
+      for (final log in foodLogs) {
+        try {
+          totalCalories += log.totalCalories;
+        } catch (e) {
+          // Log (replace with proper logging framework in production)
+      debugPrint('Error calculating calories for log ${log.id}: $e');
+          // Continue with other logs even if one fails
+        }
+      }
+
+      // Log (replace with proper logging framework in production)
+      debugPrint('Total daily calories for ${date.toIso8601String().split('T')[0]}: $totalCalories');
+      return totalCalories;
     } catch (e) {
-      print('Error calculating daily totals: $e');
-      return {
-        'calories': 0.0,
-        'protein': 0.0,
-        'fat': 0.0,
-        'carbs': 0.0,
-      };
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error calculating daily calories: $e');
+      return 0.0;
     }
   }
 
-  /// Get meal breakdown for a specific date
-  static Future<Map<String, Map<String, double>>> getMealBreakdown(DateTime date) async {
+  /// Get calorie breakdown by meal for a specific date
+  static Future<Map<String, double>> getMealCalorieBreakdown(DateTime date) async {
     try {
       final foodLogs = await getFoodLogsForDate(date);
-
-      final breakdown = <String, Map<String, double>>{};
+      final breakdown = <String, double>{};
 
       for (final log in foodLogs) {
-        breakdown[log.mealType] = {
-          'calories': log.totalCalories,
-          'protein': log.totalProtein,
-          'fat': log.totalFat,
-          'carbs': log.totalCarbs,
-        };
+        breakdown[log.mealType] = log.totalCalories;
       }
 
       return breakdown;
     } catch (e) {
-      print('Error getting meal breakdown: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error getting meal calorie breakdown: $e');
       return {};
     }
   }
@@ -301,7 +329,8 @@ class FoodLogService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        // Log (replace with proper logging framework in production)
+      debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -327,7 +356,8 @@ class FoodLogService {
 
       return uniqueEntries.values.toList();
     } catch (e) {
-      print('Error getting recent food entries: $e');
+      // Log (replace with proper logging framework in production)
+      debugPrint('Error getting recent food entries: $e');
       return [];
     }
   }

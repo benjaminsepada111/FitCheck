@@ -53,17 +53,11 @@ class USDAApiService {
   // Get detailed food information by FDC ID
   static Future<FoodSearchResult> getFoodDetails({
     required int fdcId,
-    List<int> nutrients = const [], // Specific nutrient IDs to include
   }) async {
     try {
       String url = _apiKey.isNotEmpty
           ? '$_baseUrl/food/$fdcId?api_key=$_apiKey'
           : '$_baseUrl/food/$fdcId';
-
-      if (nutrients.isNotEmpty) {
-        final nutrientIds = nutrients.join(',');
-        url += '${url.contains('?') ? '&' : '?'}nutrients=$nutrientIds';
-      }
 
       final response = await http.get(Uri.parse(url));
 
@@ -78,23 +72,14 @@ class USDAApiService {
     }
   }
 
-  // Calculate nutrition for specific amount
-  static Map<String, double> calculateNutritionForAmount({
+  // Calculate calories for specific amount
+  static double calculateCaloriesForAmount({
     required FoodSearchResult food,
     required double grams,
   }) {
     // USDA data is per 100g, so we calculate based on the amount
     final double factor = grams / 100.0;
-
-    return {
-      'calories': food.calories * factor,
-      'protein': food.protein * factor,
-      'totalFat': food.totalFat * factor,
-      'carbs': food.carbs * factor,
-      'fiber': food.fiber * factor,
-      'sugar': food.sugar * factor,
-      'sodium': food.sodium * factor,
-    };
+    return food.calories * factor;
   }
 
   // Get popular food suggestions (you can customize this)
@@ -133,11 +118,9 @@ class USDAApiService {
     return description;
   }
 
-  // Helper method to get nutrition summary text
-  static String getNutritionSummary(FoodSearchResult food, double grams) {
-    final nutrition = calculateNutritionForAmount(food: food, grams: grams);
-    return '${nutrition['calories']!.round()} cal • '
-        '${nutrition['protein']!.toStringAsFixed(1)}g protein • '
-        '${nutrition['carbs']!.toStringAsFixed(1)}g carbs';
+  // Helper method to get calorie summary text
+  static String getCalorieSummary(FoodSearchResult food, double grams) {
+    final calories = calculateCaloriesForAmount(food: food, grams: grams);
+    return '${calories.round()} calories';
   }
 }

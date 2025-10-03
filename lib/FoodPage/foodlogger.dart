@@ -33,7 +33,6 @@ class _FoodLoggerState extends State<FoodLogger> {
   @override
   void didUpdateWidget(FoodLogger oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload when challenge changes
     if (oldWidget.currentChallenge != widget.currentChallenge) {
       _loadCalorieData();
     }
@@ -45,23 +44,20 @@ class _FoodLoggerState extends State<FoodLogger> {
     setState(() => _isLoading = true);
 
     try {
-      int goal = 2000; // Default fallback
+      int goal = 2000;
       bool isPersonalized = false;
 
-      // Priority 1: Get from current challenge (already calculated using Mifflin-St Jeor)
       if (widget.currentChallenge?.dailyCalorieGoal != null) {
         goal = widget.currentChallenge!.dailyCalorieGoal;
         isPersonalized = true;
       } else {
-        // Priority 2: Calculate from user profile using UserDataService
         final calculatedGoal = await UserDataService.getDailyCalorieGoal();
-        if (calculatedGoal != 2000) { // If not default, it means we have user data
+        if (calculatedGoal != 2000) {
           goal = calculatedGoal;
           isPersonalized = true;
         }
       }
 
-      // Get consumed calories from Firebase
       final today = DateTime.now();
       final consumed = (await FoodLogService.getDailyCalories(today)).round();
 
@@ -73,28 +69,22 @@ class _FoodLoggerState extends State<FoodLogger> {
           _isLoading = false;
         });
 
-        // Notify parent if calories were updated
-        if (widget.onCaloriesUpdated != null) {
-          widget.onCaloriesUpdated!();
-        }
+        widget.onCaloriesUpdated?.call();
       }
     } catch (e) {
-      // Log error (replace with proper logging framework in production)
       debugPrint('Error loading calorie data: $e');
       if (mounted) {
         setState(() {
-          // Fallback: use challenge goal or default to 2000, no consumed calories
           _dailyGoal = widget.currentChallenge?.dailyCalorieGoal ?? 2000;
           _consumed = 0;
           _hasPersonalizedGoal = widget.currentChallenge?.dailyCalorieGoal != null;
           _isLoading = false;
         });
 
-        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to load calorie data. Please check your connection.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -103,7 +93,6 @@ class _FoodLoggerState extends State<FoodLogger> {
     }
   }
 
-  // Public method to refresh data (can be called from parent)
   void refreshData() {
     _loadCalorieData();
   }
@@ -112,17 +101,7 @@ class _FoodLoggerState extends State<FoodLogger> {
   double get _progress => _dailyGoal > 0 ? (_consumed / _dailyGoal).clamp(0.0, 1.0) : 0.0;
   int get _progressPercentage => (_progress * 100).round();
 
-  Color get _progressColor {
-    if (_progress >= 1.0) {
-      return _consumed > _dailyGoal ? Colors.orange : Colors.green;
-    } else if (_progress >= 0.7) {
-      return AppColors.secondary;
-    } else if (_progress >= 0.4) {
-      return Colors.blue;
-    } else {
-      return Colors.grey;
-    }
-  }
+  Color get _progressColor => AppColors.secondary;
 
   String get _statusText {
     if (_consumed > _dailyGoal) {
@@ -131,7 +110,7 @@ class _FoodLoggerState extends State<FoodLogger> {
     } else if (_consumed == _dailyGoal) {
       return "Goal reached!";
     } else {
-      return "$_remaining remaining";
+      return "";
     }
   }
 
@@ -154,7 +133,7 @@ class _FoodLoggerState extends State<FoodLogger> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(color: AppColors.secondary),
             ),
           ),
         ],
@@ -164,48 +143,19 @@ class _FoodLoggerState extends State<FoodLogger> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Food Logger",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            if (widget.currentChallenge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  widget.currentChallenge!.title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.secondary,
-                  ),
-                ),
-              ),
-          ],
+        const Text(
+          "Food Logger",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.secondary.withValues(alpha:0.3)),
+            border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
             borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                AppColors.secondary.withValues(alpha:0.02),
-              ],
-            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha:0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -227,26 +177,26 @@ class _FoodLoggerState extends State<FoodLogger> {
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.grey.shade300,
+                    color: AppColors.secondary.withValues(alpha: 0.3),
                   ),
                   _LoggerItem(
                     label: "Consumed",
                     value: _consumed.toString(),
-                    color: _progressColor,
+                    color: AppColors.secondary,
                     icon: Icons.restaurant,
                   ),
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.grey.shade300,
+                    color: AppColors.secondary.withValues(alpha: 0.3),
                   ),
                   _LoggerItem(
                     label: _consumed > _dailyGoal ? "Excess" : "Remaining",
                     value: _consumed > _dailyGoal
                         ? (_consumed - _dailyGoal).toString()
                         : _remaining.toString(),
-                    color: _consumed > _dailyGoal ? Colors.orange : Colors.green,
-                    icon: _consumed > _dailyGoal ? Icons.warning_outlined : Icons.check_circle_outline,
+                    color: AppColors.secondary,
+                    icon: Icons.check_circle_outline,
                   ),
                 ],
               ),
@@ -256,7 +206,6 @@ class _FoodLoggerState extends State<FoodLogger> {
               // Progress Section
               Column(
                 children: [
-                  // Header Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -265,7 +214,7 @@ class _FoodLoggerState extends State<FoodLogger> {
                           Icon(
                             Icons.local_fire_department,
                             size: 18,
-                            color: _progressColor,
+                            color: AppColors.secondary,
                           ),
                           const SizedBox(width: 6),
                           const Text(
@@ -282,61 +231,45 @@ class _FoodLoggerState extends State<FoodLogger> {
                         "$_progressPercentage%",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _progressColor,
+                          color: AppColors.secondary,
                           fontSize: 16,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Progress Bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
                       value: _progress,
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation<Color>(_progressColor),
+                      backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
                       minHeight: 12,
                     ),
                   ),
-                  const SizedBox(height: 8),
-
-                  // Status Text
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _consumed >= _dailyGoal
-                            ? (_consumed > _dailyGoal ? Icons.trending_up : Icons.check_circle)
-                            : Icons.trending_up,
-                        size: 16,
-                        color: _progressColor,
+                  if (_statusText.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _statusText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.secondary,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _statusText,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _progressColor,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
 
               const SizedBox(height: 16),
 
-              // Personalization status
               if (!_hasPersonalizedGoal)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: AppColors.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
+                    border: Border.all(color: AppColors.secondary),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -344,7 +277,7 @@ class _FoodLoggerState extends State<FoodLogger> {
                       Icon(
                         Icons.info_outline,
                         size: 16,
-                        color: Colors.blue.shade600,
+                        color: AppColors.secondary,
                       ),
                       const SizedBox(width: 6),
                       Flexible(
@@ -352,7 +285,7 @@ class _FoodLoggerState extends State<FoodLogger> {
                           "Complete your profile for a personalized calorie goal",
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.blue.shade700,
+                            color: AppColors.secondary,
                             fontWeight: FontWeight.w500,
                           ),
                           textAlign: TextAlign.center,

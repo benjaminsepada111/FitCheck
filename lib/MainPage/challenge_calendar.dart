@@ -346,7 +346,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
           ),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: AppColors.secondary.shade300),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(

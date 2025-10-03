@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'profile_setup.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class GoalSelectionPage extends StatefulWidget {
   const GoalSelectionPage({super.key});
@@ -25,7 +26,7 @@ class _GoalSelectionPageState extends State<GoalSelectionPage> with TickerProvid
       "desc": "Create a calorie deficit for weight loss",
       "icon": Icons.trending_down_outlined,
       "detail": "Target: 0.5-1 kg per week",
-      "color": Colors.red.shade400,
+      "color": AppColors.secondary.shade400,
     },
     {
       "value": "maintain",
@@ -33,7 +34,7 @@ class _GoalSelectionPageState extends State<GoalSelectionPage> with TickerProvid
       "desc": "Keep your current weight stable",
       "icon": Icons.balance_outlined,
       "detail": "Focus on healthy habits",
-      "color": Colors.blue.shade400,
+      "color": AppColors.secondary.shade400,
     },
     {
       "value": "muscle gain",
@@ -41,7 +42,7 @@ class _GoalSelectionPageState extends State<GoalSelectionPage> with TickerProvid
       "desc": "Build muscle with a calorie surplus",
       "icon": Icons.trending_up_outlined,
       "detail": "Target: 0.25-0.5 kg per week",
-      "color": Colors.green.shade400,
+      "color": AppColors.secondary.shade400,
     },
   ];
 

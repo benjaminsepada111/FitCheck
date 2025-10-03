@@ -30,11 +30,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     _gramsController.dispose();
@@ -42,7 +37,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     _manualCaloriesController.dispose();
     super.dispose();
   }
-
 
   Future<void> _searchFoods(String query) async {
     if (query.trim().isEmpty) {
@@ -81,7 +75,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         });
       }
     } catch (e) {
-      // Log error (replace with proper logging framework in production)
       debugPrint('USDA API Error: $e');
       String errorMessage = 'Unable to search foods. ';
 
@@ -156,7 +149,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    // Check if food has calorie data
     if (_selectedFood!.calories <= 0) {
       _showError('This food item doesn\'t have calorie information available');
       return;
@@ -168,22 +160,33 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     ).round();
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
-    // Call the callback without storing here (parent will handle storage)
     if (widget.onFoodAdded != null) {
       widget.onFoodAdded!(foodName, calories, grams: grams);
     }
 
     Navigator.pop(context);
 
-    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-            'Added ${grams.toStringAsFixed(0)}g $foodName ($calories calories) to ${widget.mealName}'
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, color: Colors.white, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Added ${grams.toStringAsFixed(0)}g $foodName to ${widget.mealName}'),
+            ),
+          ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -218,20 +221,31 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    // Call the callback without storing here (parent will handle storage)
     if (widget.onFoodAdded != null) {
       widget.onFoodAdded!(foodName, calories);
     }
 
     Navigator.pop(context);
 
-    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Added $foodName ($calories calories) to ${widget.mealName}'),
-        backgroundColor: Colors.green,
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, color: Colors.white, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Added $foodName to ${widget.mealName}')),
+          ],
+        ),
+        backgroundColor: Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -240,9 +254,9 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.red.shade600,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -261,31 +275,73 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     );
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.secondary.withOpacity(0.1),
+            AppColors.secondary.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.secondary.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'Calories for ${grams.toStringAsFixed(0)}g:',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.local_fire_department,
               color: AppColors.secondary,
-              fontSize: 14,
+              size: 24,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${calories.round()} calories',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppColors.secondary,
-              fontSize: 18,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Total Calories',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${calories.round()} cal',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.secondary,
+                    fontSize: 24,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${grams.toStringAsFixed(0)}g',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -293,37 +349,41 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Padding(
         padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Enhanced Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Add ${widget.mealName}",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
-                  ),
+                Row(
+                  children: [
+
+                    const SizedBox(width: 12),
+                    Text(
+                      "Add ${widget.mealName}",
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                  ],
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
@@ -331,73 +391,153 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 ),
               ],
             ),
-            const Divider(color: Color(0xFFE0E0E0)),
-            const SizedBox(height: 14),
-
-            // Toggle buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isManualEntry ? _toggleEntryMode : null,
-                    icon: const Icon(Icons.search, size: 18),
-                    label: const Text('Search Foods'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: !_isManualEntry ? AppColors.secondary : Colors.grey.shade200,
-                      foregroundColor: !_isManualEntry ? Colors.white : Colors.grey.shade600,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: !_isManualEntry ? _toggleEntryMode : null,
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Manual Entry'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isManualEntry ? AppColors.secondary : Colors.grey.shade200,
-                      foregroundColor: _isManualEntry ? Colors.white : Colors.grey.shade600,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 20),
+
+            // Modern Toggle Buttons
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _isManualEntry ? _toggleEntryMode : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: !_isManualEntry ? AppColors.secondary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: !_isManualEntry
+                              ? [
+                            BoxShadow(
+                              color: AppColors.secondary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search,
+                              size: 18,
+                              color: !_isManualEntry ? Colors.white : Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Search Foods',
+                              style: TextStyle(
+                                color: !_isManualEntry ? Colors.white : Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: !_isManualEntry ? _toggleEntryMode : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _isManualEntry ? AppColors.secondary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: _isManualEntry
+                              ? [
+                            BoxShadow(
+                              color: AppColors.secondary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: _isManualEntry ? Colors.white : Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Manual Entry',
+                              style: TextStyle(
+                                color: _isManualEntry ? Colors.white : Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
             // Content
             Expanded(
               child: _isManualEntry ? _buildManualEntry() : _buildFoodSearch(),
             ),
 
-            // Action Buttons
+            const SizedBox(height: 16),
+
+            // Enhanced Action Buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFE0E0E0)),
+                      side: BorderSide(color: Colors.grey.shade300, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Cancel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
+                  flex: 2,
                   child: ElevatedButton(
                     onPressed: _saveFood,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Add Food', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Add Food',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -413,14 +553,13 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search Field
+          // Enhanced Search Field
           TextField(
             controller: _searchController,
             onChanged: (value) {
               if (value.length > 2) {
                 _searchFoods(value);
               } else if (value.length <= 2) {
-                // Clear results when search is too short
                 setState(() {
                   _searchResults = [];
                   _selectedFood = null;
@@ -434,24 +573,31 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               }
             },
             decoration: InputDecoration(
-              hintText: "Search for foods (e.g., 'chicken breast', 'apple')",
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF666666)),
+              hintText: "Search foods (e.g., chicken, apple)...",
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              prefixIcon: Icon(Icons.search, color: AppColors.secondary),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Color(0xFF666666)),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchResults = [];
-                          _selectedFood = null;
-                          _errorMessage = null;
-                        });
-                      },
-                    )
+                icon: Icon(Icons.clear, color: Colors.grey.shade400),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchResults = [];
+                    _selectedFood = null;
+                    _errorMessage = null;
+                  });
+                },
+              )
                   : null,
+              filled: true,
+              fillColor: Colors.grey.shade50,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -461,49 +607,109 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           ),
 
           if (_isLoading) ...[
-            const SizedBox(height: 20),
-            const Center(child: CircularProgressIndicator()),
+            const SizedBox(height: 32),
+            Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+              ),
+            ),
           ],
 
           if (_errorMessage != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.shade200),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200, width: 1.5),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade700))),
+                  Icon(Icons.error_outline, color: Colors.red.shade600, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
 
-          // Search Results or Suggestions
+          // Search Results
           if (_searchResults.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Text('Search Results:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
+            Text(
+              'Search Results',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 12),
             ...List.generate(_searchResults.length, (index) {
               final food = _searchResults[index];
               final isSelected = _selectedFood?.fdcId == food.fdcId;
-              return Card(
-                color: isSelected ? AppColors.secondary.withValues(alpha: 0.1) : null,
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.secondary.withOpacity(0.08) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.secondary.withOpacity(0.4)
+                        : Colors.grey.shade200,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
                 child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   title: Text(
                     USDAApiService.formatFoodDescription(food),
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 15,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: Colors.black87,
                     ),
                   ),
-                  subtitle: Text('${food.calories.toStringAsFixed(0)} cal per 100g'),
-                  trailing: isSelected ? Icon(Icons.check_circle, color: AppColors.secondary) : null,
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_fire_department,
+                          size: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${food.calories.toStringAsFixed(0)} cal per 100g',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  )
+                      : null,
                   onTap: () => _selectFood(food),
                 ),
               );
@@ -511,27 +717,52 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           ] else if (_searchController.text.isEmpty && !_isLoading) ...[
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.secondary.withOpacity(0.08),
+                    AppColors.secondary.withOpacity(0.03),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.secondary.withOpacity(0.2),
+                  width: 1.5,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Popular searches:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.lightbulb_outline,
+                          color: AppColors.secondary,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Popular Searches',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
                   Wrap(
                     spacing: 8,
-                    runSpacing: 4,
+                    runSpacing: 8,
                     children: [
                       'chicken breast', 'apple', 'banana', 'rice', 'egg',
                       'salmon', 'broccoli', 'oatmeal', 'yogurt', 'almonds'
@@ -541,16 +772,20 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                         _searchFoods(suggestion);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppColors.secondary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.secondary.withOpacity(0.3),
+                            width: 1.5,
+                          ),
                         ),
                         child: Text(
                           suggestion,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                             color: AppColors.secondary,
                           ),
                         ),
@@ -563,17 +798,38 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           ],
 
           if (_selectedFood != null) ...[
-            const SizedBox(height: 20),
-            const Text('Amount:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            Text(
+              'Enter Amount',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 10),
             TextField(
               controller: _gramsController,
               keyboardType: TextInputType.number,
-              onChanged: (value) => setState(() {}), // Trigger calorie preview update
+              onChanged: (value) => setState(() {}),
               decoration: InputDecoration(
                 hintText: "Enter amount in grams",
-                suffixText: 'g',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                suffixText: 'grams',
+                suffixStyle: TextStyle(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w600,
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: AppColors.secondary, width: 2),
@@ -592,13 +848,30 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Food Name:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 8),
+          Text(
+            'Food Name',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: _manualFoodController,
             decoration: InputDecoration(
               hintText: "Enter food name",
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppColors.secondary, width: 2),
@@ -607,15 +880,36 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           ),
           const SizedBox(height: 20),
 
-          const Text('Calories:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 8),
+          Text(
+            'Total Calories',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: _manualCaloriesController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               hintText: "Enter total calories",
+              hintStyle: TextStyle(color: Colors.grey.shade400),
               suffixText: 'cal',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              suffixStyle: TextStyle(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppColors.secondary, width: 2),

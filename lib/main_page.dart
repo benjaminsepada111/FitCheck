@@ -8,6 +8,7 @@ import '../MainPage/challenge_calendar.dart';
 import '../MainPage/custom_bottom_navbar.dart';
 import '../MainPage/challenge_history_sheet.dart';
 import '../MainPage/create_challenge_sheet.dart';
+import 'package:capstone_project/color/colors.dart';
 
 // add your other page imports
 import 'food_page.dart';
@@ -24,7 +25,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
-  String _selectedChallenge = "No Active Challenge";
+  String _selectedChallenge = "No Challenge";
 
   // Challenge and tracking data
   Challenge? _currentChallenge;
@@ -59,7 +60,7 @@ class _MainPageState extends State<MainPage> {
             _selectedChallenge = _currentChallenge!.title;
           } else {
             _currentChallenge = null;
-            _selectedChallenge = "No Active Challenge";
+            _selectedChallenge = "No Challenge";
           }
         });
       }
@@ -368,14 +369,14 @@ class _MainPageState extends State<MainPage> {
           value: "Create New Challenge",
           child: Row(
             children: [
-              Icon(Icons.add_circle_outline, color: Colors.blue, size: 20),
+              Icon(Icons.add_circle_outline, color: AppColors.secondary, size: 20),
               SizedBox(width: 10),
               Text(
                 "Create New Challenge",
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.blue,
+                  color: AppColors.secondary,
                 ),
               ),
             ],
@@ -436,35 +437,6 @@ class _MainPageState extends State<MainPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Add informational text when no challenge is active
-              if (_currentChallenge == null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "Start a challenge to begin tracking your milestone journey and progress photos!",
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              // Pass both currentChallenge and onCreateChallenge callback
               MilestoneJourney(
                 currentChallenge: _currentChallenge,
                 onCreateChallenge: _showCreateChallenge,

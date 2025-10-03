@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'add_food_sheet.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/models/food_models.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class MealsSection extends StatefulWidget {
   final VoidCallback? onCaloriesUpdated; // Add callback for tracker updates
@@ -168,7 +169,7 @@ class _MealsSectionState extends State<MealsSection> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('${entry.foodName} removed successfully'),
-                backgroundColor: Colors.blue,
+                backgroundColor: AppColors.secondary,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -386,11 +387,11 @@ class _MealCardState extends State<_MealCard> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         border: Border.all(
-          color: widget.isRecommended ? Colors.orange.withValues(alpha:0.5) : Colors.black12,
+          color: widget.isRecommended ? AppColors.secondary.withValues(alpha:0.5) : Colors.black12,
           width: widget.isRecommended ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: widget.isRecommended ? Colors.orange.withValues(alpha:0.05) : null,
+        color: widget.isRecommended ? AppColors.secondary.withValues(alpha:0.05) : null,
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -406,13 +407,14 @@ class _MealCardState extends State<_MealCard> {
               ),
               if (widget.isRecommended)
                 Positioned(
-                  top: -2,
-                  right: -2,
+                  top: 1,
+                  right: 1,
+
                   child: Container(
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     decoration: const BoxDecoration(
-                      color: Colors.orange,
+                      color: AppColors.secondary,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -430,7 +432,7 @@ class _MealCardState extends State<_MealCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.orange,
+                    color: AppColors.secondary,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(

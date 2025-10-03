@@ -9,7 +9,6 @@ import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 
 class FoodPage extends StatefulWidget {
-  // Add these parameters to receive challenge data and callback
   final Challenge? currentChallenge;
   final Function(Challenge)? onChallengeCreated;
   final VoidCallback? onCaloriesUpdated;
@@ -25,10 +24,7 @@ class FoodPage extends StatefulWidget {
   State<FoodPage> createState() => _FoodPageState();
 }
 
-class _FoodPageState extends State<FoodPage>
-    with TickerProviderStateMixin {
-
-  // Remove the local hasChallenge variable - use widget.currentChallenge instead
+class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
   bool get hasChallenge => widget.currentChallenge != null;
 
   late AnimationController _bounceController;
@@ -70,7 +66,7 @@ class _FoodPageState extends State<FoodPage>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    _pulseAnimation = Tween<double>(begin: 1, end: 1.08).animate(
+    _pulseAnimation = Tween<double>(begin: 1, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
@@ -124,43 +120,43 @@ class _FoodPageState extends State<FoodPage>
     super.dispose();
   }
 
-  // This is the key function that integrates with MainPage
   void _onChallengeCreated(Challenge challenge) {
-    // Call the parent callback to update MainPage state
     if (widget.onChallengeCreated != null) {
       widget.onChallengeCreated!(challenge);
     }
 
-    // Show success feedback
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Challenge "${challenge.title}" created successfully!',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  'Challenge "${challenge.title}" created!',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 3),
         ),
       );
     }
   }
 
-  // Add recommended food to appropriate meal based on current time
   void _addRecommendedFoodToMeal(String foodName, int calories) {
-    // Determine current meal type
     final hour = DateTime.now().hour;
     String mealType;
 
@@ -174,85 +170,149 @@ class _FoodPageState extends State<FoodPage>
       mealType = 'Dinner';
     }
 
-    // Show enhanced confirmation dialog with food details
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              _getFoodIcon(foodName),
-              color: AppColors.secondary,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(foodName)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _getFoodIcon(foodName),
+                  color: AppColors.secondary,
+                  size: 32,
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 20),
+              Text(
+                foodName,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.secondary.withOpacity(0.1),
+                      AppColors.secondary.withOpacity(0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.secondary.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_fire_department,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Calories',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '$calories kcal',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Add this to your $mealType?',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
                 children: [
-                  Text(
-                    'Calories (per 100g)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                  Text(
-                    '$calories kcal',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.secondary,
-                      fontSize: 16,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _confirmAddFood(foodName, calories, mealType);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Add to $mealType',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Add this food to your $mealType?',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _confirmAddFood(foodName, calories, mealType);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Add to $mealType'),
-          ),
-        ],
       ),
     );
   }
 
-  // Helper method to get appropriate icon for food items
   IconData _getFoodIcon(String foodName) {
     final name = foodName.toLowerCase();
     if (name.contains('chicken') || name.contains('meat')) return Icons.set_meal;
@@ -265,15 +325,13 @@ class _FoodPageState extends State<FoodPage>
     return Icons.restaurant_menu;
   }
 
-  // Confirm and add food to meal
   void _confirmAddFood(String foodName, int calories, String mealType) async {
     try {
-      // Import the necessary service if not already imported
       final foodEntry = FoodEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        fdcId: 0, // Default for recommended foods
+        fdcId: 0,
         foodName: foodName,
-        servingSize: 100.0, // Default serving size
+        servingSize: 100.0,
         servingUnit: 'g',
         caloriesPer100g: calories.toDouble(),
       );
@@ -287,14 +345,26 @@ class _FoodPageState extends State<FoodPage>
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$foodName added to $mealType!'),
-            backgroundColor: Colors.green,
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check, color: Colors.white, size: 16),
+                ),
+                const SizedBox(width: 12),
+                Text('$foodName added to $mealType!'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
 
-        // Notify parent that calories were updated
         if (widget.onCaloriesUpdated != null) {
           widget.onCaloriesUpdated!();
         }
@@ -302,22 +372,21 @@ class _FoodPageState extends State<FoodPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to add $foodName. Please try again.'),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } catch (e) {
-      // Log error (replace with proper logging framework in production)
       debugPrint('Error adding recommended food: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error adding $foodName. Please try again.'),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -342,23 +411,20 @@ class _FoodPageState extends State<FoodPage>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.secondary.withValues(alpha: 0.1),
+              AppColors.secondary.withOpacity(0.08),
               Colors.white,
-              AppColors.secondary.withValues(alpha: 0.05),
+              AppColors.secondary.withOpacity(0.03),
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 1.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
               children: [
-                // Header
-
                 const Spacer(flex: 2),
 
-                // Illustration
                 AnimatedBuilder(
                   animation: _bounceAnimation,
                   builder: (context, child) {
@@ -367,22 +433,22 @@ class _FoodPageState extends State<FoodPage>
                       child: ScaleTransition(
                         scale: _scaleAnimation,
                         child: Container(
-                          width: 220,
-                          height: 220, 
+                          width: 200,
+                          height: 200,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
                               colors: [
-                                AppColors.secondary.withValues(alpha: 0.2),
-                                AppColors.secondary.withValues(alpha: 0.1),
-                                AppColors.secondary.withValues(alpha: 0.05),
+                                AppColors.secondary.withOpacity(0.2),
+                                AppColors.secondary.withOpacity(0.1),
+                                AppColors.secondary.withOpacity(0.05),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.secondary.withValues(alpha: 0.2),
-                                blurRadius: 30,
-                                spreadRadius: 10,
+                                color: AppColors.secondary.withOpacity(0.25),
+                                blurRadius: 40,
+                                spreadRadius: 5,
                                 offset: const Offset(0, 10),
                               ),
                             ],
@@ -391,26 +457,31 @@ class _FoodPageState extends State<FoodPage>
                             alignment: Alignment.center,
                             children: [
                               Container(
-                                width: 180,
-                                height: 180,
+                                width: 160,
+                                height: 160,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: AppColors.secondary.withValues(alpha: 0.3),
+                                    color: AppColors.secondary.withOpacity(0.3),
                                     width: 2,
                                   ),
                                 ),
                               ),
                               Container(
-                                width: 140,
-                                height: 140,
+                                width: 120,
+                                height: 120,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: AppColors.secondary.withValues(alpha: 0.15),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.secondary.withOpacity(0.2),
+                                      AppColors.secondary.withOpacity(0.15),
+                                    ],
+                                  ),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.restaurant_menu_rounded,
-                                  size: 70,
+                                  size: 60,
                                   color: AppColors.secondary,
                                 ),
                               ),
@@ -422,9 +493,8 @@ class _FoodPageState extends State<FoodPage>
                   },
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 48),
 
-                // Message
                 SlideTransition(
                   position: _slideAnimation,
                   child: FadeTransition(
@@ -432,26 +502,26 @@ class _FoodPageState extends State<FoodPage>
                     child: Column(
                       children: [
                         Text(
-                          'Ready to Start Your\nNutrition Journey?',
+                          'Start Your\nNutrition Journey',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
                             color: Colors.grey.shade800,
-                            height: 1.3,
+                            height: 1.2,
                             letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
                         Container(
                           constraints: const BoxConstraints(maxWidth: 320),
                           child: Text(
-                            'Create a nutrition challenge to unlock food logging, personalized recommendations, and meal tracking features!',
+                            'Create a challenge to unlock food logging, personalized recommendations, and meal tracking!',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey.shade600,
-                              height: 1.5,
+                              height: 1.6,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -463,29 +533,26 @@ class _FoodPageState extends State<FoodPage>
 
                 const Spacer(flex: 3),
 
-                // CTA
                 ScaleTransition(
                   scale: _pulseAnimation,
                   child: Container(
                     width: double.infinity,
-                    height: 60,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.secondary.withValues(alpha: 0.3),
+                          color: AppColors.secondary.withOpacity(0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                       ],
                     ),
                     child: ElevatedButton(
-                      onPressed: () {
-                        _navigateToCreateChallenge();
-                      },
+                      onPressed: _navigateToCreateChallenge,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -495,10 +562,9 @@ class _FoodPageState extends State<FoodPage>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            width: 28,
-                            height: 28,
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
@@ -512,7 +578,7 @@ class _FoodPageState extends State<FoodPage>
                             'Create Your First Challenge',
                             style: TextStyle(
                               fontSize: 17,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: -0.2,
                             ),
                           ),
@@ -522,28 +588,23 @@ class _FoodPageState extends State<FoodPage>
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Secondary action
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: TextButton.icon(
-                    onPressed: () {
-                      _showChallengeExamples();
-                    },
+                    onPressed: _showChallengeExamples,
                     icon: Icon(
-                      Icons.help_outline_rounded,
+                      Icons.lightbulb_outline_rounded,
                       size: 18,
-                      color: AppColors.secondary.withValues(alpha: 0.7),
+                      color: AppColors.secondary,
                     ),
                     label: Text(
-                      'Learn about nutrition challenges',
+                      'View challenge ideas',
                       style: TextStyle(
-                        color: AppColors.secondary.withValues(alpha: 0.7),
+                        color: AppColors.secondary,
                         fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.secondary.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -564,69 +625,6 @@ class _FoodPageState extends State<FoodPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Add challenge info header when challenge is active
-          if (widget.currentChallenge != null) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.secondary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.restaurant_menu,
-                      color: AppColors.secondary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Active Challenge',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.secondary.withValues(alpha: 0.8),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.currentChallenge!.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
           FoodLogger(
             currentChallenge: widget.currentChallenge,
             onCaloriesUpdated: widget.onCaloriesUpdated,
@@ -652,7 +650,7 @@ class _FoodPageState extends State<FoodPage>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => CreateChallengeSheet(
-        onChallengeCreated: _onChallengeCreated, // Use the integrated callback
+        onChallengeCreated: _onChallengeCreated,
       ),
     );
   }
@@ -665,7 +663,7 @@ class _FoodPageState extends State<FoodPage>
       builder: (context) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -683,43 +681,59 @@ class _FoodPageState extends State<FoodPage>
                 ),
               ),
             ),
-            Text(
-              'Popular Nutrition Challenges',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.secondary,
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.tips_and_updates_outlined,
+                    color: AppColors.secondary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Challenge Ideas',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.secondary,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             _buildChallengeExample(
               Icons.water_drop_rounded,
               'Stay Hydrated',
-              'Drink 8 glasses of water daily for better health',
-              Colors.blue.shade600,
+              'Drink 8 glasses of water daily',
+              AppColors.secondary.shade600,
             ),
             _buildChallengeExample(
               Icons.eco_rounded,
               '5-A-Day Challenge',
-              'Eat 5 portions of fruits & vegetables every day',
-              Colors.green.shade600,
+              'Eat 5 portions of fruits & vegetables',
+              AppColors.secondary.shade600,
             ),
             _buildChallengeExample(
               Icons.fitness_center_rounded,
               'Protein Power',
-              'Meet your daily protein goals for muscle health',
-              Colors.red.shade600,
+              'Meet your daily protein goals',
+              AppColors.secondary.shade600,
             ),
             _buildChallengeExample(
-              Icons.psychology_rounded,
+              Icons.self_improvement_rounded,
               'Mindful Eating',
-              'Practice conscious eating habits and portion control',
-              Colors.purple.shade600,
+              'Practice conscious eating habits',
+             AppColors.secondary.shade600,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 50,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -728,8 +742,9 @@ class _FoodPageState extends State<FoodPage>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 0,
                 ),
@@ -737,7 +752,7 @@ class _FoodPageState extends State<FoodPage>
                   'Create My Challenge',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -752,28 +767,33 @@ class _FoodPageState extends State<FoodPage>
   Widget _buildChallengeExample(
       IconData icon, String title, String description, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
+          color: color.withOpacity(0.2),
+          width: 1.5,
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  color.withOpacity(0.2),
+                  color.withOpacity(0.15),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -781,17 +801,17 @@ class _FoodPageState extends State<FoodPage>
                 Text(
                   title,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   description,
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 14,
-                    height: 1.4,
+                    height: 1.3,
                   ),
                 ),
               ],

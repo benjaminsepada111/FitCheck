@@ -1,46 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// 👉 import your real pages here
 import 'package:capstone_project/Accounts/personal_info_page.dart';
 import 'package:capstone_project/Accounts/change_password_page.dart';
+import 'package:capstone_project/color/colors.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   Future<void> _logout(BuildContext context) async {
     try {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const AlertDialog(
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('Signing out...'),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+              ),
+              const SizedBox(width: 20),
+              const Text('Signing out...'),
             ],
           ),
         ),
       );
 
-      // Sign out from Firebase
       await FirebaseAuth.instance.signOut();
 
-      // Navigate to auth wrapper (which will show login page)
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
       }
     } catch (e) {
-      // Close loading dialog if it's open
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to sign out. Please try again.'),
+          SnackBar(
+            content: const Text('Failed to sign out. Please try again.'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -51,22 +52,95 @@ class ProfilePage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Sign Out'),
-          content: const Text('Are you sure you want to sign out?'),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.logout,
+                    color: Colors.red.shade600,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Sign Out',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Are you sure you want to sign out of your account?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _logout(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade600,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sign Out',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              child: const Text('Sign Out'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _logout(context);
-              },
-            ),
-          ],
+          ),
         );
       },
     );
@@ -74,7 +148,10 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
@@ -82,7 +159,7 @@ class ProfilePage extends StatelessWidget {
         title: const Text(
           "Account",
           style: TextStyle(
-            fontSize: 30,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),
@@ -91,138 +168,368 @@ class ProfilePage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Profile Card
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+          // Enhanced Profile Card
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.secondary,
+                  AppColors.secondary.withOpacity(0.8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.secondary.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            elevation: 0,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.grey,
-                    child: Icon(Icons.person, color: Colors.white, size: 36),
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        "Benjamin Sepada III",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Benjamin Sepada",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "benjaminlll.sepada@gmail.com",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black54,
+                        const SizedBox(height: 6),
+                        Text(
+                          user?.email ?? "benjaminlll.sepada@gmail.com",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
                         ),
-                      ),
-                    ],
-                  )
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+
+          // Section Header
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              'Account Settings',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
 
           // Account Settings
           _buildSection([
             _buildListTile(
+              context,
               Icons.person_outline,
               "Personal Info",
+              "Manage your personal information",
                   () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
               ),
             ),
+            const Divider(height: 1, indent: 60),
             _buildListTile(
+              context,
               Icons.vpn_key_outlined,
               "Change Password",
+              "Update your password",
                   () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
               ),
             ),
-            _buildListTile(Icons.lock_outline, "Two Factor Authentication"),
-            _buildListTile(Icons.fingerprint, "Biometric Login"),
+            const Divider(height: 1, indent: 60),
+            _buildListTile(
+              context,
+              Icons.shield_outlined,
+              "Two Factor Authentication",
+              "Add extra security",
+              null,
+            ),
+            const Divider(height: 1, indent: 60),
+            _buildListTile(
+              context,
+              Icons.fingerprint,
+              "Biometric Login",
+              "Use fingerprint or face ID",
+              null,
+            ),
           ]),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+
+          // Section Header
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              'Preferences',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
 
           // Preferences
           _buildSection([
-            _buildSwitchTile(Icons.dark_mode_outlined, "Dark Mode", false),
-            _buildListTile(Icons.notifications_outlined, "Notifications"),
-            _buildListTile(Icons.settings_outlined, "Settings"),
+            _buildSwitchTile(
+              context,
+              Icons.dark_mode_outlined,
+              "Dark Mode",
+              "Switch to dark theme",
+              false,
+            ),
+            const Divider(height: 1, indent: 60),
+            _buildListTile(
+              context,
+              Icons.notifications_outlined,
+              "Notifications",
+              "Manage notification settings",
+              null,
+            ),
+            const Divider(height: 1, indent: 60),
+            _buildListTile(
+              context,
+              Icons.language_outlined,
+              "Language",
+              "Choose your preferred language",
+              null,
+            ),
           ]),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // Logout
+          // Section Header
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              'More',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+
+          // More Options
           _buildSection([
-            _buildListTile(Icons.logout, "Log Out", () => _showLogoutDialog(context)),
+            _buildListTile(
+              context,
+              Icons.help_outline,
+              "Help & Support",
+              "Get help with the app",
+              null,
+            ),
+            const Divider(height: 1, indent: 60),
+            _buildListTile(
+              context,
+              Icons.info_outline,
+              "About",
+              "Learn more about this app",
+              null,
+            ),
           ]),
+
+          const SizedBox(height: 24),
+
+          // Logout Button
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red.shade200, width: 1.5),
+            ),
+            child: ListTile(
+              onTap: () => _showLogoutDialog(context),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.logout,
+                  color: Colors.red.shade600,
+                  size: 22,
+                ),
+              ),
+              title: Text(
+                "Log Out",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade600,
+                ),
+              ),
+              trailing: Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.red.shade400,
+                size: 18,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // Updated helper widget for list items with onTap
   static Widget _buildListTile(
+      BuildContext context,
       IconData icon,
-      String title, [
-        VoidCallback? onTap,
-      ]) {
+      String title,
+      String subtitle,
+      VoidCallback? onTap,
+      ) {
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: const Color(0xFFF7F9FC),
-        child: Icon(icon, color: Colors.black87),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          color: AppColors.secondary,
+          size: 22,
+        ),
       ),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
       ),
-      trailing: const Icon(Icons.chevron_right, color: Colors.black54),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.grey.shade600,
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        color: Colors.grey.shade400,
+        size: 16,
+      ),
     );
   }
 
-  // Helper widget for switch item
-  static Widget _buildSwitchTile(IconData icon, String title, bool value) {
+  static Widget _buildSwitchTile(
+      BuildContext context,
+      IconData icon,
+      String title,
+      String subtitle,
+      bool value,
+      ) {
     return SwitchListTile(
       value: value,
       onChanged: (_) {},
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
       ),
-      secondary: CircleAvatar(
-        radius: 20,
-        backgroundColor: const Color(0xFFF7F9FC),
-        child: Icon(icon, color: Colors.black87),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.grey.shade600,
+        ),
       ),
+      secondary: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          color: AppColors.secondary,
+          size: 22,
+        ),
+      ),
+      activeColor: AppColors.secondary,
+      activeTrackColor: AppColors.secondary.withOpacity(0.3),
       controlAffinity: ListTileControlAffinity.trailing,
     );
   }
 
-  // Section card wrapper
   static Widget _buildSection(List<Widget> children) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      elevation: 0,
-      color: const Color(0xFFF7F9FC),
       child: Column(children: children),
     );
   }

@@ -265,13 +265,13 @@ class _TrackersState extends State<Trackers> {
 
   Color _getProgressColor(double progress) {
     if (progress >= 1.0) {
-      return Colors.green;
+      return AppColors.secondary;
     } else if (progress >= 0.7) {
       return AppColors.secondary;
     } else if (progress >= 0.4) {
-      return Colors.orange;
+      return AppColors.secondary;
     } else {
-      return Colors.red.shade400;
+      return AppColors.secondary.shade400;
     }
   }
 
@@ -385,21 +385,21 @@ class _TrackersState extends State<Trackers> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200, width: 1),
+            border: Border.all(color: AppColors.secondary.shade200, width: 1),
           ),
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false),
+                _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false,),
                 Container(
                   width: 1,
-                  color: Colors.grey.shade300,
+                  color: AppColors.secondary.shade300,
                 ),
                 _buildTracker("Water", _currentWater, waterGoal, waterProgress),
                 Container(
                   width: 1,
-                  color: Colors.grey.shade300,
+                  color: AppColors.secondary.shade300,
                 ),
                 _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
               ],
@@ -471,146 +471,154 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              MediaQuery.of(context).viewInsets.bottom + 20,
             ),
-            const SizedBox(height: 20),
-
-            // Title
-            const Text(
-              'Water Intake',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Track your daily water consumption',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Water visualization
-            Expanded(
-              child: Column(
-                children: [
-                  // Large water display
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.blue.shade50,
-                      border: Border.all(color: Colors.blue.shade200, width: 3),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.local_drink,
-                          size: 40,
-                          color: Colors.blue.shade600,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '$_waterCount',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                        Text(
-                          'glasses',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.blue.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Control buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildWaterButton(
-                        icon: Icons.remove,
-                        onPressed: _waterCount > 0 ? () => _updateWater(-1) : null,
-                        color: Colors.red.shade400,
-                      ),
-                      _buildWaterButton(
-                        icon: Icons.add,
-                        onPressed: () => _updateWater(1),
-                        color: Colors.blue.shade600,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Quick add buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildQuickAddButton('-5', () => _updateWater(-5)),
-                      _buildQuickAddButton('+1', () => _updateWater(1)),
-                      _buildQuickAddButton('+3', () => _updateWater(3)),
-                      _buildQuickAddButton('+5', () => _updateWater(5)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Save button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.onWaterUpdated(_waterCount);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                child: const Text(
-                  'Save Water Intake',
+                const SizedBox(height: 16),
+
+                // Title
+                const Text(
+                  'Water Intake',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Track your daily water consumption',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: Colors.grey.shade600,
                   ),
                 ),
-              ),
+                const SizedBox(height: 24),
+
+                // Water visualization
+                // Large water display
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.blue.shade50,
+                    border: Border.all(color: Colors.blue.shade200, width: 3),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.local_drink,
+                        size: 40,
+                        color: Colors.blue.shade600,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$_waterCount',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                      Text(
+                        'glasses',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Control buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildWaterButton(
+                      icon: Icons.remove,
+                      onPressed: _waterCount > 0 ? () => _updateWater(-1) : null,
+                      color: Colors.red.shade400,
+                    ),
+                    _buildWaterButton(
+                      icon: Icons.add,
+                      onPressed: () => _updateWater(1),
+                      color: Colors.blue.shade600,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Quick add buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildQuickAddButton('-5', () => _updateWater(-5)),
+                    _buildQuickAddButton('+1', () => _updateWater(1)),
+                    _buildQuickAddButton('+3', () => _updateWater(3)),
+                    _buildQuickAddButton('+5', () => _updateWater(5)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Save button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      widget.onWaterUpdated(_waterCount);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Save Water Intake',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

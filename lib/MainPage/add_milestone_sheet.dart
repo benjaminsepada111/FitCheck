@@ -95,10 +95,10 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                     child: Container(
                       height: 140,
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: AppColors.secondary.shade50,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.blue.shade200,
+                          color: AppColors.secondary.shade200,
                           width: 2,
                         ),
                         boxShadow: [
@@ -115,13 +115,13 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.blue.shade100,
+                              color: AppColors.secondary.shade100,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.camera_alt,
                               size: 32,
-                              color: Colors.blue.shade700,
+                              color: AppColors.secondary.shade700,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -130,7 +130,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade700,
+                              color: AppColors.secondary.shade700,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -138,7 +138,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                             "Use camera",
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.blue.shade600,
+                              color: AppColors.secondary.shade600,
                             ),
                           ),
                         ],
@@ -156,10 +156,10 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                     child: Container(
                       height: 140,
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
+                        color: AppColors.secondary.shade50,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.green.shade200,
+                          color: AppColors.secondary.shade200,
                           width: 2,
                         ),
                         boxShadow: [
@@ -176,13 +176,13 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade100,
+                              color: AppColors.secondary.shade100,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.photo_library,
                               size: 32,
-                              color: Colors.green.shade700,
+                              color: AppColors.secondary.shade700,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -191,7 +191,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Colors.green.shade700,
+                              color: AppColors.secondary.shade700,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -199,7 +199,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                             "Choose photo",
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.green.shade600,
+                              color: AppColors.secondary.shade600,
                             ),
                           ),
                         ],

@@ -138,7 +138,7 @@ class ChallengeHistorySheet extends StatelessWidget {
                   Icon(Icons.add_circle_outline, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    "Start Your First Challenge",
+                    "Create Challenge",
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

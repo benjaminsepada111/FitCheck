@@ -5,69 +5,39 @@ class FoodSearchResult {
   final String description;
   final String? brandOwner;
   final String? ingredients;
-  final List<FoodNutrient> foodNutrients;
+  final double calories; // Calories per 100g
 
   FoodSearchResult({
     required this.fdcId,
     required this.description,
     this.brandOwner,
     this.ingredients,
-    this.foodNutrients = const [],
+    required this.calories,
   });
 
   factory FoodSearchResult.fromJson(Map<String, dynamic> json) {
+    // Extract calories from foodNutrients if available
+    double caloriesValue = 0.0;
+    final foodNutrients = json['foodNutrients'] as List<dynamic>?;
+    if (foodNutrients != null) {
+      for (final nutrient in foodNutrients) {
+        if (nutrient['nutrientId'] == 1008) { // Energy (kcal)
+          caloriesValue = (nutrient['value'] ?? 0).toDouble();
+          break;
+        }
+      }
+    }
+
     return FoodSearchResult(
       fdcId: json['fdcId'] ?? 0,
       description: json['description'] ?? '',
       brandOwner: json['brandOwner'],
       ingredients: json['ingredients'],
-      foodNutrients: (json['foodNutrients'] as List<dynamic>?)
-          ?.map((nutrient) => FoodNutrient.fromJson(nutrient))
-          .toList() ?? [],
-    );
-  }
-
-  // Get specific nutrient value
-  double getNutrientValue(int nutrientId) {
-    final nutrient = foodNutrients.firstWhere(
-          (n) => n.nutrientId == nutrientId,
-      orElse: () => FoodNutrient(nutrientId: nutrientId, value: 0.0),
-    );
-    return nutrient.value;
-  }
-
-  // Convenience getters for common nutrients (per 100g)
-  double get calories => getNutrientValue(1008); // Energy (kcal)
-  double get protein => getNutrientValue(1003); // Protein
-  double get totalFat => getNutrientValue(1004); // Total fat
-  double get carbs => getNutrientValue(1005); // Carbohydrates
-  double get fiber => getNutrientValue(1079); // Fiber
-  double get sugar => getNutrientValue(2000); // Total sugars
-  double get sodium => getNutrientValue(1093); // Sodium (mg)
-}
-
-class FoodNutrient {
-  final int nutrientId;
-  final String? nutrientName;
-  final double value;
-  final String? unitName;
-
-  FoodNutrient({
-    required this.nutrientId,
-    this.nutrientName,
-    required this.value,
-    this.unitName,
-  });
-
-  factory FoodNutrient.fromJson(Map<String, dynamic> json) {
-    return FoodNutrient(
-      nutrientId: json['nutrientId'] ?? 0,
-      nutrientName: json['nutrientName'],
-      value: (json['value'] ?? 0).toDouble(),
-      unitName: json['unitName'],
+      calories: caloriesValue,
     );
   }
 }
+
 
 class FoodSearchResponse {
   final List<FoodSearchResult> foods;
@@ -110,18 +80,6 @@ class FoodLog {
     return entries.fold(0.0, (sum, entry) => sum + entry.totalCalories);
   }
 
-  // Calculate total macros
-  double get totalProtein {
-    return entries.fold(0.0, (sum, entry) => sum + entry.totalProtein);
-  }
-
-  double get totalFat {
-    return entries.fold(0.0, (sum, entry) => sum + entry.totalFat);
-  }
-
-  double get totalCarbs {
-    return entries.fold(0.0, (sum, entry) => sum + entry.totalCarbs);
-  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -173,9 +131,6 @@ class FoodEntry {
   final double servingSize; // in grams
   final String servingUnit; // e.g., "cup", "piece", "grams"
   final double caloriesPer100g;
-  final double proteinPer100g;
-  final double fatPer100g;
-  final double carbsPer100g;
 
   FoodEntry({
     required this.id,
@@ -184,26 +139,11 @@ class FoodEntry {
     required this.servingSize,
     required this.servingUnit,
     required this.caloriesPer100g,
-    required this.proteinPer100g,
-    required this.fatPer100g,
-    required this.carbsPer100g,
   });
 
-  // Calculate nutritional values for the actual serving size
+  // Calculate calories for the actual serving size
   double get totalCalories {
     return (caloriesPer100g * servingSize) / 100;
-  }
-
-  double get totalProtein {
-    return (proteinPer100g * servingSize) / 100;
-  }
-
-  double get totalFat {
-    return (fatPer100g * servingSize) / 100;
-  }
-
-  double get totalCarbs {
-    return (carbsPer100g * servingSize) / 100;
   }
 
   Map<String, dynamic> toJson() {
@@ -214,9 +154,6 @@ class FoodEntry {
       'servingSize': servingSize,
       'servingUnit': servingUnit,
       'caloriesPer100g': caloriesPer100g,
-      'proteinPer100g': proteinPer100g,
-      'fatPer100g': fatPer100g,
-      'carbsPer100g': carbsPer100g,
     };
   }
 
@@ -228,9 +165,6 @@ class FoodEntry {
       servingSize: json['servingSize'].toDouble(),
       servingUnit: json['servingUnit'],
       caloriesPer100g: json['caloriesPer100g'].toDouble(),
-      proteinPer100g: json['proteinPer100g'].toDouble(),
-      fatPer100g: json['fatPer100g'].toDouble(),
-      carbsPer100g: json['carbsPer100g'].toDouble(),
     );
   }
 
@@ -247,9 +181,6 @@ class FoodEntry {
       servingSize: servingSize,
       servingUnit: servingUnit,
       caloriesPer100g: searchResult.calories,
-      proteinPer100g: searchResult.protein,
-      fatPer100g: searchResult.totalFat,
-      carbsPer100g: searchResult.carbs,
     );
   }
 
@@ -260,9 +191,6 @@ class FoodEntry {
     double? servingSize,
     String? servingUnit,
     double? caloriesPer100g,
-    double? proteinPer100g,
-    double? fatPer100g,
-    double? carbsPer100g,
   }) {
     return FoodEntry(
       id: id ?? this.id,
@@ -271,9 +199,6 @@ class FoodEntry {
       servingSize: servingSize ?? this.servingSize,
       servingUnit: servingUnit ?? this.servingUnit,
       caloriesPer100g: caloriesPer100g ?? this.caloriesPer100g,
-      proteinPer100g: proteinPer100g ?? this.proteinPer100g,
-      fatPer100g: fatPer100g ?? this.fatPer100g,
-      carbsPer100g: carbsPer100g ?? this.carbsPer100g,
     );
   }
 }

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
-import 'package:capstone_project/services/food_storage_service.dart';
+import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/services/user_data_service.dart';
 import '../app_text_styles.dart';
 
 class Trackers extends StatefulWidget {
@@ -23,6 +24,7 @@ class Trackers extends StatefulWidget {
 
 class _TrackersState extends State<Trackers> {
   int _currentCalories = 0;
+  int _calorieGoal = 2000;
   int _currentWater = 0;
   bool _isLoading = true;
 
@@ -49,14 +51,26 @@ class _TrackersState extends State<Trackers> {
     try {
       final today = DateTime.now();
 
-      // Get calories from logged foods automatically
-      final totalCalories = await FoodStorageService.getTotalCaloriesForDay(today);
+      // Get calorie goal (same logic as FoodLogger)
+      int goal = 2000;
+      if (widget.currentChallenge?.dailyCalorieGoal != null) {
+        goal = widget.currentChallenge!.dailyCalorieGoal;
+      } else {
+        final calculatedGoal = await UserDataService.getDailyCalorieGoal();
+        if (calculatedGoal != 2000) {
+          goal = calculatedGoal;
+        }
+      }
+
+      // Get calories from FoodLogService (same as FoodLogger)
+      final totalCalories = (await FoodLogService.getDailyCalories(today)).round();
 
       // Get water intake from storage
       final waterIntake = await WaterStorageService.getWaterIntakeForDate(today);
 
       if (mounted) {
         setState(() {
+          _calorieGoal = goal;
           _currentCalories = totalCalories;
           _currentWater = waterIntake;
           _isLoading = false;
@@ -67,8 +81,10 @@ class _TrackersState extends State<Trackers> {
         widget.onWaterChanged(_currentWater);
       }
     } catch (e) {
+      debugPrint('Error loading tracker data: $e');
       if (mounted) {
         setState(() {
+          _calorieGoal = widget.currentChallenge?.dailyCalorieGoal ?? 2000;
           _currentCalories = 0;
           _currentWater = 0;
           _isLoading = false;
@@ -237,32 +253,6 @@ class _TrackersState extends State<Trackers> {
     }
   }
 
-  String _getStatusText(String label) {
-    switch (label) {
-      case "Calories":
-        return "Auto-synced";
-      case "Water":
-        return "Tap to update";
-      case "Streak":
-        return "Auto-tracked";
-      default:
-        return "";
-    }
-  }
-
-  Color _getStatusColor(String label) {
-    switch (label) {
-      case "Calories":
-        return Colors.green.withOpacity(0.7);
-      case "Water":
-        return AppColors.secondary.withOpacity(0.7);
-      case "Streak":
-        return Colors.blue.withOpacity(0.7);
-      default:
-        return Colors.grey;
-    }
-  }
-
   Color _getProgressColor(double progress) {
     if (progress >= 1.0) {
       return AppColors.secondary;
@@ -363,12 +353,11 @@ class _TrackersState extends State<Trackers> {
     }
 
     // Active challenge state
-    final calorieGoal = widget.currentChallenge!.dailyCalorieGoal;
     final waterGoal = widget.currentChallenge!.dailyWaterGoal;
     final streakGoal = _getStreakGoal();
     final currentStreak = _calculateStreak();
 
-    final calorieProgress = _calculateProgress(_currentCalories, calorieGoal);
+    final calorieProgress = _calculateProgress(_currentCalories, _calorieGoal);
     final waterProgress = _calculateProgress(_currentWater, waterGoal);
     final streakProgress = _calculateProgress(currentStreak, streakGoal);
 
@@ -391,7 +380,7 @@ class _TrackersState extends State<Trackers> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildTracker("Calories", _currentCalories, calorieGoal, calorieProgress, isClickable: false,),
+                _buildTracker("Calories", _currentCalories, _calorieGoal, calorieProgress, isClickable: false),
                 Container(
                   width: 1,
                   color: AppColors.secondary.shade300,
@@ -471,7 +460,6 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
@@ -522,7 +510,6 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                 ),
                 const SizedBox(height: 24),
 
-                // Water visualization
                 // Large water display
                 Container(
                   width: 120,

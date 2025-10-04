@@ -1,8 +1,12 @@
-// Create file: lib/pages/daily_logs.dart
-
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/models/food_models.dart';
+import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/services/milestone_service.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
@@ -19,11 +23,11 @@ class DailyLogsPage extends StatefulWidget {
 }
 
 class _DailyLogsPageState extends State<DailyLogsPage> {
-  // Sample data - replace with actual data storage
   int _loggedCalories = 0;
   int _loggedWater = 0;
-  List<Map<String, dynamic>> _foodEntries = [];
-  String _notes = '';
+  Map<String, List<FoodEntry>> _foodEntriesByMeal = {};
+  List<Milestone> _milestones = [];
+  bool _isLoading = true;
   bool _isToday = false;
 
   @override
@@ -39,20 +43,76 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         date1.day == date2.day;
   }
 
-  void _loadDailyData() {
-    // TODO: Load actual data from storage/database for the selected date
-    // For now, using sample data
-    setState(() {
-      _loggedCalories = 1250; // Sample data
-      _loggedWater = 4; // Sample data
-      _foodEntries = [
-        {'name': 'Oatmeal with berries', 'calories': 320, 'time': '8:00 AM'},
-        {'name': 'Grilled chicken salad', 'calories': 450, 'time': '12:30 PM'},
-        {'name': 'Apple', 'calories': 80, 'time': '3:15 PM'},
-        {'name': 'Salmon with rice', 'calories': 400, 'time': '7:00 PM'},
-      ];
-      _notes = 'Felt energetic today. Went for a 30-minute walk after lunch.';
-    });
+  Future<void> _loadDailyData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Load food logs for the selected date
+      final foodLogs = await FoodLogService.getFoodLogsForDate(widget.selectedDate);
+
+      // Calculate total calories and organize by meal
+      int totalCalories = 0;
+      Map<String, List<FoodEntry>> mealEntries = {
+        'Breakfast': [],
+        'Lunch': [],
+        'Dinner': [],
+        'Snack': [],
+      };
+
+      for (var log in foodLogs) {
+        totalCalories += log.totalCalories.round();
+        if (mealEntries.containsKey(log.mealType)) {
+          mealEntries[log.mealType] = log.entries;
+        }
+      }
+
+      // Load milestones for the selected date
+      final allMilestones = await MilestoneService.getAllMilestones();
+      final dateMilestones = allMilestones.where((m) =>
+          _isSameDate(m.date, widget.selectedDate)
+      ).toList();
+
+      // Load water intake from storage
+      int waterIntake = await _getWaterIntakeForDate(widget.selectedDate);
+
+      setState(() {
+        _loggedCalories = totalCalories;
+        _loggedWater = waterIntake;
+        _foodEntriesByMeal = mealEntries;
+        _milestones = dateMilestones;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading daily data: $e');
+      setState(() => _isLoading = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to load daily data'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
+  }
+
+  // Water intake storage methods
+  Future<int> _getWaterIntakeForDate(DateTime date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dateKey = 'water_intake_${_formatDateKey(date)}';
+      return prefs.getInt(dateKey) ?? 0;
+    } catch (e) {
+      debugPrint('Error loading water intake: $e');
+      return 0;
+    }
+  }
+
+  String _formatDateKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   String _formatDate(DateTime date) {
@@ -60,11 +120,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
-    const weekdays = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-    ];
 
-    return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   double _getCalorieProgress() {
@@ -77,17 +134,40 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return (_loggedWater / widget.challenge!.dailyWaterGoal).clamp(0.0, 1.0);
   }
 
-  Color _getProgressColor(double progress) {
-    if (progress >= 1.0) return Colors.green;
-    if (progress >= 0.8) return AppColors.secondary;
-    if (progress >= 0.5) return Colors.orange;
-    return Colors.red.shade400;
+  int _calculateStreak() {
+    if (widget.challenge == null) return 0;
+
+    final startDate = widget.challenge!.startDate;
+
+    // If selected date is before challenge start, return 0
+    if (widget.selectedDate.isBefore(startDate)) return 0;
+
+    // Calculate days from start to selected date
+    final difference = widget.selectedDate.difference(startDate).inDays + 1;
+    return difference > 0 ? difference : 0;
+  }
+
+  int _getStreakGoal() {
+    if (widget.challenge == null) return 30;
+
+    final totalDays = widget.challenge!.endDate
+        .difference(widget.challenge!.startDate)
+        .inDays + 1;
+
+    return totalDays;
+  }
+
+  double _getStreakProgress() {
+    final currentStreak = _calculateStreak();
+    final streakGoal = _getStreakGoal();
+    if (streakGoal <= 0) return 0.0;
+    return (currentStreak / streakGoal).clamp(0.0, 1.0);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -116,121 +196,52 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
           ],
         ),
-        actions: [
-          if (_isToday)
-            IconButton(
-              icon: Icon(Icons.edit, color: AppColors.secondary),
-              onPressed: () {
-                // TODO: Navigate to edit mode
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Edit mode - Coming soon!')),
-                );
-              },
-            ),
-        ],
+
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Challenge Info Card (if challenge exists)
-            if (widget.challenge != null) _buildChallengeCard(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+        onRefresh: _loadDailyData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Daily Summary with circular progress
+              _buildDailySummary(),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-            // Progress Summary
-            _buildProgressSummary(),
+              // Progress Photo Section
+              if (_milestones.isNotEmpty) _buildProgressPhotos(),
 
-            const SizedBox(height: 20),
+              // Food Logs Section
+              _buildFoodLogs(),
 
-            // Food Entries
-            _buildFoodEntries(),
-
-            const SizedBox(height: 20),
-
-            // Daily Notes
-            _buildDailyNotes(),
-
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildChallengeCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.track_changes,
-              color: AppColors.secondary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.challenge!.title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.secondary,
-                  ),
-                ),
-                Text(
-                  'Daily Goals: ${widget.challenge!.dailyCalorieGoal} cal • ${widget.challenge!.dailyWaterGoal} glasses',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressSummary() {
+  Widget _buildDailySummary() {
+    final calorieGoal = widget.challenge?.dailyCalorieGoal ?? 2000;
+    final waterGoal = widget.challenge?.dailyWaterGoal ?? 8;
     final calorieProgress = _getCalorieProgress();
     final waterProgress = _getWaterProgress();
+    final streakProgress = _getStreakProgress();
+    final currentStreak = _calculateStreak();
+    final streakGoal = _getStreakGoal();
 
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Progress Summary',
+            'Daily Summary',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -238,84 +249,98 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Calories Progress
-          _buildProgressItem(
-            'Calories',
-            _loggedCalories,
-            widget.challenge?.dailyCalorieGoal ?? 2000,
-            'kcal',
-            calorieProgress,
-          ),
-
-          const SizedBox(height: 16),
-
-          // Water Progress
-          _buildProgressItem(
-            'Water',
-            _loggedWater,
-            widget.challenge?.dailyWaterGoal ?? 8,
-            'glasses',
-            waterProgress,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildCircularProgress(
+                'Calories',
+                _loggedCalories,
+                calorieGoal,
+                calorieProgress,
+                AppColors.secondary,
+              ),
+              _buildCircularProgress(
+                'Water',
+                _loggedWater,
+                waterGoal,
+                waterProgress,
+                AppColors.secondary,
+              ),
+              _buildCircularProgress(
+                'Streak',
+                currentStreak,
+                streakGoal,
+                streakProgress,
+                AppColors.secondary,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProgressItem(String label, int current, int goal, String unit, double progress) {
-    final progressColor = _getProgressColor(progress);
-
+  Widget _buildCircularProgress(
+      String label,
+      int current,
+      int goal,
+      double progress,
+      Color color,
+      ) {
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+        SizedBox(
+          width: 80,
+          height: 80,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 8,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progress >= 1.0 ? color.withOpacity(0.8) : color,
+                  ),
+                ),
               ),
-            ),
-            Text(
-              '$current/$goal $unit',
-              style: TextStyle(
-                fontSize: 14,
-                color: progressColor,
-                fontWeight: FontWeight.w600,
+              Text(
+                '${(progress * 100).toInt()}%',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-            minHeight: 8,
+        const SizedBox(height: 12),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        Text(
+          '$current/$goal',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildFoodEntries() {
+  Widget _buildProgressPhotos() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -323,204 +348,351 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Food Entries',
+                'Progress Photos',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
               ),
-              if (_isToday)
-                TextButton.icon(
-                  onPressed: () {
-                    // TODO: Add food entry
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Add food - Coming soon!')),
-                    );
-                  },
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Add'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                  ),
+              Text(
+                '${_milestones.length} ${_milestones.length == 1 ? 'photo' : 'photos'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
                 ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          if (_foodEntries.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.restaurant_menu,
-                    size: 48,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No food entries for this day',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Column(
-              children: _foodEntries.map((entry) => _buildFoodEntry(entry)).toList(),
-            ),
+          const SizedBox(height: 12),
+          // Display all milestones for this date
+          ..._milestones.map((milestone) => _buildMilestoneCard(milestone)),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildFoodEntry(Map<String, dynamic> entry) {
+  Widget _buildMilestoneCard(Milestone milestone) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Progress Photo
+          Container(
+            width: 180,
+            height: 280,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: milestone.imagePath != null && milestone.imagePath!.isNotEmpty
+                  ? Image.file(
+                File(milestone.imagePath!),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildPlaceholderImage();
+                },
+              )
+                  : _buildPlaceholderImage(),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Notes
+          Expanded(
+            child: Container(
+              height: 280,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.note_outlined,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Notes',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        milestone.notes ?? 'No notes added',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: milestone.notes != null
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade400,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatTime(milestone.createdAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary.withOpacity(0.7),
+            AppColors.secondary.withOpacity(0.4),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.image,
+          size: 48,
+          color: Colors.white.withOpacity(0.7),
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
+    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute $period';
+  }
+
+  Widget _buildFoodLogs() {
+    final totalEntries = _foodEntriesByMeal.values
+        .fold<int>(0, (sum, entries) => sum + entries.length);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Food Logs',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Build each meal section
+          _buildMealSection('Breakfast'),
+          const SizedBox(height: 16),
+          _buildMealSection('Lunch'),
+          const SizedBox(height: 16),
+          _buildMealSection('Dinner'),
+          const SizedBox(height: 16),
+          _buildMealSection('Snack'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealSection(String mealType) {
+    final entries = _foodEntriesByMeal[mealType] ?? [];
+    final totalCalories = entries.fold<int>(
+      0,
+          (sum, entry) => sum + entry.totalCalories.round(),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              mealType,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            if (entries.isNotEmpty)
+              Text(
+                '$totalCalories cal',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.secondary,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (entries.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.restaurant_outlined,
+                  size: 20,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'No entries',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...entries.map((entry) => _buildFoodEntry(entry)),
+      ],
+    );
+  }
+
+  Widget _buildFoodEntry(FoodEntry entry) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              Icons.restaurant,
-              color: AppColors.secondary,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  entry['name'],
+                  entry.foodName,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                 ),
-                Text(
-                  entry['time'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (entry.servingSize > 0) ...[
+                      Text(
+                        '${entry.servingSize.toStringAsFixed(0)}g',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      Text(
+                        ' • ',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                    Text(
+                      '${entry.totalCalories.round()} kcal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Text(
-            '${entry['calories']} cal',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.secondary,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${entry.totalCalories.round()} cal',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDailyNotes() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Daily Notes',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              if (_isToday)
-                TextButton.icon(
-                  onPressed: () {
-                    // TODO: Edit notes
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit notes - Coming soon!')),
-                    );
-                  },
-                  icon: const Icon(Icons.edit, size: 16),
-                  label: const Text('Edit'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (_notes.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.note_add,
-                    size: 32,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No notes for this day',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Text(
-                _notes,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.blue.shade800,
-                  height: 1.5,
-                ),
-              ),
-            ),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/challenge.dart';
 
 class ChallengeService {
@@ -15,7 +16,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -26,10 +27,10 @@ class ChallengeService {
           .doc(challenge.id)
           .set(challenge.toJson());
 
-      print('Challenge created successfully: ${challenge.title}');
+      debugPrint('Challenge created successfully: ${challenge.title}');
       return true;
     } catch (e) {
-      print('Error creating challenge: $e');
+      debugPrint('Error creating challenge: $e');
       return false;
     }
   }
@@ -39,7 +40,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -54,7 +55,7 @@ class ChallengeService {
           .map((doc) => Challenge.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      print('Error getting user challenges: $e');
+      debugPrint('Error getting user challenges: $e');
       return [];
     }
   }
@@ -64,7 +65,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -80,7 +81,7 @@ class ChallengeService {
       }
       return null;
     } catch (e) {
-      print('Error getting challenge: $e');
+      debugPrint('Error getting challenge: $e');
       return null;
     }
   }
@@ -90,7 +91,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -101,10 +102,10 @@ class ChallengeService {
           .doc(challenge.id)
           .update(challenge.toJson());
 
-      print('Challenge updated successfully: ${challenge.title}');
+      debugPrint('Challenge updated successfully: ${challenge.title}');
       return true;
     } catch (e) {
-      print('Error updating challenge: $e');
+      debugPrint('Error updating challenge: $e');
       return false;
     }
   }
@@ -114,7 +115,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -140,10 +141,10 @@ class ChallengeService {
           .doc(challengeId));
 
       await batch.commit();
-      print('Challenge deleted successfully: $challengeId');
+      debugPrint('Challenge deleted successfully: $challengeId');
       return true;
     } catch (e) {
-      print('Error deleting challenge: $e');
+      debugPrint('Error deleting challenge: $e');
       return false;
     }
   }
@@ -153,7 +154,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -166,10 +167,10 @@ class ChallengeService {
           .doc(day.dayId)
           .set(day.toJson());
 
-      print('Challenge day saved: $challengeId/day${day.dayNumber}');
+      debugPrint('Challenge day saved: $challengeId/day${day.dayNumber}');
       return true;
     } catch (e) {
-      print('Error saving challenge day: $e');
+      debugPrint('Error saving challenge day: $e');
       return false;
     }
   }
@@ -179,7 +180,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -196,7 +197,7 @@ class ChallengeService {
           .map((doc) => ChallengeDay.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      print('Error getting challenge days: $e');
+      debugPrint('Error getting challenge days: $e');
       return [];
     }
   }
@@ -206,7 +207,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -224,7 +225,7 @@ class ChallengeService {
       }
       return null;
     } catch (e) {
-      print('Error getting challenge day: $e');
+      debugPrint('Error getting challenge day: $e');
       return null;
     }
   }
@@ -234,7 +235,7 @@ class ChallengeService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -250,10 +251,10 @@ class ChallengeService {
         'completedAt': DateTime.now().toIso8601String(),
       });
 
-      print('Challenge day completed: $challengeId/$dayId');
+      debugPrint('Challenge day completed: $challengeId/$dayId');
       return true;
     } catch (e) {
-      print('Error completing challenge day: $e');
+      debugPrint('Error completing challenge day: $e');
       return false;
     }
   }
@@ -269,7 +270,7 @@ class ChallengeService {
                now.isBefore(challenge.endDate.add(const Duration(days: 1)));
       }).toList();
     } catch (e) {
-      print('Error getting active challenges: $e');
+      debugPrint('Error getting active challenges: $e');
       return [];
     }
   }

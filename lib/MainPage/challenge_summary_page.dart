@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/services/food_log_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChallengeSummaryPage extends StatefulWidget {
   final Map<String, dynamic> challenge;
@@ -13,6 +15,78 @@ class ChallengeSummaryPage extends StatefulWidget {
 
 class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   bool isMonthlySelected = true;
+  int _totalCaloriesConsumed = 0;
+  int _totalWaterConsumed = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChallengeData();
+  }
+
+  Future<void> _loadChallengeData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final challengeId = widget.challenge['challengeId'] as String?;
+      if (challengeId == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final startDate = widget.challenge['startDate'] as DateTime;
+      final endDate = widget.challenge['endDate'] as DateTime;
+
+      // Calculate total calories consumed
+      int totalCalories = 0;
+      int totalWater = 0;
+
+      // Loop through each day of the challenge
+      for (DateTime date = startDate;
+           date.isBefore(endDate.add(const Duration(days: 1)));
+           date = date.add(const Duration(days: 1))) {
+
+        // Get calories for this day
+        final dailyCalories = await FoodLogService.getDailyCalories(date, challengeId: challengeId);
+        totalCalories += dailyCalories.round();
+
+        // Get water for this day
+        final dailyWater = await _getWaterIntakeForDate(date);
+        totalWater += dailyWater;
+      }
+
+      setState(() {
+        _totalCaloriesConsumed = totalCalories;
+        _totalWaterConsumed = totalWater;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading challenge data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<int> _getWaterIntakeForDate(DateTime date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dateKey = 'water_intake_${_formatDateKey(date)}';
+      return prefs.getInt(dateKey) ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  String _formatDateKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  int _calculateDuration(Map<String, dynamic> challenge) {
+    if (challenge['startDate'] == null || challenge['endDate'] == null) return 0;
+    final startDate = challenge['startDate'] as DateTime;
+    final endDate = challenge['endDate'] as DateTime;
+    return endDate.difference(startDate).inDays + 1;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +152,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               children: [
                 Expanded(
                   child: Text(
-                    challenge['title'] ?? '"The Thing" Challenge',
+                    challenge['title'] ?? 'Challenge',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -93,7 +167,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Completed',
+                    challenge['status'] ?? 'Completed',
                     style: TextStyle(
                       color: AppColors.secondary[700],
                       fontSize: 12,
@@ -111,7 +185,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 6),
                 Text(
-                  'Dec 1, 2025 - Dec 31, 2025',
+                  challenge['dateRange'] ?? 'No dates',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 14,
@@ -135,16 +209,16 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               children: [
                 Expanded(
                   child: LinearProgressIndicator(
-                    value: 1.0, // 100%
+                    value: (challenge['progress'] ?? 100) / 100.0,
                     backgroundColor: Colors.grey[200],
                     valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
                     minHeight: 6,
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  '100%',
-                  style: TextStyle(
+                Text(
+                  '${challenge['progress'] ?? 100}%',
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
@@ -156,63 +230,66 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
             const SizedBox(height: 24),
 
             // Stats
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(
-                  icon: Icons.local_fire_department,
-                  label: 'Calorie Goal',
-                  value: '1,800',
-                  color: AppColors.secondary,
+            _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(
+                      icon: Icons.local_fire_department,
+                      label: 'Total Calories',
+                      value: '$_totalCaloriesConsumed',
+                      color: AppColors.secondary,
+                    ),
+                    _buildStatItem(
+                      icon: Icons.local_drink,
+                      label: 'Total Water',
+                      value: '$_totalWaterConsumed glasses',
+                      color: AppColors.secondary,
+                    ),
+                    _buildStatItem(
+                      icon: Icons.access_time,
+                      label: 'Duration',
+                      value: '${_calculateDuration(widget.challenge)} Days',
+                      color: AppColors.secondary,
+                    ),
+                  ],
                 ),
-                _buildStatItem(
-                  icon: Icons.local_drink,
-                  label: 'Water Goal',
-                  value: '8 glasses',
-                  color: AppColors.secondary,
-                ),
-                _buildStatItem(
-                  icon: Icons.access_time,
-                  label: 'Duration',
-                  value: '31 Days',
-                  color: AppColors.secondary,
-                ),
-              ],
-            ),
 
             const SizedBox(height: 24),
 
             // Notes
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Notes',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
+            if (challenge['notes'] != null && (challenge['notes'] as String).isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Notes',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Focus on cardio and strength training.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
+                    const SizedBox(height: 8),
+                    Text(
+                      challenge['notes'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

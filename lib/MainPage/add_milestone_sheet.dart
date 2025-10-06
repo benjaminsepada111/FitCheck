@@ -36,9 +36,12 @@
       if (_selectedImage == null) return;
 
       final now = DateTime.now();
+      // Normalize date to midnight to avoid duplicate issues
+      final normalizedDate = DateTime(now.year, now.month, now.day);
+
       final milestone = Milestone(
-        id: MilestoneService.generateMilestoneId(),
-        date: now,
+        id: MilestoneService.createDateBasedId(normalizedDate),
+        date: normalizedDate,
         imagePath: _selectedImage!.path,
         notes: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
         createdAt: now,

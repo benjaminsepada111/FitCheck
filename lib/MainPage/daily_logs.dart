@@ -48,7 +48,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
     try {
       // Load food logs for the selected date
-      final foodLogs = await FoodLogService.getFoodLogsForDate(widget.selectedDate);
+      final foodLogs = widget.challenge != null
+          ? await FoodLogService.getFoodLogsForDate(widget.selectedDate, challengeId: widget.challenge!.id)
+          : <FoodLog>[];
 
       // Calculate total calories and organize by meal
       int totalCalories = 0;
@@ -59,15 +61,28 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         'Snack': [],
       };
 
+      debugPrint('📊 Daily Logs - Found ${foodLogs.length} food logs for ${widget.selectedDate}');
+
       for (var log in foodLogs) {
         totalCalories += log.totalCalories.round();
+        debugPrint('  🍽️ ${log.mealType}: ${log.entries.length} entries, ${log.totalCalories.round()} cal');
+
         if (mealEntries.containsKey(log.mealType)) {
           mealEntries[log.mealType] = log.entries;
+
+          // Log each entry
+          for (var entry in log.entries) {
+            debugPrint('    - ${entry.foodName}: ${entry.totalCalories.round()} cal');
+          }
         }
       }
 
+      debugPrint('📊 Total calories calculated: $totalCalories');
+
       // Load milestones for the selected date
-      final allMilestones = await MilestoneService.getAllMilestones();
+      final allMilestones = widget.challenge != null
+          ? await MilestoneService.getAllMilestones(challengeId: widget.challenge!.id)
+          : <Milestone>[];
       final dateMilestones = allMilestones.where((m) =>
           _isSameDate(m.date, widget.selectedDate)
       ).toList();

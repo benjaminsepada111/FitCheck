@@ -19,16 +19,16 @@ service cloud.firestore {
         match /days/{dayId} {
           allow read, write: if request.auth != null && request.auth.uid == userId;
         }
-      }
 
-      // Users can access their own food logs
-      match /foodlogs/{logId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+        // Food logs within challenges
+        match /foodlogs/{logId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
 
-      // Users can access their own milestones
-      match /milestones/{milestoneId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Milestones within challenges
+        match /milestones/{milestoneId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
       }
 
       // Users can access their own other subcollections (future use)

@@ -1,6 +1,7 @@
 // services/user_data_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_data.dart';
 import 'calorie_calculator.dart';
 
@@ -17,7 +18,7 @@ class UserDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -31,10 +32,10 @@ class UserDataService {
       _cachedUserData = userData;
       _cachedUserId = user.uid;
 
-      print('User data saved successfully to Firebase');
+      debugPrint('User data saved successfully to Firebase');
       return true;
     } catch (e) {
-      print('Error saving user data to Firebase: $e');
+      debugPrint('Error saving user data to Firebase: $e');
       return false;
     }
   }
@@ -44,7 +45,7 @@ class UserDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -69,7 +70,7 @@ class UserDataService {
 
       return null;
     } catch (e) {
-      print('Error loading user data from Firebase: $e');
+      debugPrint('Error loading user data from Firebase: $e');
       return null;
     }
   }
@@ -103,7 +104,7 @@ class UserDataService {
 
       return await saveUserData(updatedData);
     } catch (e) {
-      print('Error updating user data: $e');
+      debugPrint('Error updating user data: $e');
       return false;
     }
   }
@@ -113,7 +114,7 @@ class UserDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        print('Error: No authenticated user found');
+        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -128,7 +129,7 @@ class UserDataService {
       _cachedUserId = null;
       return true;
     } catch (e) {
-      print('Error clearing user data from Firebase: $e');
+      debugPrint('Error clearing user data from Firebase: $e');
       return false;
     }
   }
@@ -194,7 +195,7 @@ class UserDataService {
 
       return doc.exists && doc.data() != null;
     } catch (e) {
-      print('Error checking user data existence: $e');
+      debugPrint('Error checking user data existence: $e');
       return false;
     }
   }
@@ -237,7 +238,7 @@ class UserDataService {
       }
       return 2000; // Default fallback
     } catch (e) {
-      print('Error calculating daily calorie goal: $e');
+      debugPrint('Error calculating daily calorie goal: $e');
       return 2000;
     }
   }
@@ -251,7 +252,7 @@ class UserDataService {
       }
       return 8; // Default fallback
     } catch (e) {
-      print('Error calculating daily water goal: $e');
+      debugPrint('Error calculating daily water goal: $e');
       return 8;
     }
   }
@@ -265,7 +266,7 @@ class UserDataService {
       }
       return null;
     } catch (e) {
-      print('Error getting calorie breakdown: $e');
+      debugPrint('Error getting calorie breakdown: $e');
       return null;
     }
   }
@@ -279,7 +280,7 @@ class UserDataService {
       }
       return null;
     } catch (e) {
-      print('Error getting macro breakdown: $e');
+      debugPrint('Error getting macro breakdown: $e');
       return null;
     }
   }
@@ -293,7 +294,7 @@ class UserDataService {
       }
       return 0.0;
     } catch (e) {
-      print('Error calculating predicted weight change: $e');
+      debugPrint('Error calculating predicted weight change: $e');
       return 0.0;
     }
   }
@@ -307,7 +308,7 @@ class UserDataService {
       }
       return null;
     } catch (e) {
-      print('Error getting calorie range: $e');
+      debugPrint('Error getting calorie range: $e');
       return null;
     }
   }

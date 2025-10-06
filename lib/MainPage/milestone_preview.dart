@@ -14,12 +14,14 @@ class MilestonePreviewPage extends StatefulWidget {
   final List<Milestone> milestones;
   final int initialIndex;
   final VoidCallback? onMilestonesChanged;
+  final String challengeId;
 
   const MilestonePreviewPage({
     super.key,
     required this.milestones,
     this.initialIndex = 0,
     this.onMilestonesChanged,
+    required this.challengeId,
   });
 
   @override
@@ -575,6 +577,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         // Save to Firebase with new image
         final success = await MilestoneService.updateMilestone(
           updatedMilestone,
+          challengeId: widget.challengeId,
           newImageFile: File(pickedFile.path),
         );
 
@@ -646,7 +649,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       setState(() => _isExporting = true);
 
       // Delete from Firebase
-      final success = await MilestoneService.deleteMilestone(milestone.id);
+      final success = await MilestoneService.deleteMilestone(milestone.id, challengeId: widget.challengeId);
 
       if (success) {
         // Remove from local list

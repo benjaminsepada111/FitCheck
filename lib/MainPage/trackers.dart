@@ -63,7 +63,11 @@ class _TrackersState extends State<Trackers> {
       }
 
       // Get calories from FoodLogService (same as FoodLogger)
-      final totalCalories = (await FoodLogService.getDailyCalories(today)).round();
+      final totalCalories = widget.currentChallenge != null
+          ? (await FoodLogService.getDailyCalories(today, challengeId: widget.currentChallenge!.id)).round()
+          : 0;
+
+      debugPrint('📈 Trackers - Total calories for today: $totalCalories');
 
       // Get water intake from storage
       final waterIntake = await WaterStorageService.getWaterIntakeForDate(today);
@@ -75,6 +79,8 @@ class _TrackersState extends State<Trackers> {
           _currentWater = waterIntake;
           _isLoading = false;
         });
+
+        debugPrint('📈 Trackers - Updated state: Calories=$_currentCalories/$_calorieGoal, Water=$_currentWater');
 
         // Notify parent components
         widget.onCaloriesChanged(_currentCalories);

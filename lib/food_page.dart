@@ -39,6 +39,10 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
+  // Keys to access child widget states
+  final GlobalKey<MealsSectionState> _mealsSectionKey = GlobalKey<MealsSectionState>();
+  final GlobalKey<FoodLoggerState> _foodLoggerKey = GlobalKey<FoodLoggerState>();
+
   @override
   void initState() {
     super.initState();
@@ -336,37 +340,50 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
         caloriesPer100g: calories.toDouble(),
       );
 
+      if (widget.currentChallenge == null) {
+        throw Exception('No active challenge');
+      }
+
       final success = await FoodLogService.addFoodEntry(
         DateTime.now(),
         mealType,
         foodEntry,
+        challengeId: widget.currentChallenge!.id,
       );
 
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check, color: Colors.white, size: 16),
-                ),
-                const SizedBox(width: 12),
-                Text('$foodName added to $mealType!'),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        // Refresh both the meal section and food logger to show updates
+        await _mealsSectionKey.currentState?.loadMealData();
+        _foodLoggerKey.currentState?.refreshData();
 
         if (widget.onCaloriesUpdated != null) {
           widget.onCaloriesUpdated!();
+        }
+
+        // Show success feedback after refresh
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('Successfully added!'),
+                ],
+              ),
+              backgroundColor: Colors.green.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 2),
+            ),
+          );
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -626,6 +643,7 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FoodLogger(
+            key: _foodLoggerKey,
             currentChallenge: widget.currentChallenge,
             onCaloriesUpdated: widget.onCaloriesUpdated,
           ),
@@ -637,7 +655,9 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 20),
           MealsSection(
+            key: _mealsSectionKey,
             onCaloriesUpdated: widget.onCaloriesUpdated,
+            challengeId: widget.currentChallenge?.id,
           ),
         ],
       ),

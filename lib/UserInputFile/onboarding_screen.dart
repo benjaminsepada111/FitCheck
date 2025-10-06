@@ -8,7 +8,6 @@ import 'height.dart';
 import '../LoginPages/login_page.dart';
 import '../color/colors.dart';
 import 'package:capstone_project/main_page.dart';
-import 'goal_page.dart';
 import 'activity_level.dart';
 import 'privacy_consent.dart';
 import 'package:capstone_project/services/user_data_service.dart';

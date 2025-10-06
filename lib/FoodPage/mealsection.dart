@@ -7,17 +7,19 @@ import 'package:capstone_project/color/colors.dart';
 
 class MealsSection extends StatefulWidget {
   final VoidCallback? onCaloriesUpdated; // Add callback for tracker updates
+  final String? challengeId;
 
   const MealsSection({
     super.key,
     this.onCaloriesUpdated,
+    this.challengeId,
   });
 
   @override
-  State<MealsSection> createState() => _MealsSectionState();
+  State<MealsSection> createState() => MealsSectionState();
 }
 
-class _MealsSectionState extends State<MealsSection> {
+class MealsSectionState extends State<MealsSection> {
   final DateTime _currentDate = DateTime.now();
   Map<String, List<FoodEntry>> _mealEntries = {};
   Map<String, int> _mealCalories = {};
@@ -26,15 +28,24 @@ class _MealsSectionState extends State<MealsSection> {
   @override
   void initState() {
     super.initState();
-    _loadMealData();
+    loadMealData();
   }
 
-  Future<void> _loadMealData() async {
+  Future<void> loadMealData() async {
     setState(() => _isLoading = true);
 
     try {
+      if (widget.challengeId == null) {
+        setState(() {
+          _mealEntries = {};
+          _mealCalories = {};
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Load from Firebase
-      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate);
+      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate, challengeId: widget.challengeId!);
 
       final meals = ['Snack', 'Breakfast', 'Lunch', 'Dinner'];
       Map<String, List<FoodEntry>> entries = {};
@@ -86,11 +97,16 @@ class _MealsSectionState extends State<MealsSection> {
             : calories.toDouble(),
       );
 
+      if (widget.challengeId == null) {
+        throw Exception('No active challenge');
+      }
+
       // Save to Firebase
       final success = await FoodLogService.addFoodEntry(
         _currentDate,
         mealType,
         foodEntry,
+        challengeId: widget.challengeId!,
       );
 
       if (success) {
@@ -98,7 +114,7 @@ class _MealsSectionState extends State<MealsSection> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('$foodName added successfully!'),
+              content: Text('Successfully added to $mealType!'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -107,7 +123,7 @@ class _MealsSectionState extends State<MealsSection> {
         }
 
         // Reload the meal data to show the new entry
-        await _loadMealData();
+        await loadMealData();
 
         // Notify parent (tracker) that calories have been updated
         if (widget.onCaloriesUpdated != null) {
@@ -134,8 +150,12 @@ class _MealsSectionState extends State<MealsSection> {
 
   void _removeFoodEntry(FoodEntry entry) async {
     try {
+      if (widget.challengeId == null) {
+        throw Exception('No active challenge');
+      }
+
       // Find the meal log containing this entry and remove it
-      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate);
+      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate, challengeId: widget.challengeId!);
 
       // Find which meal contains this entry
       FoodLog? targetMeal;
@@ -153,14 +173,14 @@ class _MealsSectionState extends State<MealsSection> {
         bool success;
         if (updatedEntries.isEmpty) {
           // Delete the entire meal if no entries left
-          success = await FoodLogService.deleteFoodLog(targetMeal.id);
+          success = await FoodLogService.deleteFoodLog(targetMeal.id, challengeId: widget.challengeId!);
         } else {
           // Update the meal with remaining entries
           final updatedMeal = targetMeal.copyWith(
             entries: updatedEntries,
             updatedAt: DateTime.now(),
           );
-          success = await FoodLogService.updateFoodLog(updatedMeal);
+          success = await FoodLogService.updateFoodLog(updatedMeal, challengeId: widget.challengeId!);
         }
 
         if (success) {
@@ -176,7 +196,7 @@ class _MealsSectionState extends State<MealsSection> {
             );
           }
 
-          await _loadMealData();
+          await loadMealData();
 
           // Notify parent (tracker) that calories have been updated
           if (widget.onCaloriesUpdated != null) {
@@ -292,7 +312,7 @@ class _MealsSectionState extends State<MealsSection> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  onPressed: _loadMealData,
+                  onPressed: loadMealData,
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Refresh meals',
                   color: Colors.grey.shade600,

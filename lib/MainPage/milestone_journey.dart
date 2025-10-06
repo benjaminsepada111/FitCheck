@@ -12,12 +12,12 @@ import '../app_text_styles.dart';
 
 class MilestoneJourney extends StatefulWidget {
   final Challenge? currentChallenge;
-  final VoidCallback? onCreateChallenge; // Add callback for creating challenge
+  final VoidCallback? onCreateChallenge;
 
   const MilestoneJourney({
     super.key,
     this.currentChallenge,
-    this.onCreateChallenge, // Add this parameter
+    this.onCreateChallenge,
   });
 
   @override
@@ -34,23 +34,42 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
     _loadMilestones();
   }
 
+  @override
+  void didUpdateWidget(MilestoneJourney oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload milestones when challenge changes or when widget updates
+    if (oldWidget.currentChallenge?.id != widget.currentChallenge?.id) {
+      _loadMilestones();
+    }
+  }
+
   Future<void> _loadMilestones() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final milestones = await MilestoneService.getAllMilestones();
-      setState(() {
-        _milestones = milestones;
-      });
+      final milestones = widget.currentChallenge != null
+          ? await MilestoneService.getAllMilestones(
+              challengeId: widget.currentChallenge!.id,
+            )
+          : <Milestone>[];
+
+      if (mounted) {
+        setState(() {
+          _milestones = milestones;
+        });
+      }
     } catch (e) {
-      print('Error loading milestones: $e');
-      // Show error to user if needed
+      debugPrint('Error loading milestones: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -60,39 +79,51 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
     });
 
     try {
-      final success = await MilestoneService.saveMilestone(milestone, imageFile: imageFile);
+      if (widget.currentChallenge == null) {
+        throw Exception('No active challenge');
+      }
+      final success = await MilestoneService.saveMilestone(
+        milestone,
+        imageFile: imageFile,
+        challengeId: widget.currentChallenge!.id,
+      );
       if (success) {
-        setState(() {
-          _milestones.insert(0, milestone);
-        });
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Milestone saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        await _loadMilestones();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Milestone saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
-        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to save milestone. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error saving milestone: $e');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to save milestone. Please try again.'),
+            content: Text('An error occurred while saving milestone.'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      print('Error saving milestone: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An error occurred while saving milestone.'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -100,15 +131,10 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Container(
           padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(24)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -139,7 +165,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 ),
               ),
               const SizedBox(height: 24),
-
               const Text(
                 'Start Your Journey',
                 style: TextStyle(
@@ -149,7 +174,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 ),
               ),
               const SizedBox(height: 12),
-
               Text(
                 'Create a challenge to begin tracking your milestone progress and celebrate your achievements!',
                 textAlign: TextAlign.center,
@@ -160,7 +184,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 ),
               ),
               const SizedBox(height: 24),
-
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -200,7 +223,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 ),
               ),
               const SizedBox(height: 28),
-
               Row(
                 children: [
                   Expanded(
@@ -260,7 +282,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
     );
   }
 
-
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -273,10 +294,22 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
   }
 
   bool _hasTodayMilestone() {
-    final today = DateTime.now();
-    return _milestones.any((m) {
-      return m.date.year == today.year && m.date.month == today.month && m.date.day == today.day;
-    });
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (var milestone in _milestones) {
+      final milestoneDate = DateTime(
+        milestone.date.year,
+        milestone.date.month,
+        milestone.date.day,
+      );
+
+      if (milestoneDate == today) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   @override
@@ -287,37 +320,42 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Header Row ---
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Milestone Journey",
-              style: AppTextStyles.heading2,
-            ),
+            const Text("Milestone Journey", style: AppTextStyles.heading2),
             TextButton.icon(
               onPressed: _milestones.isEmpty
-                  ? null // disable if no milestones
-                  : () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MilestonePreviewPage(
-                      milestones: _milestones,
-                      onMilestonesChanged: () {
-                        // Refresh milestones when changes are made
+                  ? null
+                  : () async {
+                      if (widget.currentChallenge != null) {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MilestonePreviewPage(
+                              milestones: _milestones,
+                              onMilestonesChanged: () {
+                                _loadMilestones();
+                              },
+                              challengeId: widget.currentChallenge!.id,
+                            ),
+                          ),
+                        );
+                        // Reload milestones when returning from preview
                         _loadMilestones();
-                      },
-                    ),
-                  ),
-                );
-              },
+                      }
+                    },
               style: TextButton.styleFrom(
-                foregroundColor: _milestones.isEmpty ? Colors.grey : Colors.white,
+                foregroundColor: _milestones.isEmpty
+                    ? Colors.grey
+                    : Colors.white,
                 backgroundColor: _milestones.isEmpty
                     ? Colors.grey.shade200
                     : AppColors.secondary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 minimumSize: const Size(100, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -339,9 +377,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
           ],
         ),
         const SizedBox(height: 6),
-
-
-        // --- Horizontal List ---
         SizedBox(
           height: 180,
           child: ListView.separated(
@@ -352,33 +387,56 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
               if (!hasToday && index == 0) {
                 return GestureDetector(
                   onTap: hasActiveChallenge
-                      ? () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      builder: (context) => AddMilestoneSheet(
-                        onSave: (milestone, imageFile) => _addMilestone(milestone, imageFile: imageFile),
-                      ),
-                    );
-                  }
-                      : _showNoChallengeMessage, // Show message if no challenge
+                      ? () async {
+                          // Check if today's milestone already exists
+                          final todayMilestone = await MilestoneService.getMilestoneForDate(
+                            DateTime.now(),
+                            challengeId: widget.currentChallenge!.id,
+                          );
+
+                          if (todayMilestone != null && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('You have already uploaded a milestone photo for today!'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (!mounted) return;
+
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
+                            ),
+                            builder: (context) => AddMilestoneSheet(
+                              onSave: (milestone, imageFile) => _addMilestone(
+                                milestone,
+                                imageFile: imageFile,
+                              ),
+                            ),
+                          );
+                        }
+                      : _showNoChallengeMessage,
                   child: Container(
                     width: 120,
                     decoration: BoxDecoration(
                       color: hasActiveChallenge
                           ? Colors.grey.shade100
-                          : Colors.grey.shade300, // Darker when disabled
+                          : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(12),
                       border: hasActiveChallenge
                           ? null
                           : Border.all(
-                        color: Colors.grey.shade400,
-                        style: BorderStyle.solid,
-                        width: 1,
-                      ),
+                              color: Colors.grey.shade400,
+                              style: BorderStyle.solid,
+                              width: 1,
+                            ),
                     ),
                     child: Stack(
                       children: [
@@ -429,9 +487,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
-
                               ),
-
                             ),
                           ),
                       ],
@@ -446,28 +502,34 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   image: milestone.imageUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(milestone.imageUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : milestone.imagePath != null
+                      ? DecorationImage(
+                          image: NetworkImage(milestone.imageUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : milestone.imagePath != null
                       ? DecorationImage(
                           image: FileImage(File(milestone.imagePath!)),
                           fit: BoxFit.cover,
                         )
                       : null,
-                  color: milestone.imageUrl == null && milestone.imagePath == null
-                    ? Colors.grey.shade200
-                    : null,
+                  color:
+                      milestone.imageUrl == null && milestone.imagePath == null
+                      ? Colors.grey.shade200
+                      : null,
                 ),
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.5),
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(12),
+                      ),
                     ),
                     child: Text(
                       _formatDate(milestone.date),
@@ -485,7 +547,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
             },
           ),
         ),
-
       ],
     );
   }

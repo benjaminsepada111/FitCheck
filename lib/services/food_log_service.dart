@@ -8,10 +8,11 @@ class FoodLogService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   static const String _usersCollection = 'users';
+  static const String _challengesCollection = 'challenges';
   static const String _foodLogsCollection = 'foodlogs';
 
   /// Save a food log (meal)
-  static Future<bool> saveFoodLog(FoodLog foodLog) async {
+  static Future<bool> saveFoodLog(FoodLog foodLog, {required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -23,6 +24,8 @@ class FoodLogService {
       await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .doc(foodLog.id)
           .set(foodLog.toJson());
@@ -38,7 +41,7 @@ class FoodLogService {
   }
 
   /// Get all food logs for a specific date
-  static Future<List<FoodLog>> getFoodLogsForDate(DateTime date) async {
+  static Future<List<FoodLog>> getFoodLogsForDate(DateTime date, {required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -54,6 +57,8 @@ class FoodLogService {
       final querySnapshot = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .where('date', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
           .where('date', isLessThan: endOfDay.toIso8601String())
@@ -73,8 +78,9 @@ class FoodLogService {
   /// Get food logs for a date range
   static Future<List<FoodLog>> getFoodLogsForDateRange(
     DateTime startDate,
-    DateTime endDate,
-  ) async {
+    DateTime endDate, {
+    required String challengeId,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -86,6 +92,8 @@ class FoodLogService {
       final querySnapshot = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThanOrEqualTo: endDate.toIso8601String())
@@ -103,7 +111,7 @@ class FoodLogService {
   }
 
   /// Get a specific food log by ID
-  static Future<FoodLog?> getFoodLog(String logId) async {
+  static Future<FoodLog?> getFoodLog(String logId, {required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -115,6 +123,8 @@ class FoodLogService {
       final doc = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .doc(logId)
           .get();
@@ -131,7 +141,7 @@ class FoodLogService {
   }
 
   /// Update a food log
-  static Future<bool> updateFoodLog(FoodLog foodLog) async {
+  static Future<bool> updateFoodLog(FoodLog foodLog, {required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -145,6 +155,8 @@ class FoodLogService {
       await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .doc(foodLog.id)
           .update(updatedLog.toJson());
@@ -160,7 +172,7 @@ class FoodLogService {
   }
 
   /// Delete a food log
-  static Future<bool> deleteFoodLog(String logId) async {
+  static Future<bool> deleteFoodLog(String logId, {required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -172,6 +184,8 @@ class FoodLogService {
       await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .doc(logId)
           .delete();
@@ -190,8 +204,9 @@ class FoodLogService {
   static Future<bool> addFoodEntry(
     DateTime date,
     String mealType,
-    FoodEntry foodEntry,
-  ) async {
+    FoodEntry foodEntry, {
+    required String challengeId,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -208,7 +223,7 @@ class FoodLogService {
       }
 
       // Try to find existing meal for this date and meal type
-      final existingLogs = await getFoodLogsForDate(date);
+      final existingLogs = await getFoodLogsForDate(date, challengeId: challengeId);
       final existingMealLogs = existingLogs.where((log) => log.mealType == mealType);
       final existingMeal = existingMealLogs.isNotEmpty ? existingMealLogs.first : null;
 
@@ -221,7 +236,7 @@ class FoodLogService {
         );
         // Log (replace with proper logging framework in production)
       debugPrint('Updating existing meal log with new food entry: ${foodEntry.foodName}');
-        return await updateFoodLog(updatedLog);
+        return await updateFoodLog(updatedLog, challengeId: challengeId);
       } else {
         // Create new meal
         final newLog = FoodLog(
@@ -234,7 +249,7 @@ class FoodLogService {
         );
         // Log (replace with proper logging framework in production)
       debugPrint('Creating new meal log for $mealType with food entry: ${foodEntry.foodName}');
-        return await saveFoodLog(newLog);
+        return await saveFoodLog(newLog, challengeId: challengeId);
       }
     } catch (e) {
       // Log (replace with proper logging framework in production)
@@ -244,7 +259,7 @@ class FoodLogService {
   }
 
   /// Calculate daily calorie total for a specific date
-  static Future<double> getDailyCalories(DateTime date) async {
+  static Future<double> getDailyCalories(DateTime date, {required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -253,11 +268,14 @@ class FoodLogService {
         return 0.0;
       }
 
-      final foodLogs = await getFoodLogsForDate(date);
+      final foodLogs = await getFoodLogsForDate(date, challengeId: challengeId);
+      debugPrint('🔢 getDailyCalories - Found ${foodLogs.length} food logs for $date');
+
       double totalCalories = 0;
 
       for (final log in foodLogs) {
         try {
+          debugPrint('  🍽️ ${log.mealType}: ${log.totalCalories} cal (${log.entries.length} entries)');
           totalCalories += log.totalCalories;
         } catch (e) {
           // Log (replace with proper logging framework in production)
@@ -277,9 +295,9 @@ class FoodLogService {
   }
 
   /// Get calorie breakdown by meal for a specific date
-  static Future<Map<String, double>> getMealCalorieBreakdown(DateTime date) async {
+  static Future<Map<String, double>> getMealCalorieBreakdown(DateTime date, {required String challengeId}) async {
     try {
-      final foodLogs = await getFoodLogsForDate(date);
+      final foodLogs = await getFoodLogsForDate(date, challengeId: challengeId);
       final breakdown = <String, double>{};
 
       for (final log in foodLogs) {
@@ -295,7 +313,7 @@ class FoodLogService {
   }
 
   /// Listen to food logs for a specific date in real-time
-  static Stream<List<FoodLog>> getFoodLogsStreamForDate(DateTime date) {
+  static Stream<List<FoodLog>> getFoodLogsStreamForDate(DateTime date, {required String challengeId}) {
     final user = _auth.currentUser;
     if (user == null) {
       return Stream.value([]);
@@ -307,6 +325,8 @@ class FoodLogService {
     return _firestore
         .collection(_usersCollection)
         .doc(user.uid)
+        .collection(_challengesCollection)
+        .doc(challengeId)
         .collection(_foodLogsCollection)
         .where('date', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
         .where('date', isLessThan: endOfDay.toIso8601String())
@@ -325,7 +345,7 @@ class FoodLogService {
   }
 
   /// Get the most recent food logs (for recent foods feature)
-  static Future<List<FoodEntry>> getRecentFoodEntries({int limit = 20}) async {
+  static Future<List<FoodEntry>> getRecentFoodEntries({int limit = 20, required String challengeId}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -337,6 +357,8 @@ class FoodLogService {
       final querySnapshot = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
           .collection(_foodLogsCollection)
           .orderBy('updatedAt', descending: true)
           .limit(limit)

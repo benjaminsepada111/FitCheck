@@ -92,8 +92,10 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
   // Check if a specific day is complete
   Future<bool> _checkDayCompletion(DateTime date) async {
     try {
+      if (widget.currentChallenge == null) return false;
+
       // Check if there are any food logs
-      final foodLogs = await FoodLogService.getFoodLogsForDate(date);
+      final foodLogs = await FoodLogService.getFoodLogsForDate(date, challengeId: widget.currentChallenge!.id);
       final hasFood = foodLogs.isNotEmpty;
 
       // Check if there's water intake
@@ -103,7 +105,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       final hasWater = waterIntake > 0;
 
       // Check if there are any milestones
-      final allMilestones = await MilestoneService.getAllMilestones();
+      final allMilestones = await MilestoneService.getAllMilestones(challengeId: widget.currentChallenge!.id);
       final hasMilestone = allMilestones.any((m) =>
       m.date.year == date.year &&
           m.date.month == date.month &&

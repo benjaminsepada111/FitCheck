@@ -15,10 +15,10 @@ class FoodLogger extends StatefulWidget {
   });
 
   @override
-  State<FoodLogger> createState() => _FoodLoggerState();
+  State<FoodLogger> createState() => FoodLoggerState();
 }
 
-class _FoodLoggerState extends State<FoodLogger> {
+class FoodLoggerState extends State<FoodLogger> {
   int _dailyGoal = 2000;
   int _consumed = 0;
   bool _isLoading = true;
@@ -59,7 +59,9 @@ class _FoodLoggerState extends State<FoodLogger> {
       }
 
       final today = DateTime.now();
-      final consumed = (await FoodLogService.getDailyCalories(today)).round();
+      final consumed = widget.currentChallenge != null
+          ? (await FoodLogService.getDailyCalories(today, challengeId: widget.currentChallenge!.id)).round()
+          : 0;
 
       if (mounted) {
         setState(() {

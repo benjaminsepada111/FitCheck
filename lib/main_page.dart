@@ -26,6 +26,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   String _selectedChallenge = "No Challenge";
+  int _milestoneKey = 0; // Key to force milestone refresh
 
   // Challenge and tracking data
   Challenge? _currentChallenge;
@@ -79,6 +80,10 @@ class _MainPageState extends State<MainPage> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      // Refresh milestones when returning to home tab
+      if (index == 0 && _currentChallenge != null) {
+        _milestoneKey++;
+      }
     });
   }
 
@@ -438,6 +443,7 @@ class _MainPageState extends State<MainPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MilestoneJourney(
+                key: ValueKey(_milestoneKey),
                 currentChallenge: _currentChallenge,
                 onCreateChallenge: _showCreateChallenge,
               ),

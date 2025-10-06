@@ -455,6 +455,7 @@ class ChallengeHistorySheet extends StatelessWidget {
 
   Map<String, dynamic> _convertChallengeToMap(Challenge challenge, int progress, String status) {
     return {
+      'challengeId': challenge.id,
       'title': challenge.title,
       'dateRange': '${_formatDate(challenge.startDate)} - ${_formatDate(challenge.endDate)}',
       'progress': progress,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'profile_setup.dart';
-import 'package:capstone_project/color/colors.dart';
 
 class GoalSelectionPage extends StatefulWidget {
   const GoalSelectionPage({super.key});

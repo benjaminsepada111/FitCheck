@@ -34,12 +34,18 @@ class UserData {
     return calculatedAge;
   }
 
-  // Check if all required data is available for calorie calculation
+  // Check if all required data is available for user profile
+  // Note: activityLevel and goal are now set per-challenge, not during onboarding
   bool get isComplete {
     return gender != null &&
         birthDate != null &&
         weight != null &&
-        height != null &&
+        height != null;
+  }
+
+  // Check if all required data is available for calorie calculation (including challenge-specific data)
+  bool get isCompleteForCalculation {
+    return isComplete &&
         activityLevel != null &&
         goal != null;
   }

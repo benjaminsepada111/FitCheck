@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-import 'activity_level.dart';
+import 'profile_setup.dart';
 // Global constants for height range
 const int kMinHeight = 100;
 const int kMaxHeight = 320;
@@ -83,7 +83,7 @@ class _HeightPageState extends State<HeightPage>
       if (success && mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ActivityLevelPage()),
+          MaterialPageRoute(builder: (context) => const ProfileSetupPage()),
         );
       } else if (mounted) {
         _showErrorSnackBar('Failed to save height. Please try again.');

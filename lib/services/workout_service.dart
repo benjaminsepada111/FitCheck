@@ -1,0 +1,138 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
+import 'package:capstone_project/models/workout_model.dart';
+
+class WorkoutService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  // Add a new workout
+  Future<String> addWorkout(WorkoutModel workout) async {
+    try {
+      DocumentReference docRef = await _firestore
+          .collection('workouts')
+          .add(workout.toJson());
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Failed to add workout: $e');
+    }
+  }
+
+  // Upload workout photo
+  Future<String> uploadWorkoutPhoto(String userId, File photoFile) async {
+    try {
+      String fileName = 'workout_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference ref = _storage.ref().child('workouts/$userId/$fileName');
+
+      UploadTask uploadTask = ref.putFile(photoFile);
+      TaskSnapshot snapshot = await uploadTask;
+      String downloadUrl = await snapshot.ref.getDownloadURL();
+
+      return downloadUrl;
+    } catch (e) {
+      throw Exception('Failed to upload photo: $e');
+    }
+  }
+
+  // Get today's workouts - FIXED: No index required
+  Stream<List<WorkoutModel>> getTodayWorkouts(String userId) {
+    DateTime now = DateTime.now();
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+    // Simple query: only filter by userId, then filter date in memory
+    return _firestore
+        .collection('workouts')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      // Parse all workouts
+      final allWorkouts = snapshot.docs.map((doc) {
+        return WorkoutModel.fromJson(doc.data(), doc.id);
+      }).toList();
+
+      // Filter for today and sort in memory
+      final todayWorkouts = allWorkouts.where((workout) {
+        return workout.date.isAfter(startOfDay) &&
+            workout.date.isBefore(endOfDay);
+      }).toList();
+
+      // Sort by date descending
+      todayWorkouts.sort((a, b) => b.date.compareTo(a.date));
+
+      return todayWorkouts;
+    });
+  }
+
+  // Get all workouts (history) - FIXED: Simplified query
+  Stream<List<WorkoutModel>> getWorkoutHistory(String userId) {
+    return _firestore
+        .collection('workouts')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      final workouts = snapshot.docs.map((doc) {
+        return WorkoutModel.fromJson(doc.data(), doc.id);
+      }).toList();
+
+      // Sort in memory instead of in query
+      workouts.sort((a, b) => b.date.compareTo(a.date));
+
+      return workouts;
+    });
+  }
+
+  // Update workout (for marking sets as completed)
+  Future<void> updateWorkout(WorkoutModel workout) async {
+    try {
+      await _firestore
+          .collection('workouts')
+          .doc(workout.id)
+          .update(workout.toJson());
+    } catch (e) {
+      throw Exception('Failed to update workout: $e');
+    }
+  }
+
+  // Delete workout
+  Future<void> deleteWorkout(String workoutId) async {
+    try {
+      await _firestore.collection('workouts').doc(workoutId).delete();
+    } catch (e) {
+      throw Exception('Failed to delete workout: $e');
+    }
+  }
+
+  // Get workout statistics
+  Future<Map<String, dynamic>> getWorkoutStats(String userId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('workouts')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      int totalWorkouts = snapshot.docs.length;
+      int totalSets = 0;
+      int completedSets = 0;
+
+      for (var doc in snapshot.docs) {
+        WorkoutModel workout = WorkoutModel.fromJson(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+        totalSets += workout.sets;
+        completedSets += workout.completedSetCount;
+      }
+
+      return {
+        'totalWorkouts': totalWorkouts,
+        'totalSets': totalSets,
+        'completedSets': completedSets,
+        'completionRate': totalSets > 0 ? (completedSets / totalSets * 100).toStringAsFixed(1) : '0.0',
+      };
+    } catch (e) {
+      throw Exception('Failed to get workout stats: $e');
+    }
+  }
+}

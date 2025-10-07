@@ -83,6 +83,7 @@ flutter:
   - assets/icons/lunch.svg
   - assets/icons/weight_arrow.svg
   - assets/icons/success.svg
+  - assets/icons/workout.svg
 
 
   # The following line ensures that the Material Icons font is

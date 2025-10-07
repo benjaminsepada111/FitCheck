@@ -10,11 +10,13 @@ import '../MainPage/challenge_history_sheet.dart';
 import '../MainPage/create_challenge_sheet.dart';
 import 'package:capstone_project/color/colors.dart';
 
-// add your other page imports
+// Add your other page imports
 import 'food_page.dart';
 import 'profile.dart';
 import 'services/user_data_service.dart';
 import 'UserInputFile/genderselection.dart';
+// ADD THIS IMPORT FOR WORKOUT PAGE
+import 'package:capstone_project/Workout/workout_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -33,9 +35,6 @@ class _MainPageState extends State<MainPage> {
   int _currentCalories = 0;
   int _currentWater = 0;
   List<Challenge> _challengeHistory = [];
-
-  // Keys for accessing child widget methods - remove this for now since we need to check the actual state class name
-  // final GlobalKey<_TrackersState> _trackersKey = GlobalKey<_TrackersState>();
 
   @override
   void initState() {
@@ -463,14 +462,14 @@ class _MainPageState extends State<MainPage> {
             ],
           ),
         );
-      case 1: // Food - Updated to pass challenge data and callback
+      case 1: // Food
         return FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
-          // Remove this line since FoodPage doesn't have this parameter yet
-          // onCaloriesUpdated: _refreshTrackers,
         );
-      case 2: // Profile
+      case 2: // Workout - NEW!
+        return const WorkoutPage();
+      case 3: // Profile - MOVED FROM INDEX 2 TO 3
         return const ProfilePage();
       default:
         return const Center(child: Text("Page not found"));
@@ -479,7 +478,19 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Profile page should not have the FitCheck header
+    // Profile page should not have the FitCheck header (now at index 3)
+    if (_selectedIndex == 3) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: _getBody(),
+        bottomNavigationBar: CustomBottomNavBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+        ),
+      );
+    }
+
+    // Workout page should not have the FitCheck header either (index 2)
     if (_selectedIndex == 2) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -491,7 +502,7 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    // Home & Food keep the header
+    // Home & Food keep the header (indices 0 and 1)
     return Scaffold(
       backgroundColor: Colors.white,
       body: NestedScrollView(

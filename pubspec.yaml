@@ -38,12 +38,12 @@ dependencies:
   intl: ^0.18.0
   shared_preferences: ^2.2.2
   path_provider: ^2.1.1
+  path: ^1.8.3
   share_plus: ^7.2.1
   fl_chart: ^0.68.0
   firebase_core: ^3.3.0
   firebase_auth: ^5.1.4
   cloud_firestore: ^5.2.1  # Optional: for storing user data
-  firebase_storage: ^12.1.0  # For image storage
   google_sign_in: ^6.2.1   # Optional: for Google sign-in
   sign_in_with_apple: ^6.1.1
   flutter_facebook_auth: ^7.0.1

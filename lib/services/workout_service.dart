@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:capstone_project/models/workout_model.dart';
 
 class WorkoutService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Add a new workout
   Future<String> addWorkout(WorkoutModel workout) async {
@@ -19,19 +19,32 @@ class WorkoutService {
     }
   }
 
-  // Upload workout photo
+  // Save workout photo locally
   Future<String> uploadWorkoutPhoto(String userId, File photoFile) async {
     try {
+      // Get the app's document directory
+      final directory = await getApplicationDocumentsDirectory();
+
+      // Create a directory structure for workout photos
+      final workoutPhotosDir = Directory(
+        path.join(directory.path, 'workout_photos', userId)
+      );
+
+      // Create the directory if it doesn't exist
+      if (!await workoutPhotosDir.exists()) {
+        await workoutPhotosDir.create(recursive: true);
+      }
+
+      // Generate unique filename
       String fileName = 'workout_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference ref = _storage.ref().child('workouts/$userId/$fileName');
+      final destinationPath = path.join(workoutPhotosDir.path, fileName);
 
-      UploadTask uploadTask = ref.putFile(photoFile);
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
+      // Copy the image file to the destination
+      final savedFile = await photoFile.copy(destinationPath);
 
-      return downloadUrl;
+      return savedFile.path;
     } catch (e) {
-      throw Exception('Failed to upload photo: $e');
+      throw Exception('Failed to save photo locally: $e');
     }
   }
 

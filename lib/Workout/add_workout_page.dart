@@ -77,7 +77,7 @@ class _AddWorkoutPageState extends State<AddWorkoutPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Workout added successfully!')),
+          const SnackBar(content: Text('Workout logged successfully!')),
         );
         Navigator.pop(context);
       }
@@ -104,7 +104,7 @@ class _AddWorkoutPageState extends State<AddWorkoutPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Add Workout',
+          'Log Completed Workout',
           style: TextStyle(
             color: Colors.black87,
             fontSize: 20,
@@ -121,7 +121,7 @@ class _AddWorkoutPageState extends State<AddWorkoutPage> {
             children: [
               _buildInputField(
                 controller: _exerciseController,
-                label: 'Exercise Name',
+                label: 'What exercise did you do?',
                 hint: 'e.g., Push-ups, Squats',
                 icon: Icons.fitness_center,
                 validator: (value) =>

@@ -1,20 +1,20 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import '../models/milestone.dart';
 
 class MilestoneService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static const String _usersCollection = 'users';
   static const String _challengesCollection = 'challenges';
   static const String _milestonesCollection = 'milestones';
 
-  /// Save a milestone (with optional image upload)
+  /// Save a milestone (with optional image saved locally)
   static Future<bool> saveMilestone(Milestone milestone, {File? imageFile, required String challengeId}) async {
     try {
       final user = _auth.currentUser;
@@ -25,11 +25,11 @@ class MilestoneService {
 
       Milestone milestoneToSave = milestone;
 
-      // Upload image if provided
+      // Save image locally if provided
       if (imageFile != null) {
-        final imageUrl = await _uploadImage(user.uid, challengeId, milestone.id, imageFile);
-        if (imageUrl != null) {
-          milestoneToSave = milestone.copyWith(imageUrl: imageUrl);
+        final imagePath = await _saveImageLocally(user.uid, challengeId, milestone.id, imageFile);
+        if (imagePath != null) {
+          milestoneToSave = milestone.copyWith(imagePath: imagePath);
         }
       }
 
@@ -50,26 +50,38 @@ class MilestoneService {
     }
   }
 
-  /// Upload image to Firebase Storage
-  static Future<String?> _uploadImage(String userId, String challengeId, String milestoneId, File imageFile) async {
+  /// Save image to local storage
+  static Future<String?> _saveImageLocally(String userId, String challengeId, String milestoneId, File imageFile) async {
     try {
-      final ref = _storage
-          .ref()
-          .child('users')
-          .child(userId)
-          .child('challenges')
-          .child(challengeId)
-          .child('milestones')
-          .child('$milestoneId.jpg');
+      // Get the app's document directory
+      final directory = await getApplicationDocumentsDirectory();
 
-      final uploadTask = ref.putFile(imageFile);
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
+      // Create a directory structure for milestone images
+      final milestoneImagesDir = Directory(
+        path.join(directory.path, 'milestone_journey', userId, challengeId)
+      );
 
-      debugPrint('Image uploaded successfully: $downloadUrl');
-      return downloadUrl;
+      // Create the directory if it doesn't exist
+      if (!await milestoneImagesDir.exists()) {
+        await milestoneImagesDir.create(recursive: true);
+      }
+
+      // Get the file extension
+      final extension = path.extension(imageFile.path);
+
+      // Create the destination file path
+      final destinationPath = path.join(
+        milestoneImagesDir.path,
+        '$milestoneId$extension'
+      );
+
+      // Copy the image file to the destination
+      final savedFile = await imageFile.copy(destinationPath);
+
+      debugPrint('Image saved locally: ${savedFile.path}');
+      return savedFile.path;
     } catch (e) {
-      debugPrint('Error uploading image: $e');
+      debugPrint('Error saving image locally: $e');
       return null;
     }
   }
@@ -225,16 +237,16 @@ class MilestoneService {
 
       Milestone milestoneToUpdate = milestone.copyWith(updatedAt: DateTime.now());
 
-      // Upload new image if provided
+      // Save new image locally if provided
       if (newImageFile != null) {
         // Delete old image if exists
-        if (milestone.imageUrl != null) {
-          await _deleteImage(milestone.imageUrl!);
+        if (milestone.imagePath != null) {
+          await _deleteLocalImage(milestone.imagePath!);
         }
 
-        final imageUrl = await _uploadImage(user.uid, challengeId, milestone.id, newImageFile);
-        if (imageUrl != null) {
-          milestoneToUpdate = milestoneToUpdate.copyWith(imageUrl: imageUrl);
+        final imagePath = await _saveImageLocally(user.uid, challengeId, milestone.id, newImageFile);
+        if (imagePath != null) {
+          milestoneToUpdate = milestoneToUpdate.copyWith(imagePath: imagePath);
         }
       }
 
@@ -264,12 +276,12 @@ class MilestoneService {
         return false;
       }
 
-      // Get milestone to find image URL
+      // Get milestone to find image path
       final milestone = await getMilestone(milestoneId, challengeId: challengeId);
 
-      // Delete image if exists
-      if (milestone?.imageUrl != null) {
-        await _deleteImage(milestone!.imageUrl!);
+      // Delete local image if exists
+      if (milestone?.imagePath != null) {
+        await _deleteLocalImage(milestone!.imagePath!);
       }
 
       // Delete milestone document
@@ -290,14 +302,16 @@ class MilestoneService {
     }
   }
 
-  /// Delete image from Firebase Storage
-  static Future<void> _deleteImage(String imageUrl) async {
+  /// Delete local image file
+  static Future<void> _deleteLocalImage(String imagePath) async {
     try {
-      final ref = _storage.refFromURL(imageUrl);
-      await ref.delete();
-      debugPrint('Image deleted from storage');
+      final file = File(imagePath);
+      if (await file.exists()) {
+        await file.delete();
+        debugPrint('Local image deleted: $imagePath');
+      }
     } catch (e) {
-      debugPrint('Error deleting image: $e');
+      debugPrint('Error deleting local image: $e');
     }
   }
 
@@ -316,8 +330,8 @@ class MilestoneService {
           .collection(_challengesCollection)
           .doc(challengeId)
           .collection(_milestonesCollection)
-          .where('imageUrl', isNotEqualTo: null)
-          .orderBy('imageUrl') // Required for isNotEqualTo
+          .where('imagePath', isNotEqualTo: null)
+          .orderBy('imagePath') // Required for isNotEqualTo
           .orderBy('date', descending: true)
           .limit(limit)
           .get();

@@ -7,7 +7,9 @@ import 'package:capstone_project/models/workout_model.dart';
 import 'package:capstone_project/services/workout_service.dart';
 
 class AddWorkoutPage extends StatefulWidget {
-  const AddWorkoutPage({super.key});
+  final String challengeId;
+
+  const AddWorkoutPage({super.key, required this.challengeId});
 
   @override
   State<AddWorkoutPage> createState() => _AddWorkoutPageState();
@@ -63,13 +65,13 @@ class _AddWorkoutPageState extends State<AddWorkoutPage> {
       int sets = int.parse(_setsController.text);
       WorkoutModel workout = WorkoutModel(
         userId: FirebaseAuth.instance.currentUser!.uid,
+        challengeId: widget.challengeId,
         exerciseName: _exerciseController.text,
         sets: sets,
         reps: int.parse(_repsController.text),
         duration: int.parse(_durationController.text),
         photoUrl: photoUrl,
         date: DateTime.now(),
-        completedSets: List.generate(sets, (_) => false),
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       );
 

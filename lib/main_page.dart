@@ -468,7 +468,9 @@ class _MainPageState extends State<MainPage> {
           onChallengeCreated: _onChallengeCreated,
         );
       case 2: // Workout - NEW!
-        return const WorkoutPage();
+        return WorkoutPage(
+          currentChallenge: _currentChallenge,
+        );
       case 3: // Profile - MOVED FROM INDEX 2 TO 3
         return const ProfilePage();
       default:

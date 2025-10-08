@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/workout_model.dart';
+import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/workout_service.dart';
 import 'workout_history_page.dart';
 import 'add_workout_page.dart';
 
 class WorkoutPage extends StatefulWidget {
-  const WorkoutPage({super.key});
+  final Challenge? currentChallenge;
+
+  const WorkoutPage({super.key, this.currentChallenge});
 
   @override
   State<WorkoutPage> createState() => _WorkoutPageState();
@@ -33,21 +37,24 @@ class _WorkoutPageState extends State<WorkoutPage> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.history, color: Colors.black87),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const WorkoutHistoryPage(),
-                ),
-              );
-            },
-          ),
+          if (widget.currentChallenge != null)
+            IconButton(
+              icon: const Icon(Icons.history, color: Colors.black87),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => WorkoutHistoryPage(challengeId: widget.currentChallenge!.id),
+                  ),
+                );
+              },
+            ),
         ],
       ),
-      body: StreamBuilder<List<WorkoutModel>>(
-        stream: _workoutService.getTodayWorkouts(userId),
+      body: widget.currentChallenge == null
+          ? _buildNoChallengeState()
+          : StreamBuilder<List<WorkoutModel>>(
+        stream: _workoutService.getTodayWorkouts(userId, widget.currentChallenge!.id),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -87,18 +94,52 @@ class _WorkoutPageState extends State<WorkoutPage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: widget.currentChallenge != null
+          ? FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AddWorkoutPage(),
+              builder: (context) => AddWorkoutPage(challengeId: widget.currentChallenge!.id),
             ),
           );
         },
         backgroundColor: AppColors.secondary,
         icon: const Icon(Icons.add),
         label: const Text('Log Workout'),
+      )
+          : null,
+    );
+  }
+
+  Widget _buildNoChallengeState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.calendar_today,
+            size: 100,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Active Challenge',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create a challenge to start logging workouts',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -320,8 +361,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  workout.photoUrl!,
+                child: Image.file(
+                  File(workout.photoUrl!),
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -390,7 +431,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
           ),
           TextButton(
             onPressed: () {
-              _workoutService.deleteWorkout(workout.id!);
+              _workoutService.deleteWorkout(workout.userId, workout.challengeId, workout.id!);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Workout deleted')),

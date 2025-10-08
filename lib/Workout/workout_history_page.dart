@@ -6,7 +6,9 @@ import 'package:capstone_project/models/workout_model.dart';
 import 'package:capstone_project/services/workout_service.dart';
 
 class WorkoutHistoryPage extends StatelessWidget {
-  const WorkoutHistoryPage({super.key});
+  final String challengeId;
+
+  const WorkoutHistoryPage({super.key, required this.challengeId});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +34,7 @@ class WorkoutHistoryPage extends StatelessWidget {
         ),
       ),
       body: StreamBuilder<List<WorkoutModel>>(
-        stream: workoutService.getWorkoutHistory(userId),
+        stream: workoutService.getWorkoutHistory(userId, challengeId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -146,18 +148,12 @@ class WorkoutHistoryPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: workout.completedSetCount == workout.sets
-                    ? Colors.green.withOpacity(0.1)
-                    : AppColors.secondary.withOpacity(0.1),
+                color: AppColors.secondary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                workout.completedSetCount == workout.sets
-                    ? Icons.check_circle
-                    : Icons.fitness_center,
-                color: workout.completedSetCount == workout.sets
-                    ? Colors.green
-                    : AppColors.secondary,
+                Icons.fitness_center,
+                color: AppColors.secondary,
                 size: 24,
               ),
             ),
@@ -188,14 +184,6 @@ class WorkoutHistoryPage extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '${workout.completedSetCount}/${workout.sets}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
-                  ),
-                ),
                 Text(
                   DateFormat('h:mm a').format(workout.date),
                   style: TextStyle(

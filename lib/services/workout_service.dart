@@ -11,6 +11,10 @@ class WorkoutService {
   Future<String> addWorkout(WorkoutModel workout) async {
     try {
       DocumentReference docRef = await _firestore
+          .collection('users')
+          .doc(workout.userId)
+          .collection('challenges')
+          .doc(workout.challengeId)
           .collection('workouts')
           .add(workout.toJson());
       return docRef.id;
@@ -48,16 +52,19 @@ class WorkoutService {
     }
   }
 
-  // Get today's workouts - FIXED: No index required
-  Stream<List<WorkoutModel>> getTodayWorkouts(String userId) {
+  // Get today's workouts for a specific challenge
+  Stream<List<WorkoutModel>> getTodayWorkouts(String userId, String challengeId) {
     DateTime now = DateTime.now();
     DateTime startOfDay = DateTime(now.year, now.month, now.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Simple query: only filter by userId, then filter date in memory
+    // Query from new structure: users/{userId}/challenges/{challengeId}/workouts
     return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('challenges')
+        .doc(challengeId)
         .collection('workouts')
-        .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
       // Parse all workouts
@@ -78,11 +85,14 @@ class WorkoutService {
     });
   }
 
-  // Get all workouts (history) - FIXED: Simplified query
-  Stream<List<WorkoutModel>> getWorkoutHistory(String userId) {
+  // Get all workouts (history) for a specific challenge
+  Stream<List<WorkoutModel>> getWorkoutHistory(String userId, String challengeId) {
     return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('challenges')
+        .doc(challengeId)
         .collection('workouts')
-        .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
       final workouts = snapshot.docs.map((doc) {
@@ -96,10 +106,14 @@ class WorkoutService {
     });
   }
 
-  // Update workout (for marking sets as completed)
+  // Update workout
   Future<void> updateWorkout(WorkoutModel workout) async {
     try {
       await _firestore
+          .collection('users')
+          .doc(workout.userId)
+          .collection('challenges')
+          .doc(workout.challengeId)
           .collection('workouts')
           .doc(workout.id)
           .update(workout.toJson());
@@ -109,25 +123,34 @@ class WorkoutService {
   }
 
   // Delete workout
-  Future<void> deleteWorkout(String workoutId) async {
+  Future<void> deleteWorkout(String userId, String challengeId, String workoutId) async {
     try {
-      await _firestore.collection('workouts').doc(workoutId).delete();
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('challenges')
+          .doc(challengeId)
+          .collection('workouts')
+          .doc(workoutId)
+          .delete();
     } catch (e) {
       throw Exception('Failed to delete workout: $e');
     }
   }
 
-  // Get workout statistics
-  Future<Map<String, dynamic>> getWorkoutStats(String userId) async {
+  // Get workout statistics for a specific challenge
+  Future<Map<String, dynamic>> getWorkoutStats(String userId, String challengeId) async {
     try {
       QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('challenges')
+          .doc(challengeId)
           .collection('workouts')
-          .where('userId', isEqualTo: userId)
           .get();
 
       int totalWorkouts = snapshot.docs.length;
       int totalSets = 0;
-      int completedSets = 0;
 
       for (var doc in snapshot.docs) {
         WorkoutModel workout = WorkoutModel.fromJson(
@@ -135,14 +158,11 @@ class WorkoutService {
           doc.id,
         );
         totalSets += workout.sets;
-        completedSets += workout.completedSetCount;
       }
 
       return {
         'totalWorkouts': totalWorkouts,
         'totalSets': totalSets,
-        'completedSets': completedSets,
-        'completionRate': totalSets > 0 ? (completedSets / totalSets * 100).toStringAsFixed(1) : '0.0',
       };
     } catch (e) {
       throw Exception('Failed to get workout stats: $e');

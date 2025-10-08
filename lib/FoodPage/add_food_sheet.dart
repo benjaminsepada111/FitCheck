@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final Function(String foodName, int calories, {double? grams})? onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, String? photoPath})? onFoodAdded;
 
   const AddFoodSheet({
     super.key,
@@ -28,6 +30,8 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   bool _isLoading = false;
   bool _isManualEntry = false;
   String? _errorMessage;
+  XFile? _foodPhoto;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -105,6 +109,75 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     });
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _foodPhoto = image;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      _showError('Failed to pick image. Please try again.');
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.camera_alt, color: AppColors.secondary),
+                ),
+                title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.photo_library, color: AppColors.secondary),
+                ),
+                title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _toggleEntryMode() {
     setState(() {
       _isManualEntry = !_isManualEntry;
@@ -115,6 +188,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       _manualFoodController.clear();
       _manualCaloriesController.clear();
       _errorMessage = null;
+      _foodPhoto = null;
     });
   }
 
@@ -161,7 +235,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, grams: grams);
+      widget.onFoodAdded!(foodName, calories, grams: grams, photoPath: _foodPhoto?.path);
     }
 
     Navigator.pop(context);
@@ -222,7 +296,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     }
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories);
+      widget.onFoodAdded!(foodName, calories, photoPath: _foodPhoto?.path);
     }
 
     Navigator.pop(context);
@@ -258,6 +332,109 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+    );
+  }
+
+  Widget _buildPhotoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        Text(
+          'Food Photo (Optional)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_foodPhoto != null)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  File(_foodPhoto!.path),
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _foodPhoto = null;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ],
+          )
+        else
+          GestureDetector(
+            onTap: _showImageSourceDialog,
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.camera_alt,
+                        color: AppColors.secondary,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Add Photo',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap to take or choose a photo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -549,16 +726,20 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   }
 
   Widget _buildFoodSearch() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Search Field with True Overlay Dropdown
-        Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Search Field with True Overlay Dropdown
+          SizedBox(
+            height: _searchResults.isNotEmpty || _isLoading || _errorMessage != null ? 380 : 70,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                TextField(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
                   controller: _searchController,
                   onChanged: (value) {
                     if (value.length > 2) {
@@ -730,116 +911,15 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
 
         const SizedBox(height: 16),
 
-        // Selected Food Display
-        if (_selectedFood != null)
+        // Popular Searches (when nothing is selected) - RIGHT AFTER SEARCH BAR
+        if (_selectedFood == null && _searchController.text.isEmpty && !_isLoading) ...[
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.secondary.withOpacity(0.3),
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.restaurant,
-                    color: AppColors.secondary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    USDAApiService.formatFoodDescription(_selectedFood!),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
-                  onPressed: () {
-                    setState(() {
-                      _selectedFood = null;
-                      _searchController.clear();
-                      _gramsController.clear();
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Grams Input Section (Always visible)
-          Text(
-          'Enter Amount',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _gramsController,
-          keyboardType: TextInputType.number,
-          enabled: _selectedFood != null,
-          onChanged: (value) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: _selectedFood == null
-                ? "Select a food first"
-                : "Enter amount in grams",
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            suffixText: 'grams',
-            suffixStyle: TextStyle(
-              color: _selectedFood != null ? AppColors.secondary : Colors.grey.shade400,
-              fontWeight: FontWeight.w600,
-            ),
-            filled: true,
-            fillColor: _selectedFood != null ? Colors.grey.shade50 : Colors.grey.shade100,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade200),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.secondary, width: 2),
-            ),
-          ),
-          ),
-
-          if (_selectedFood != null) _buildCaloriePreview(),
-
-          // Popular Searches (when nothing is selected)
-          if (_selectedFood == null && _searchController.text.isEmpty && !_isLoading) ...[
-            const SizedBox(height: 20),
-            Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -919,7 +999,105 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
           ),
         ],
-      ],
+
+        // Selected Food Display
+        if (_selectedFood != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.secondary.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.restaurant,
+                    color: AppColors.secondary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    USDAApiService.formatFoodDescription(_selectedFood!),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+                  onPressed: () {
+                    setState(() {
+                      _selectedFood = null;
+                      _searchController.clear();
+                      _gramsController.clear();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Grams Input Section (Only when food is selected)
+          Text(
+            'Enter Amount',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _gramsController,
+            keyboardType: TextInputType.number,
+            onChanged: (value) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: "Enter amount in grams",
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              suffixText: 'grams',
+              suffixStyle: TextStyle(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.secondary, width: 2),
+              ),
+            ),
+          ),
+
+          _buildCaloriePreview(),
+
+          // Photo Upload Section
+          _buildPhotoSection(),
+        ],
+        ],
+      ),
     );
   }
 
@@ -996,6 +1174,9 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               ),
             ),
           ),
+
+          // Photo Upload Section
+          _buildPhotoSection(),
         ],
       ),
     );

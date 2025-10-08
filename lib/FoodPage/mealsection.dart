@@ -83,7 +83,7 @@ class MealsSectionState extends State<MealsSection> {
   }
 
 
-  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams}) async {
+  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams, String? photoPath}) async {
     try {
       // Create new food entry
       final foodEntry = FoodEntry(
@@ -328,11 +328,12 @@ class MealsSectionState extends State<MealsSection> {
           iconPath: meal["icon"] as String,
           isRecommended: meal["isRecommended"] as bool,
           foodEntries: _mealEntries[meal["name"]] ?? [],
-          onFoodAdded: (foodName, calories, {grams}) => _onFoodAdded(
+          onFoodAdded: (foodName, calories, {grams, photoPath}) => _onFoodAdded(
             foodName,
             calories,
             meal["name"] as String,
             grams: grams,
+            photoPath: photoPath,
           ),
           onFoodRemoved: _removeFoodEntry,
         )),
@@ -355,7 +356,7 @@ class _MealCard extends StatefulWidget {
   final String iconPath;
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
-  final Function(String foodName, int calories, {double? grams}) onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, String? photoPath}) onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
 
   const _MealCard({
@@ -494,8 +495,8 @@ class _MealCardState extends State<_MealCard> {
                         backgroundColor: Colors.transparent,
                         builder: (context) => AddFoodSheet(
                           mealName: widget.name,
-                          onFoodAdded: (foodName, calories, {grams}) {
-                            widget.onFoodAdded(foodName, calories, grams: grams);
+                          onFoodAdded: (foodName, calories, {grams, photoPath}) {
+                            widget.onFoodAdded(foodName, calories, grams: grams, photoPath: photoPath);
                           },
                         ),
                       );

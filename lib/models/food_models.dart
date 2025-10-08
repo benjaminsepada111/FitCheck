@@ -131,6 +131,7 @@ class FoodEntry {
   final double servingSize; // in grams
   final String servingUnit; // e.g., "cup", "piece", "grams"
   final double caloriesPer100g;
+  final String? photoPath; // Optional photo path
 
   FoodEntry({
     required this.id,
@@ -139,6 +140,7 @@ class FoodEntry {
     required this.servingSize,
     required this.servingUnit,
     required this.caloriesPer100g,
+    this.photoPath,
   });
 
   // Calculate calories for the actual serving size
@@ -154,6 +156,7 @@ class FoodEntry {
       'servingSize': servingSize,
       'servingUnit': servingUnit,
       'caloriesPer100g': caloriesPer100g,
+      'photoPath': photoPath,
     };
   }
 
@@ -165,6 +168,7 @@ class FoodEntry {
       servingSize: json['servingSize'].toDouble(),
       servingUnit: json['servingUnit'],
       caloriesPer100g: json['caloriesPer100g'].toDouble(),
+      photoPath: json['photoPath'],
     );
   }
 
@@ -191,6 +195,7 @@ class FoodEntry {
     double? servingSize,
     String? servingUnit,
     double? caloriesPer100g,
+    String? photoPath,
   }) {
     return FoodEntry(
       id: id ?? this.id,
@@ -199,6 +204,7 @@ class FoodEntry {
       servingSize: servingSize ?? this.servingSize,
       servingUnit: servingUnit ?? this.servingUnit,
       caloriesPer100g: caloriesPer100g ?? this.caloriesPer100g,
+      photoPath: photoPath ?? this.photoPath,
     );
   }
 }

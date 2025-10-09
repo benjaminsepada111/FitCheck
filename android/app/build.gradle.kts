@@ -12,7 +12,7 @@ android {
     namespace = "com.example.capstone_project"
     compileSdk = 36  // 👈 set explicitly
 
-    ndkVersion = "29.0.14033849" // 👈 use your installed NDK
+    ndkVersion = "27.0.12077973" // 👈 use your installed NDK
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

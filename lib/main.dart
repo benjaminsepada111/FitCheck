@@ -11,7 +11,7 @@ import 'app_text_styles.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with proper options
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

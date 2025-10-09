@@ -16,10 +16,7 @@ import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/api_service.dart';
 import 'video_preview_page.dart';
 import 'package:file_picker/file_picker.dart';
-
-
-
-
+import 'package:gal/gal.dart';
 
 class MilestonePreviewPage extends StatefulWidget {
   final List<Milestone> milestones;
@@ -48,7 +45,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   Duration _slideshowInterval = const Duration(seconds: 2);
   File? _selectedMusicFile;
   String? _selectedMusicUrl;
-
 
   @override
   void initState() {
@@ -85,7 +81,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   void _stopSlideshow() => setState(() => _isSlideshow = false);
-
 
   Future<bool?> _showMusicSelectionDialog() async {
     final List<Map<String, String>> freeMusicOptions = [
@@ -146,7 +141,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                       : null,
                   onTap: () async {
                     try {
-                      FilePickerResult? result = await FilePicker.platform.pickFiles(
+                      FilePickerResult? result =
+                      await FilePicker.platform.pickFiles(
                         type: FileType.audio,
                         allowMultiple: false,
                       );
@@ -157,7 +153,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                           _selectedMusicUrl = null;
                         });
                         Navigator.pop(context, true);
-                        _showSnackBar('🎵 Music file selected: ${result.files.single.name}');
+                        _showSnackBar(
+                            '🎵 Music file selected: ${result.files.single.name}');
                       }
                     } catch (e) {
                       _showSnackBar('Error selecting file: $e');
@@ -179,7 +176,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.green.shade50 : Colors.grey.shade50,
+                    color: isSelected
+                        ? Colors.green.shade50
+                        : Colors.grey.shade50,
                     border: Border.all(
                       color: isSelected ? Colors.green : Colors.grey.shade300,
                     ),
@@ -194,7 +193,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     title: Text(
                       music['name']!,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                     onTap: () {
@@ -230,8 +231,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       ),
     );
   }
+
   // ======================
-  // EXPORT TO VIDEO - FIXED VERSION
+  // EXPORT TO VIDEO
   // ======================
   Future<void> _exportMilestones() async {
     if (widget.milestones.isEmpty) {
@@ -391,7 +393,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         } catch (e) {
           print('❌ Status poll error (attempt $attempt): $e');
           if (attempt >= maxAttempts - 1) {
-            throw Exception('Failed to check render status after $attempt attempts: $e');
+            throw Exception(
+                'Failed to check render status after $attempt attempts: $e');
           }
         }
       }
@@ -402,7 +405,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() => _isExporting = false);
         _showVideoReadyDialog(resultUrl);
       } else {
-        _showSnackBar('Render timeout after $attempt attempts. Video may still be processing.');
+        _showSnackBar(
+            'Render timeout after $attempt attempts. Video may still be processing.');
       }
     } catch (e, stackTrace) {
       print('❌ Export error: $e');
@@ -528,10 +532,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               );
             },
           ),
-
           TextButton.icon(
             icon: const Icon(Icons.download, size: 20),
-            label: const Text('Download'),
+            label: const Text('Save'),
             onPressed: () {
               Navigator.pop(context);
               _downloadVideo(videoUrl);
@@ -542,7 +545,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             label: const Text('Share'),
             onPressed: () {
               Navigator.pop(context);
-              _shareVideo(videoUrl);
+              _shareVideoWithOptions(videoUrl);
             },
           ),
         ],
@@ -551,33 +554,11 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   // ======================
-  // OPEN VIDEO IN BROWSER
-  // ======================
-  Future<void> _openVideoInBrowser(String videoUrl) async {
-    try {
-      final uri = Uri.parse(videoUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-        _showSnackBar('Opening video...');
-      } else {
-        _showSnackBar('Cannot open video. URL copied to clipboard.');
-        await Clipboard.setData(ClipboardData(text: videoUrl));
-      }
-    } catch (e) {
-      print('Error opening video: $e');
-      _showSnackBar('Error opening video. URL copied to clipboard.');
-      await Clipboard.setData(ClipboardData(text: videoUrl));
-    }
-  }
-
-  // ======================
-  // DOWNLOAD VIDEO
+  // DOWNLOAD VIDEO - SAVES TO GALLERY
   // ======================
   Future<void> _downloadVideo(String videoUrl) async {
     try {
+      // Show download dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -592,7 +573,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                   const SizedBox(height: 20),
                   Text(
                     '${(_downloadProgress * 100).toInt()}%',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Saving to gallery...',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
@@ -601,22 +588,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         ),
       );
 
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
-      } else {
-        directory = await getDownloadsDirectory();
-      }
+      // Get temporary directory
+      final tempDir = await getTemporaryDirectory();
+      final fileName =
+          'milestone_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final savePath = '${tempDir.path}/$fileName';
 
-      if (directory == null) {
-        throw Exception('Could not access storage directory');
-      }
-
-      final fileName = 'milestone_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final savePath = '${directory.path}/$fileName';
-
+      // Download the video
       final dio = Dio();
       await dio.download(
         videoUrl,
@@ -630,13 +608,26 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         },
       );
 
+      // Save to gallery
+      await Gal.putVideo(savePath, album: 'Milestones');
+
       if (mounted) Navigator.pop(context);
 
       _showSuccessDialog(
-        'Download Complete!',
-        'Video saved successfully!',
-        savePath,
+        'Download Complete! 🎉',
+        'Video saved to your gallery successfully!',
+        'You can find it in your Photos/Videos app.',
       );
+
+      // Clean up temporary file
+      try {
+        final file = File(savePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        print('Error cleaning up temp file: $e');
+      }
     } catch (e) {
       if (mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
@@ -651,31 +642,29 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   // ======================
   // SUCCESS DIALOG
   // ======================
-  void _showSuccessDialog(String title, String message, String filePath) {
+  void _showSuccessDialog(String title, String message, String details) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green),
+            const Icon(Icons.check_circle, color: Colors.green, size: 32),
             const SizedBox(width: 8),
-            Text(title),
+            Expanded(child: Text(title)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(message),
-            const SizedBox(height: 12),
             Text(
-              'Location: $filePath',
-              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              message,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 16),
             Text(
-              'You can find the video in your device gallery or file manager.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              details,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -690,18 +679,120 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   // ======================
-  // SHARE VIDEO
+  // SHARE VIDEO - Share as file with preview
   // ======================
   Future<void> _shareVideo(String videoUrl) async {
     try {
-      await Share.share(
-        videoUrl,
+      _showSnackBar('Preparing video to share...');
+
+      // Download video to temporary directory first
+      final tempDir = await getTemporaryDirectory();
+      final fileName =
+          'milestone_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final savePath = '${tempDir.path}/$fileName';
+
+      // Download the video
+      final dio = Dio();
+      await dio.download(videoUrl, savePath);
+
+      // Share the video file
+      final result = await Share.shareXFiles(
+        [XFile(savePath)],
+        text: 'Check out my milestone journey! 🎉',
         subject: 'My Milestone Journey Video',
       );
+
+      // Check share result
+      if (result.status == ShareResultStatus.success) {
+        _showSnackBar('Video shared successfully! ✅');
+      } else if (result.status == ShareResultStatus.dismissed) {
+        _showSnackBar('Share cancelled');
+      }
+
+      // Clean up after a delay (give time for sharing to complete)
+      Future.delayed(const Duration(seconds: 3), () async {
+        try {
+          final file = File(savePath);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (e) {
+          print('Error cleaning up shared file: $e');
+        }
+      });
     } catch (e) {
       print('Share error: $e');
       _showSnackBar('Share failed: ${e.toString()}');
+
+      // Fallback: share URL if file sharing fails
+      try {
+        await Share.share(
+          'Check out my milestone journey video: $videoUrl',
+          subject: 'My Milestone Journey Video',
+        );
+      } catch (fallbackError) {
+        print('Fallback share error: $fallbackError');
+      }
     }
+  }
+
+  // ======================
+  // SHARE VIDEO WITH OPTIONS
+  // ======================
+  Future<void> _shareVideoWithOptions(String videoUrl) async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Share Video',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.blue),
+              title: const Text('Share Video File'),
+              subtitle: const Text('Share to Facebook, WhatsApp, etc.'),
+              onTap: () {
+                Navigator.pop(context);
+                _shareVideo(videoUrl);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.link, color: Colors.green),
+              title: const Text('Share Video Link'),
+              subtitle: const Text('Copy link or share URL'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Share.share(
+                  'Check out my milestone journey video: $videoUrl',
+                  subject: 'My Milestone Journey Video',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy, color: Colors.orange),
+              title: const Text('Copy Link'),
+              subtitle: const Text('Copy video URL to clipboard'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Clipboard.setData(ClipboardData(text: videoUrl));
+                _showSnackBar('Video link copied to clipboard! 📋');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String? _getImageExtensionFromUrl(String url) {
@@ -848,7 +939,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               _isSlideshow ? Icons.pause : Icons.play_arrow,
               color: Colors.white,
             ),
-            onPressed: _isSlideshow ? _stopSlideshow : () => _showSlideshowSettings(),
+            onPressed:
+            _isSlideshow ? _stopSlideshow : () => _showSlideshowSettings(),
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -916,12 +1008,16 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                           ? Image.network(
                         milestone.imageUrl!,
                         fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
+                        loadingBuilder:
+                            (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Center(
                             child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
+                              value: loadingProgress
+                                  .expectedTotalBytes !=
+                                  null
+                                  ? loadingProgress
+                                  .cumulativeBytesLoaded /
                                   loadingProgress.expectedTotalBytes!
                                   : null,
                             ),
@@ -947,14 +1043,16 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                           );
                         },
                       )
-                          : const Icon(Icons.image_not_supported, size: 100, color: Colors.white54),
+                          : const Icon(Icons.image_not_supported,
+                          size: 100, color: Colors.white54),
                     ),
                     if (_isSlideshow)
                       Positioned(
                         top: 20,
                         right: 20,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(20),
@@ -1080,12 +1178,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 _buildImageSourceButton(
                   icon: Icons.camera_alt,
                   label: 'Camera',
-                  onTap: () => _pickImageForChange(ImageSource.camera, milestone),
+                  onTap: () =>
+                      _pickImageForChange(ImageSource.camera, milestone),
                 ),
                 _buildImageSourceButton(
                   icon: Icons.photo_library,
                   label: 'Gallery',
-                  onTap: () => _pickImageForChange(ImageSource.gallery, milestone),
+                  onTap: () =>
+                      _pickImageForChange(ImageSource.gallery, milestone),
                 ),
               ],
             ),
@@ -1124,7 +1224,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     Navigator.pop(context);
     try {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+      final pickedFile =
+      await picker.pickImage(source: source, imageQuality: 80);
       if (pickedFile != null) {
         setState(() => _isExporting = true);
         final updatedMilestone = milestone.copyWith(
@@ -1144,16 +1245,22 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           });
           widget.onMilestonesChanged?.call();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image updated successfully!'), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text('Image updated successfully!'),
+                backgroundColor: Colors.green),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update image. Please try again.'), backgroundColor: Colors.red),
+            const SnackBar(
+                content: Text('Failed to update image. Please try again.'),
+                backgroundColor: Colors.red),
           );
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red));
     } finally {
       setState(() => _isExporting = false);
     }
@@ -1166,9 +1273,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Image'),
-        content: const Text('Are you sure you want to delete this milestone image? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to delete this milestone image? This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => _confirmDelete(milestone),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -1183,7 +1293,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     Navigator.pop(context);
     try {
       setState(() => _isExporting = true);
-      final success = await MilestoneService.deleteMilestone(milestone.id, challengeId: widget.challengeId);
+      final success = await MilestoneService.deleteMilestone(milestone.id,
+          challengeId: widget.challengeId);
       if (success) {
         setState(() {
           final index = _currentIndex;
@@ -1193,16 +1304,24 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             return;
           } else if (index >= widget.milestones.length) {
             _currentIndex = widget.milestones.length - 1;
-            _pageController.animateToPage(_currentIndex, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+            _pageController.animateToPage(_currentIndex,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut);
           }
         });
         widget.onMilestonesChanged?.call();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image deleted successfully!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Image deleted successfully!'),
+            backgroundColor: Colors.green));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete image. Please try again.'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Failed to delete image. Please try again.'),
+            backgroundColor: Colors.red));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red));
     } finally {
       setState(() => _isExporting = false);
     }
@@ -1210,11 +1329,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
   Widget _buildImageWidget(Milestone milestone) {
     if (milestone.imageUrl != null) {
-      return Image.network(milestone.imageUrl!, width: 60, height: 80, fit: BoxFit.cover);
+      return Image.network(milestone.imageUrl!,
+          width: 60, height: 80, fit: BoxFit.cover);
     } else if (milestone.imagePath != null) {
-      return Image.file(File(milestone.imagePath!), width: 60, height: 80, fit: BoxFit.cover);
+      return Image.file(File(milestone.imagePath!),
+          width: 60, height: 80, fit: BoxFit.cover);
     } else {
-      return Container(width: 60, height: 80, color: Colors.grey.shade200, child: const Icon(Icons.image_not_supported));
+      return Container(
+          width: 60,
+          height: 80,
+          color: Colors.grey.shade200,
+          child: const Icon(Icons.image_not_supported));
     }
   }
 }

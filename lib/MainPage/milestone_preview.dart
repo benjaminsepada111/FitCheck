@@ -14,59 +14,12 @@ import 'package:dio/dio.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/api_service.dart';
-import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
+import 'video_preview_page.dart';
+import 'package:file_picker/file_picker.dart';
 
-class VideoPreviewPage extends StatefulWidget {
-  final String videoUrl;
-  const VideoPreviewPage({required this.videoUrl, super.key});
 
-  @override
-  State<VideoPreviewPage> createState() => _VideoPreviewPageState();
-}
 
-class _VideoPreviewPageState extends State<VideoPreviewPage> {
-  late VideoPlayerController _videoController;
-  ChewieController? _chewieController;
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideo();
-  }
-
-  Future<void> _initializeVideo() async {
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
-    await _videoController.initialize();
-    _chewieController = ChewieController(
-      videoPlayerController: _videoController,
-      autoPlay: true,
-      looping: false,
-    );
-    setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _videoController.dispose();
-    _chewieController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(title: const Text("Preview Video")),
-      body: Center(
-        child: _chewieController != null && _videoController.value.isInitialized
-            ? Chewie(controller: _chewieController!)
-            : const CircularProgressIndicator(),
-      ),
-    );
-  }
-}
 
 class MilestonePreviewPage extends StatefulWidget {
   final List<Milestone> milestones;
@@ -93,6 +46,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   bool _isExporting = false;
   double _downloadProgress = 0.0;
   Duration _slideshowInterval = const Duration(seconds: 2);
+  File? _selectedMusicFile;
+  String? _selectedMusicUrl;
+
 
   @override
   void initState() {
@@ -130,6 +86,150 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
   void _stopSlideshow() => setState(() => _isSlideshow = false);
 
+
+  Future<bool?> _showMusicSelectionDialog() async {
+    final List<Map<String, String>> freeMusicOptions = [
+      {
+        'name': '🎸 Happy Ukulele',
+        'url': 'https://www.bensound.com/bensound-music/bensound-ukulele.mp3',
+      },
+      {
+        'name': '☀️ Summer Vibes',
+        'url': 'https://www.bensound.com/bensound-music/bensound-summer.mp3',
+      },
+      {
+        'name': '🎵 Upbeat Energy',
+        'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+      },
+      {
+        'name': '🎶 Cheerful Melody',
+        'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+      },
+    ];
+
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Background Music?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Choose music for your video:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+
+              // Option 1: Upload from device
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blue.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.upload_file, color: Colors.blue),
+                  title: const Text('Upload Music File'),
+                  subtitle: _selectedMusicFile != null
+                      ? Text(
+                    _selectedMusicFile!.path.split('/').last,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                      : const Text('MP3, WAV, M4A, AAC'),
+                  trailing: _selectedMusicFile != null
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : null,
+                  onTap: () async {
+                    try {
+                      FilePickerResult? result = await FilePicker.platform.pickFiles(
+                        type: FileType.audio,
+                        allowMultiple: false,
+                      );
+
+                      if (result != null && result.files.single.path != null) {
+                        setState(() {
+                          _selectedMusicFile = File(result.files.single.path!);
+                          _selectedMusicUrl = null;
+                        });
+                        Navigator.pop(context, true);
+                        _showSnackBar('🎵 Music file selected: ${result.files.single.name}');
+                      }
+                    } catch (e) {
+                      _showSnackBar('Error selecting file: $e');
+                    }
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              const Text(
+                'Or choose free music:',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+
+              // Option 2: Free music options
+              ...freeMusicOptions.map((music) {
+                final isSelected = _selectedMusicUrl == music['url'];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.green.shade50 : Colors.grey.shade50,
+                    border: Border.all(
+                      color: isSelected ? Colors.green : Colors.grey.shade300,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(
+                      isSelected ? Icons.check_circle : Icons.music_note,
+                      color: isSelected ? Colors.green : Colors.grey,
+                    ),
+                    title: Text(
+                      music['name']!,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _selectedMusicUrl = music['url'];
+                        _selectedMusicFile = null;
+                      });
+                      Navigator.pop(context, true);
+                      _showSnackBar('🎵 Selected: ${music['name']}');
+                    },
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedMusicFile = null;
+                _selectedMusicUrl = null;
+              });
+              Navigator.pop(context, true);
+            },
+            child: const Text('No Music'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
   // ======================
   // EXPORT TO VIDEO - FIXED VERSION
   // ======================
@@ -137,6 +237,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     if (widget.milestones.isEmpty) {
       _showSnackBar('No milestones to export');
       return;
+    }
+
+    // Show music selection dialog FIRST
+    final musicChoice = await _showMusicSelectionDialog();
+    if (musicChoice == null) {
+      return; // User cancelled
     }
 
     setState(() => _isExporting = true);
@@ -198,6 +304,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       }
 
       print('📤 Uploading ${filesToUpload.length} images to server...');
+      print('🎵 Music file: ${_selectedMusicFile?.path ?? "none"}');
+      print('🎵 Music URL: ${_selectedMusicUrl ?? "none"}');
 
       // Update loading message
       if (mounted) {
@@ -205,24 +313,22 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         _showLoadingDialog('Uploading ${filesToUpload.length} images...');
       }
 
-      String? musicUrl;
-
-      // Call API to generate video
+      // Call API to generate video WITH MUSIC
       final response = await ApiService.generateVideo(
         images: filesToUpload,
         notes: notes,
-        musicUrl: musicUrl,
+        musicFile: _selectedMusicFile,
+        musicUrl: _selectedMusicUrl,
         durationPerImage: _slideshowInterval.inSeconds,
       );
 
       print('📦 Generate video response: $response');
 
-      // FIXED: Extract render ID correctly from Shotstack response
+      // Extract render ID correctly from Shotstack response
       String? renderId;
       if (response['success'] == true) {
         final data = response['data'];
         if (data is Map) {
-          // Shotstack returns: { success: true, message: "Created", response: { id: "xxx", ... } }
           final responseObj = data['response'];
           if (responseObj is Map && responseObj['id'] != null) {
             renderId = responseObj['id'].toString();
@@ -242,9 +348,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         _showRenderProgressDialog(renderId);
       }
 
-      // FIXED: Poll for completion with better error handling
+      // Poll for completion
       String? resultUrl;
-      int maxAttempts = 90; // Increased from 60 (3 seconds * 90 = 4.5 minutes)
+      int maxAttempts = 90;
       int attempt = 0;
 
       while (attempt < maxAttempts && mounted) {
@@ -287,7 +393,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           if (attempt >= maxAttempts - 1) {
             throw Exception('Failed to check render status after $attempt attempts: $e');
           }
-          // Continue polling on error unless it's the last attempt
         }
       }
 

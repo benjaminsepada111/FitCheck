@@ -2,49 +2,164 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart'; // ✅ Import your config file
+import '../config/api_config.dart';
 
 class ApiService {
   /// Send images and notes to backend to create a Shotstack render.
   /// Returns the Shotstack render response object (which includes a render id).
+  ///
+  /// Parameters:
+  /// - [images]: List of image files to include in the video
+  /// - [notes]: List of text captions (one per image). Can be empty strings if no caption needed.
+  /// - [musicUrl]: Optional URL to background music file (mp3, wav, etc.)
+  /// - [musicFile]: Optional local music file to upload (alternative to musicUrl)
+  /// - [durationPerImage]: How many seconds each image should display (default: 2)
   static Future<Map<String, dynamic>> generateVideo({
     required List<File> images,
     required List<String> notes,
     String? musicUrl,
+    File? musicFile,
     int durationPerImage = 2,
   }) async {
-    // ✅ Use your configured baseUrl
+    if (images.isEmpty) {
+      throw Exception('At least one image is required');
+    }
+
+    // Ensure notes array matches images length (pad with empty strings if needed)
+    final paddedNotes = List<String>.from(notes);
+    while (paddedNotes.length < images.length) {
+      paddedNotes.add('');
+    }
+
     final uri = Uri.parse('${ApiConfig.baseUrl}/api/generate-video');
     final request = http.MultipartRequest('POST', uri);
 
-    // Attach images
-    for (var img in images) {
+    // Attach image files
+    print('📤 Uploading ${images.length} images...');
+    for (var i = 0; i < images.length; i++) {
+      final img = images[i];
       final fileName = img.path.split('/').last;
-      request.files.add(await http.MultipartFile.fromPath('images', img.path, filename: fileName));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          img.path,
+          filename: fileName,
+        ),
+      );
+      print('  ✓ Image ${i + 1}: $fileName');
     }
 
-    // Fields: notes (JSON), duration, optional musicUrl
-    request.fields['notes'] = jsonEncode(notes);
-    request.fields['duration'] = durationPerImage.toString();
-    if (musicUrl != null) request.fields['musicUrl'] = musicUrl;
+    // Attach music file if provided
+    if (musicFile != null) {
+      final musicFileName = musicFile.path.split('/').last;
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'music',
+          musicFile.path,
+          filename: musicFileName,
+        ),
+      );
+      print('🎵 Uploading music file: $musicFileName');
+    }
 
+    // Add form fields
+    request.fields['notes'] = jsonEncode(paddedNotes);
+    request.fields['duration'] = durationPerImage.toString();
+
+    // Handle music URL or uploaded file
+    if (musicFile != null) {
+      print('🎵 Using uploaded music file');
+    } else if (musicUrl != null && musicUrl.isNotEmpty) {
+      request.fields['musicUrl'] = musicUrl;
+      print('🎵 Background music URL: $musicUrl');
+
+      // Validate music URL format
+      final validExtensions = ['.mp3', '.wav', '.m4a', '.aac'];
+      final hasValidExtension = validExtensions.any((ext) =>
+          musicUrl.toLowerCase().contains(ext)
+      );
+
+      if (!hasValidExtension) {
+        print('⚠️  WARNING: Music URL may not have a supported format');
+        print('   Supported: mp3, wav, m4a, aac');
+      }
+
+      if (!musicUrl.startsWith('http://') && !musicUrl.startsWith('https://')) {
+        print('⚠️  WARNING: Music URL must start with http:// or https://');
+      }
+    } else {
+      print('🎵 No background music');
+    }
+
+    print('📝 Captions: ${paddedNotes.where((n) => n.isNotEmpty).length} of ${images.length}');
+    print('⏱️  Duration per image: ${durationPerImage}s');
+
+    // Send request
+    print('🚀 Sending request to backend...');
     final streamed = await request.send();
     final respStr = await streamed.stream.bytesToString();
+
     if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
-      return jsonDecode(respStr) as Map<String, dynamic>;
+      print('✅ Video generation started successfully');
+      final response = jsonDecode(respStr) as Map<String, dynamic>;
+
+      // Extract and log render ID if available
+      final renderId = response['data']?['response']?['id'];
+      if (renderId != null) {
+        print('🎬 Render ID: $renderId');
+      }
+
+      return response;
     } else {
+      print('❌ Request failed: ${streamed.statusCode}');
       throw Exception('Video generation failed: ${streamed.statusCode} $respStr');
     }
   }
 
   /// Poll backend for Shotstack render status. Returns backend JSON response.
+  ///
+  /// The response will include:
+  /// - status: 'queued', 'rendering', 'done', 'failed'
+  /// - url: Video URL (when status is 'done')
+  /// - progress: Render progress percentage (0-100)
   static Future<Map<String, dynamic>> checkRenderStatus(String renderId) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/api/render-status/$renderId');
+
+    print('🔍 Checking status for render: $renderId');
     final resp = await http.get(uri);
+
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
-      return jsonDecode(resp.body) as Map<String, dynamic>;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+
+      // Log status for debugging
+      final status = data['data']?['response']?['status'];
+      final progress = data['data']?['response']?['progress'];
+      print('📊 Status: $status${progress != null ? " ($progress%)" : ""}');
+
+      return data;
     } else {
+      print('❌ Status check failed: ${resp.statusCode}');
       throw Exception('Status check failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
+
+  /// Check if the backend is healthy and properly configured
+  static Future<Map<String, dynamic>> checkHealth() async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/api/health');
+
+    try {
+      final resp = await http.get(uri).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Health check timeout'),
+      );
+
+      if (resp.statusCode == 200) {
+        return jsonDecode(resp.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Health check returned: ${resp.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Backend unreachable: $e');
     }
   }
 }

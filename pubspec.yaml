@@ -52,7 +52,7 @@ dependencies:
   url_launcher: ^6.2.1    # NEW - Opens video in browser
   dio: ^5.4.0
   chewie: ^1.7.4 # Optional: gives you nice playback controls (like YouTube-style)
-
+  file_picker: ^8.1.2
 
 
 

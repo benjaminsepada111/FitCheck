@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
+  static const Color surfaceColor = Color(0xFF1E1E1E);
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color cardColor = Color(0xFF2C2C2C);
   // Primary Swatch
   static const MaterialColor primary = MaterialColor(
     0xFF06111D, // base

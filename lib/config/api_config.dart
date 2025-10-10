@@ -1,3 +1,3 @@
 class ApiConfig {
-  static const String baseUrl = "https://preborn-sullivan-deridingly.ngrok-free.dev"; // Your backend IP
+  static const String baseUrl = "https://milestone-video-api.onrender.com"; // Your backend IP
 }

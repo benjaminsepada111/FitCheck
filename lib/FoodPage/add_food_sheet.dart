@@ -410,7 +410,18 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               children: [
                 Row(
                   children: [
-
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.restaurant_menu,
+                        color: AppColors.secondary,
+                        size: 24,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       "Add ${widget.mealName}",
@@ -679,78 +690,97 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
           ],
 
-          // Search Results
+          // Search Results with constrained height
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text(
-              'Search Results',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade800,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Search Results',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                Text(
+                  '${_searchResults.length} items',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            ...List.generate(_searchResults.length, (index) {
-              final food = _searchResults[index];
-              final isSelected = _selectedFood?.fdcId == food.fdcId;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.secondary.withOpacity(0.08) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.secondary.withOpacity(0.4)
-                        : Colors.grey.shade200,
-                    width: isSelected ? 2 : 1,
-                  ),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 250),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade200, width: 1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: _searchResults.length,
+                separatorBuilder: (context, index) => Divider(
+                  height: 1,
+                  color: Colors.grey.shade200,
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  title: Text(
-                    USDAApiService.formatFoodDescription(food),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.local_fire_department,
-                          size: 14,
-                          color: Colors.grey.shade600,
+                itemBuilder: (context, index) {
+                  final food = _searchResults[index];
+                  final isSelected = _selectedFood?.fdcId == food.fdcId;
+                  return Container(
+                    color: isSelected ? AppColors.secondary.withOpacity(0.08) : Colors.white,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      title: Text(
+                        USDAApiService.formatFoodDescription(food),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: Colors.black87,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${food.calories.toStringAsFixed(0)} cal per 100g',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.local_fire_department,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${food.calories.toStringAsFixed(0)} cal per 100g',
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      trailing: isSelected
+                          ? Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      )
+                          : null,
+                      onTap: () => _selectFood(food),
                     ),
-                  ),
-                  trailing: isSelected
-                      ? Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  )
-                      : null,
-                  onTap: () => _selectFood(food),
-                ),
-              );
-            }),
+                  );
+                },
+              ),
+            ),
           ] else if (_searchController.text.isEmpty && !_isLoading) ...[
             const SizedBox(height: 16),
             Container(

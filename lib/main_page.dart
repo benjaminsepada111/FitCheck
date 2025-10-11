@@ -484,8 +484,8 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Workout and Profile pages should not have the FitCheck header
-    if (_selectedIndex == 2 || _selectedIndex == 3) {
+    // Only Profile page should not have the FitCheck header
+    if (_selectedIndex == 3) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: _getBody(),
@@ -496,7 +496,7 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    // Home & Food keep the header
+    // Home, Food & Workout keep the header
     return Scaffold(
       backgroundColor: Colors.white,
       body: NestedScrollView(

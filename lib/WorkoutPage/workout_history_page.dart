@@ -181,27 +181,31 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   Widget _buildBase64Image(String base64String) {
     try {
       final Uint8List imageBytes = base64Decode(base64String);
-      return Image.memory(
-        imageBytes,
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 80,
-            height: 80,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.fitness_center,
-              color: AppColors.secondary,
-              size: 28,
-            ),
-          );
-        },
+      return Container(
+        constraints: const BoxConstraints(
+          maxWidth: 100,
+          maxHeight: 100,
+        ),
+        child: Image.memory(
+          imageBytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 80,
+              height: 80,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.fitness_center,
+                color: AppColors.secondary,
+                size: 28,
+              ),
+            );
+          },
+        ),
       );
     } catch (e) {
       debugPrint('Error decoding base64 image: $e');
@@ -211,7 +215,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.secondary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           Icons.fitness_center,
@@ -226,62 +230,30 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.fitness_center,
-                      color: AppColors.secondary,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Workout History',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
-                    ),
-                  ),
-                ],
-              ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title (matching Food Logger style)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Text(
+              "Workout History",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            // Content
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-                      ),
-                    )
-                  : _workouts.isEmpty
-                      ? _buildEmptyState()
-                      : _buildWorkoutList(),
-            ),
-          ],
-        ),
+          ),
+          // Content
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                    ),
+                  )
+                : _workouts.isEmpty
+                    ? _buildEmptyState()
+                    : _buildWorkoutList(),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddWorkoutSheet,
@@ -372,14 +344,14 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               return false;
             },
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Leading Icon or Image
                   if (workout.imageBase64 != null && workout.imageBase64!.isNotEmpty)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       child: _buildBase64Image(workout.imageBase64!),
                     )
                   else
@@ -389,7 +361,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.secondary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         Icons.fitness_center,
@@ -397,7 +369,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                         size: 28,
                       ),
                     ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   // Content
                   Expanded(
                     child: Column(

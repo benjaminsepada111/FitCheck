@@ -1,11 +1,14 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final Function(String foodName, int calories, {double? grams})? onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, String? imageBase64})? onFoodAdded;
 
   const AddFoodSheet({
     super.key,
@@ -22,12 +25,15 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   final TextEditingController _gramsController = TextEditingController();
   final TextEditingController _manualFoodController = TextEditingController();
   final TextEditingController _manualCaloriesController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
 
   List<FoodSearchResult> _searchResults = [];
   FoodSearchResult? _selectedFood;
   bool _isLoading = false;
   bool _isManualEntry = false;
   String? _errorMessage;
+  File? _selectedImage;
+  String? _imageBase64;
 
   @override
   void dispose() {
@@ -105,6 +111,35 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     });
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1200,
+      );
+
+      if (pickedFile != null) {
+        final imageFile = File(pickedFile.path);
+        final bytes = await imageFile.readAsBytes();
+        setState(() {
+          _selectedImage = imageFile;
+          _imageBase64 = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      _showError('Failed to pick image');
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+      _imageBase64 = null;
+    });
+  }
+
   void _toggleEntryMode() {
     setState(() {
       _isManualEntry = !_isManualEntry;
@@ -115,6 +150,8 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       _manualFoodController.clear();
       _manualCaloriesController.clear();
       _errorMessage = null;
+      _selectedImage = null;
+      _imageBase64 = null;
     });
   }
 
@@ -161,7 +198,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, grams: grams);
+      widget.onFoodAdded!(foodName, calories, grams: grams, imageBase64: _imageBase64);
     }
 
     Navigator.pop(context);
@@ -222,7 +259,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     }
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories);
+      widget.onFoodAdded!(foodName, calories, imageBase64: _imageBase64);
     }
 
     Navigator.pop(context);
@@ -838,8 +875,102 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
             _buildCaloriePreview(),
           ],
+
+          // Image Upload Section
+          const SizedBox(height: 24),
+          _buildImageUploadSection(),
         ],
       ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Food Photo (Optional)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        if (_selectedImage == null) ...[
+          // Image picker buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt, size: 20),
+                  label: const Text('Camera'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.secondary,
+                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library, size: 20),
+                  label: const Text('Gallery'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.secondary,
+                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Image preview with remove button
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  _selectedImage!,
+                  height: 150,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: _removeImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -916,6 +1047,10 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               ),
             ),
           ),
+
+          // Image Upload Section for Manual Entry
+          const SizedBox(height: 20),
+          _buildImageUploadSection(),
         ],
       ),
     );

@@ -13,6 +13,7 @@ import 'package:capstone_project/color/colors.dart';
 // add your other page imports
 import 'food_page.dart';
 import 'profile.dart';
+import 'WorkoutPage/workout_history_page.dart';
 import 'services/user_data_service.dart';
 import 'UserInputFile/genderselection.dart';
 
@@ -470,7 +471,11 @@ class _MainPageState extends State<MainPage> {
           // Remove this line since FoodPage doesn't have this parameter yet
           // onCaloriesUpdated: _refreshTrackers,
         );
-      case 2: // Profile
+      case 2: // Workout
+        return WorkoutHistoryPage(
+          currentChallenge: _currentChallenge,
+        );
+      case 3: // Profile
         return const ProfilePage();
       default:
         return const Center(child: Text("Page not found"));
@@ -479,8 +484,8 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Profile page should not have the FitCheck header
-    if (_selectedIndex == 2) {
+    // Workout and Profile pages should not have the FitCheck header
+    if (_selectedIndex == 2 || _selectedIndex == 3) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: _getBody(),

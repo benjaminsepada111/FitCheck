@@ -172,9 +172,11 @@ app.post('/api/generate-video',
         output: {
           format: 'mp4',
           resolution: 'sd',
-          quality: 'medium'
+          quality: 'medium',
+          aspectRatio: '9:16' // 👈 This line forces portrait video
         }
       };
+
 
       console.log('📤 Sending request to Shotstack API...');
       console.log('🎬 Timeline:', JSON.stringify(payload.timeline, null, 2));

@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/api_service.dart';
@@ -41,16 +42,68 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   int _currentIndex = 0;
   bool _isSlideshow = false;
   bool _isExporting = false;
-  double _downloadProgress = 0.0;
   Duration _slideshowInterval = const Duration(seconds: 2);
-  File? _selectedMusicFile;
-  String? _selectedMusicUrl;
+
+  // Cache the generated video URL
+  String? _cachedVideoUrl;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    _loadCachedVideoUrl(); // Load cached URL when page opens
+  }
+
+  // ======================
+  // PERSISTENT VIDEO CACHE
+  // ======================
+
+  /// Generate a unique cache key based on challenge ID and milestone count
+  String _getCacheKey() {
+    return 'video_cache_${widget.challengeId}_${widget.milestones.length}';
+  }
+
+  /// Load cached video URL from SharedPreferences
+  Future<void> _loadCachedVideoUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getCacheKey();
+      final cachedUrl = prefs.getString(cacheKey);
+
+      if (cachedUrl != null && cachedUrl.isNotEmpty) {
+        setState(() {
+          _cachedVideoUrl = cachedUrl;
+        });
+        print('✅ Loaded cached video URL: $cachedUrl');
+      }
+    } catch (e) {
+      print('❌ Error loading cached video URL: $e');
+    }
+  }
+
+  /// Save video URL to SharedPreferences
+  Future<void> _saveCachedVideoUrl(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getCacheKey();
+      await prefs.setString(cacheKey, url);
+      print('💾 Saved video URL to cache: $url');
+    } catch (e) {
+      print('❌ Error saving cached video URL: $e');
+    }
+  }
+
+  /// Clear cached video URL from SharedPreferences
+  Future<void> _clearCachedVideoUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getCacheKey();
+      await prefs.remove(cacheKey);
+      print('🗑️ Cleared cached video URL');
+    } catch (e) {
+      print('❌ Error clearing cached video URL: $e');
+    }
   }
 
   @override
@@ -82,158 +135,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
   void _stopSlideshow() => setState(() => _isSlideshow = false);
 
-  Future<bool?> _showMusicSelectionDialog() async {
-    final List<Map<String, String>> freeMusicOptions = [
-      {
-        'name': '🎸 Happy Ukulele',
-        'url': 'https://www.bensound.com/bensound-music/bensound-ukulele.mp3',
-      },
-      {
-        'name': '☀️ Summer Vibes',
-        'url': 'https://www.bensound.com/bensound-music/bensound-summer.mp3',
-      },
-      {
-        'name': '🎵 Upbeat Energy',
-        'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-      },
-      {
-        'name': '🎶 Cheerful Melody',
-        'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-      },
-    ];
-
-    return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Background Music?'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Choose music for your video:',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 16),
-
-              // Option 1: Upload from device
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blue.shade200),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListTile(
-                  leading: const Icon(Icons.upload_file, color: Colors.blue),
-                  title: const Text('Upload Music File'),
-                  subtitle: _selectedMusicFile != null
-                      ? Text(
-                    _selectedMusicFile!.path.split('/').last,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.green,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  )
-                      : const Text('MP3, WAV, M4A, AAC'),
-                  trailing: _selectedMusicFile != null
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : null,
-                  onTap: () async {
-                    try {
-                      FilePickerResult? result =
-                      await FilePicker.platform.pickFiles(
-                        type: FileType.audio,
-                        allowMultiple: false,
-                      );
-
-                      if (result != null && result.files.single.path != null) {
-                        setState(() {
-                          _selectedMusicFile = File(result.files.single.path!);
-                          _selectedMusicUrl = null;
-                        });
-                        Navigator.pop(context, true);
-                        _showSnackBar(
-                            '🎵 Music file selected: ${result.files.single.name}');
-                      }
-                    } catch (e) {
-                      _showSnackBar('Error selecting file: $e');
-                    }
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              const Text(
-                'Or choose free music:',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-
-              // Option 2: Free music options
-              ...freeMusicOptions.map((music) {
-                final isSelected = _selectedMusicUrl == music['url'];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.green.shade50
-                        : Colors.grey.shade50,
-                    border: Border.all(
-                      color: isSelected ? Colors.green : Colors.grey.shade300,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(
-                      isSelected ? Icons.check_circle : Icons.music_note,
-                      color: isSelected ? Colors.green : Colors.grey,
-                    ),
-                    title: Text(
-                      music['name']!,
-                      style: TextStyle(
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    onTap: () {
-                      setState(() {
-                        _selectedMusicUrl = music['url'];
-                        _selectedMusicFile = null;
-                      });
-                      Navigator.pop(context, true);
-                      _showSnackBar('🎵 Selected: ${music['name']}');
-                    },
-                  ),
-                );
-              }).toList(),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedMusicFile = null;
-                _selectedMusicUrl = null;
-              });
-              Navigator.pop(context, true);
-            },
-            child: const Text('No Music'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ======================
-  // EXPORT TO VIDEO
+  // EXPORT TO VIDEO (WITH VIDEO CACHING)
   // ======================
   Future<void> _exportMilestones() async {
     if (widget.milestones.isEmpty) {
@@ -241,12 +144,27 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       return;
     }
 
-    // Show music selection dialog FIRST
-    final musicChoice = await _showMusicSelectionDialog();
-    if (musicChoice == null) {
-      return; // User cancelled
+    // CHECK IF VIDEO ALREADY EXISTS
+    if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
+      print('✅ Video already exists! URL: $_cachedVideoUrl');
+      _showSnackBar('Opening existing video...');
+
+      // Navigate directly to video preview
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoEditorPage(
+            videoUrl: _cachedVideoUrl!,
+            videoTitle: 'Milestone Journey',
+            milestones: widget.milestones,
+            slideshowInterval: _slideshowInterval,
+          ),
+        ),
+      );
+      return;
     }
 
+    // If no video exists, create a new one
     setState(() => _isExporting = true);
 
     try {
@@ -306,8 +224,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       }
 
       print('📤 Uploading ${filesToUpload.length} images to server...');
-      print('🎵 Music file: ${_selectedMusicFile?.path ?? "none"}');
-      print('🎵 Music URL: ${_selectedMusicUrl ?? "none"}');
 
       // Update loading message
       if (mounted) {
@@ -315,12 +231,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         _showLoadingDialog('Uploading ${filesToUpload.length} images...');
       }
 
-      // Call API to generate video WITH MUSIC
+      // Call API to generate video WITHOUT MUSIC
       final response = await ApiService.generateVideo(
         images: filesToUpload,
         notes: notes,
-        musicFile: _selectedMusicFile,
-        musicUrl: _selectedMusicUrl,
+        musicFile: null,
+        musicUrl: null,
         durationPerImage: _slideshowInterval.inSeconds,
       );
 
@@ -402,7 +318,18 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       if (mounted) Navigator.pop(context);
 
       if (resultUrl != null && resultUrl.isNotEmpty) {
-        setState(() => _isExporting = false);
+        // CACHE THE VIDEO URL (in memory and persistent storage)
+        setState(() {
+          _cachedVideoUrl = resultUrl;
+          _isExporting = false;
+        });
+
+        // Save to SharedPreferences for persistence
+        await _saveCachedVideoUrl(resultUrl);
+
+        print('💾 Cached video URL: $_cachedVideoUrl');
+
+        // Show video ready dialog with navigation option
         _showVideoReadyDialog(resultUrl);
       } else {
         _showSnackBar(
@@ -505,11 +432,35 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'What would you like to do?',
+              'You can now preview your video and add background music if you want.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: Colors.green.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your video is saved and ready to use anytime!',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -519,278 +470,30 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          TextButton.icon(
+          ElevatedButton.icon(
             icon: const Icon(Icons.play_circle_outline, size: 20),
-            label: const Text('Watch'),
+            label: const Text('Preview Video'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
             onPressed: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => VideoPreviewPage(videoUrl: videoUrl),
+                  builder: (context) => VideoEditorPage(
+                    videoUrl: videoUrl,
+                    videoTitle: 'Milestone Journey',
+                    milestones: widget.milestones,
+                    slideshowInterval: _slideshowInterval,
+                  ),
                 ),
               );
             },
           ),
-          TextButton.icon(
-            icon: const Icon(Icons.download, size: 20),
-            label: const Text('Save'),
-            onPressed: () {
-              Navigator.pop(context);
-              _downloadVideo(videoUrl);
-            },
-          ),
-          TextButton.icon(
-            icon: const Icon(Icons.share, size: 20),
-            label: const Text('Share'),
-            onPressed: () {
-              Navigator.pop(context);
-              _shareVideoWithOptions(videoUrl);
-            },
-          ),
         ],
-      ),
-    );
-  }
-
-  // ======================
-  // DOWNLOAD VIDEO - SAVES TO GALLERY
-  // ======================
-  Future<void> _downloadVideo(String videoUrl) async {
-    try {
-      // Show download dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Downloading Video'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(value: _downloadProgress),
-                  const SizedBox(height: 20),
-                  Text(
-                    '${(_downloadProgress * 100).toInt()}%',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Saving to gallery...',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-
-      // Get temporary directory
-      final tempDir = await getTemporaryDirectory();
-      final fileName =
-          'milestone_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final savePath = '${tempDir.path}/$fileName';
-
-      // Download the video
-      final dio = Dio();
-      await dio.download(
-        videoUrl,
-        savePath,
-        onReceiveProgress: (received, total) {
-          if (total != -1 && mounted) {
-            setState(() {
-              _downloadProgress = received / total;
-            });
-          }
-        },
-      );
-
-      // Save to gallery
-      await Gal.putVideo(savePath, album: 'Milestones');
-
-      if (mounted) Navigator.pop(context);
-
-      _showSuccessDialog(
-        'Download Complete! 🎉',
-        'Video saved to your gallery successfully!',
-        'You can find it in your Photos/Videos app.',
-      );
-
-      // Clean up temporary file
-      try {
-        final file = File(savePath);
-        if (await file.exists()) {
-          await file.delete();
-        }
-      } catch (e) {
-        print('Error cleaning up temp file: $e');
-      }
-    } catch (e) {
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-      print('Download error: $e');
-      _showSnackBar('Download failed: ${e.toString()}');
-    } finally {
-      setState(() => _downloadProgress = 0.0);
-    }
-  }
-
-  // ======================
-  // SUCCESS DIALOG
-  // ======================
-  void _showSuccessDialog(String title, String message, String details) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 32),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              message,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              details,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ======================
-  // SHARE VIDEO - Share as file with preview
-  // ======================
-  Future<void> _shareVideo(String videoUrl) async {
-    try {
-      _showSnackBar('Preparing video to share...');
-
-      // Download video to temporary directory first
-      final tempDir = await getTemporaryDirectory();
-      final fileName =
-          'milestone_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final savePath = '${tempDir.path}/$fileName';
-
-      // Download the video
-      final dio = Dio();
-      await dio.download(videoUrl, savePath);
-
-      // Share the video file
-      final result = await Share.shareXFiles(
-        [XFile(savePath)],
-        text: 'Check out my milestone journey! 🎉',
-        subject: 'My Milestone Journey Video',
-      );
-
-      // Check share result
-      if (result.status == ShareResultStatus.success) {
-        _showSnackBar('Video shared successfully! ✅');
-      } else if (result.status == ShareResultStatus.dismissed) {
-        _showSnackBar('Share cancelled');
-      }
-
-      // Clean up after a delay (give time for sharing to complete)
-      Future.delayed(const Duration(seconds: 3), () async {
-        try {
-          final file = File(savePath);
-          if (await file.exists()) {
-            await file.delete();
-          }
-        } catch (e) {
-          print('Error cleaning up shared file: $e');
-        }
-      });
-    } catch (e) {
-      print('Share error: $e');
-      _showSnackBar('Share failed: ${e.toString()}');
-
-      // Fallback: share URL if file sharing fails
-      try {
-        await Share.share(
-          'Check out my milestone journey video: $videoUrl',
-          subject: 'My Milestone Journey Video',
-        );
-      } catch (fallbackError) {
-        print('Fallback share error: $fallbackError');
-      }
-    }
-  }
-
-  // ======================
-  // SHARE VIDEO WITH OPTIONS
-  // ======================
-  Future<void> _shareVideoWithOptions(String videoUrl) async {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Share Video',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.share, color: Colors.blue),
-              title: const Text('Share Video File'),
-              subtitle: const Text('Share to Facebook, WhatsApp, etc.'),
-              onTap: () {
-                Navigator.pop(context);
-                _shareVideo(videoUrl);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.link, color: Colors.green),
-              title: const Text('Share Video Link'),
-              subtitle: const Text('Copy link or share URL'),
-              onTap: () async {
-                Navigator.pop(context);
-                await Share.share(
-                  'Check out my milestone journey video: $videoUrl',
-                  subject: 'My Milestone Journey Video',
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy, color: Colors.orange),
-              title: const Text('Copy Link'),
-              subtitle: const Text('Copy video URL to clipboard'),
-              onTap: () async {
-                Navigator.pop(context);
-                await Clipboard.setData(ClipboardData(text: videoUrl));
-                _showSnackBar('Video link copied to clipboard! 📋');
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -978,9 +681,23 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                        : const Icon(Icons.video_library, size: 20),
+                        : Icon(
+                      _cachedVideoUrl != null ? Icons.video_library : Icons.video_call,
+                      size: 20,
+                      color: _cachedVideoUrl != null ? Colors.green : null,
+                    ),
                     const SizedBox(width: 12),
-                    Text(_isExporting ? 'Exporting...' : 'Export to Video'),
+                    Text(
+                      _isExporting
+                          ? 'Exporting...'
+                          : _cachedVideoUrl != null
+                          ? 'Open Video'
+                          : 'Export to Video',
+                      style: TextStyle(
+                        color: _cachedVideoUrl != null ? Colors.green : null,
+                        fontWeight: _cachedVideoUrl != null ? FontWeight.w600 : null,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1242,11 +959,16 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         if (success) {
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
+            // CLEAR CACHED VIDEO since images changed
+            _cachedVideoUrl = null;
           });
+          // Clear persistent cache
+          await _clearCachedVideoUrl();
+
           widget.onMilestonesChanged?.call();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Image updated successfully!'),
+                content: Text('Image updated successfully! Video cache cleared.'),
                 backgroundColor: Colors.green),
           );
         } else {
@@ -1299,6 +1021,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
+          // CLEAR CACHED VIDEO since images changed
+          _cachedVideoUrl = null;
+
           if (widget.milestones.isEmpty) {
             Navigator.pop(context);
             return;
@@ -1309,9 +1034,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 curve: Curves.easeInOut);
           }
         });
+        // Clear persistent cache
+        await _clearCachedVideoUrl();
+
         widget.onMilestonesChanged?.call();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Image deleted successfully!'),
+            content: Text('Image deleted successfully! Video cache cleared.'),
             backgroundColor: Colors.green));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

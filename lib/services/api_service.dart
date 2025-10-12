@@ -18,6 +18,7 @@ class ApiService {
     required List<File> images,
     required List<String> notes,
     String? musicUrl,
+    String? aspectRatio, // Add this line
     File? musicFile,
     int durationPerImage = 2,
   }) async {

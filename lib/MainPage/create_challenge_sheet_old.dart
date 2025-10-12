@@ -213,7 +213,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         startDate: _startDate!,
         endDate: _endDate!,
         dailyCalorieGoal: calorieGoal,
-        dailyWaterGoal: waterGoal,
         createdAt: DateTime.now(),
         notes: _notesController.text.trim(),
       );

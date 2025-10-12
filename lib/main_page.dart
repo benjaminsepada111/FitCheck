@@ -32,7 +32,6 @@ class _MainPageState extends State<MainPage> {
   // Challenge and tracking data
   Challenge? _currentChallenge;
   int _currentCalories = 0;
-  int _currentWater = 0;
   List<Challenge> _challengeHistory = [];
 
   // Keys for accessing child widget methods - remove this for now since we need to check the actual state class name
@@ -246,14 +245,6 @@ class _MainPageState extends State<MainPage> {
     // No need to manually save here anymore
   }
 
-  void _onWaterChanged(int water) {
-    setState(() {
-      _currentWater = water;
-    });
-    // The new system automatically saves to storage via WaterStorageService
-    // No need to manually save here anymore
-  }
-
   void _refreshTrackers() {
     // For now, we'll use a simpler approach without the key reference
     // The tracker will auto-refresh on challenge changes through setState
@@ -453,7 +444,6 @@ class _MainPageState extends State<MainPage> {
               Trackers(
                 currentChallenge: _currentChallenge,
                 onCaloriesChanged: _onCaloriesChanged,
-                onWaterChanged: _onWaterChanged,
               ),
               const SizedBox(height: 12),
               ChallengeCalendar(

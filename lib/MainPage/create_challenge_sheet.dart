@@ -38,7 +38,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
 
   // Calculated values
   int _calculatedCalorieGoal = 0;
-  int _calculatedWaterGoal = 0;
 
   bool _isCreating = false;
   bool _isCalculating = false;
@@ -176,15 +175,12 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
 
       if (CalorieCalculator.isValidUserData(tempUserData)) {
         _calculatedCalorieGoal = CalorieCalculator.calculateDailyCalorieGoal(tempUserData);
-        _calculatedWaterGoal = CalorieCalculator.calculateDailyWaterGoal(tempUserData);
       } else {
         _calculatedCalorieGoal = 2000;
-        _calculatedWaterGoal = 8;
       }
     } catch (e) {
       print('Error calculating goals: $e');
       _calculatedCalorieGoal = 2000;
-      _calculatedWaterGoal = 8;
     } finally {
       setState(() => _isCalculating = false);
     }
@@ -252,7 +248,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         startDate: _startDate!,
         endDate: _endDate!,
         dailyCalorieGoal: _calculatedCalorieGoal,
-        dailyWaterGoal: _calculatedWaterGoal,
         createdAt: DateTime.now(),
         notes: _notesController.text.trim(),
       );
@@ -578,26 +573,13 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildGoalCard(
-                        "$_calculatedCalorieGoal",
-                        "Calories",
-                        Icons.local_fire_department,
-                        AppColors.secondary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildGoalCard(
-                        "$_calculatedWaterGoal",
-                        "Glasses",
-                        Icons.water_drop,
-                        Colors.blue,
-                      ),
-                    ),
-                  ],
+                Center(
+                  child: _buildGoalCard(
+                    "$_calculatedCalorieGoal",
+                    "Calories",
+                    Icons.local_fire_department,
+                    AppColors.secondary,
+                  ),
                 ),
               ],
             ),

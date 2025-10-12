@@ -6,7 +6,6 @@ import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
@@ -24,16 +23,13 @@ class DailyLogsPage extends StatefulWidget {
 
 class _DailyLogsPageState extends State<DailyLogsPage> {
   int _loggedCalories = 0;
-  int _loggedWater = 0;
   Map<String, List<FoodEntry>> _foodEntriesByMeal = {};
   List<Milestone> _milestones = [];
   bool _isLoading = true;
-  bool _isToday = false;
 
   @override
   void initState() {
     super.initState();
-    _isToday = _isSameDate(widget.selectedDate, DateTime.now());
     _loadDailyData();
   }
 
@@ -87,12 +83,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           _isSameDate(m.date, widget.selectedDate)
       ).toList();
 
-      // Load water intake from storage
-      int waterIntake = await _getWaterIntakeForDate(widget.selectedDate);
-
       setState(() {
         _loggedCalories = totalCalories;
-        _loggedWater = waterIntake;
         _foodEntriesByMeal = mealEntries;
         _milestones = dateMilestones;
         _isLoading = false;
@@ -114,22 +106,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     }
   }
 
-  // Water intake storage methods
-  Future<int> _getWaterIntakeForDate(DateTime date) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = 'water_intake_${_formatDateKey(date)}';
-      return prefs.getInt(dateKey) ?? 0;
-    } catch (e) {
-      debugPrint('Error loading water intake: $e');
-      return 0;
-    }
-  }
-
-  String _formatDateKey(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
   String _formatDate(DateTime date) {
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -142,11 +118,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   double _getCalorieProgress() {
     if (widget.challenge == null) return 0.0;
     return (_loggedCalories / widget.challenge!.dailyCalorieGoal).clamp(0.0, 1.0);
-  }
-
-  double _getWaterProgress() {
-    if (widget.challenge == null) return 0.0;
-    return (_loggedWater / widget.challenge!.dailyWaterGoal).clamp(0.0, 1.0);
   }
 
   int _calculateStreak() {
@@ -243,9 +214,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
   Widget _buildDailySummary() {
     final calorieGoal = widget.challenge?.dailyCalorieGoal ?? 2000;
-    final waterGoal = widget.challenge?.dailyWaterGoal ?? 8;
     final calorieProgress = _getCalorieProgress();
-    final waterProgress = _getWaterProgress();
     final streakProgress = _getStreakProgress();
     final currentStreak = _calculateStreak();
     final streakGoal = _getStreakGoal();
@@ -272,13 +241,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 _loggedCalories,
                 calorieGoal,
                 calorieProgress,
-                AppColors.secondary,
-              ),
-              _buildCircularProgress(
-                'Water',
-                _loggedWater,
-                waterGoal,
-                waterProgress,
                 AppColors.secondary,
               ),
               _buildCircularProgress(

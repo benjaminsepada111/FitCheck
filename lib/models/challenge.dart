@@ -8,7 +8,6 @@ class Challenge {
   final DateTime startDate;
   final DateTime endDate;
   final int dailyCalorieGoal;
-  final int dailyWaterGoal;
   final String notes;
   final DateTime createdAt;
 
@@ -18,7 +17,6 @@ class Challenge {
     required this.startDate,
     required this.endDate,
     required this.dailyCalorieGoal,
-    required this.dailyWaterGoal,
     required this.createdAt,
     this.notes = '',
   });
@@ -31,10 +29,8 @@ class Challenge {
     required DateTime endDate,
     String notes = '',
     int? customCalorieGoal, // Override calculated goal if needed
-    int? customWaterGoal,   // Override calculated goal if needed
   }) async {
     int calorieGoal = customCalorieGoal ?? await UserDataService.getDailyCalorieGoal();
-    int waterGoal = customWaterGoal ?? await UserDataService.getDailyWaterGoal();
 
     return Challenge(
       id: id,
@@ -42,7 +38,6 @@ class Challenge {
       startDate: startDate,
       endDate: endDate,
       dailyCalorieGoal: calorieGoal,
-      dailyWaterGoal: waterGoal,
       createdAt: DateTime.now(),
       notes: notes,
     );
@@ -136,11 +131,6 @@ class Challenge {
     return dailyCalorieGoal * durationInDays;
   }
 
-  /// Calculate total water for entire challenge
-  int get totalWaterGoal {
-    return dailyWaterGoal * durationInDays;
-  }
-
   /// Check if challenge dates are valid
   bool get hasValidDates {
     return startDate.isBefore(endDate) || startDate.isAtSameMomentAs(endDate);
@@ -161,7 +151,6 @@ class Challenge {
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
       'dailyCalorieGoal': dailyCalorieGoal,
-      'dailyWaterGoal': dailyWaterGoal,
       'createdAt': createdAt.toIso8601String(),
       'notes': notes,
     };
@@ -175,7 +164,6 @@ class Challenge {
       startDate: DateTime.parse(json['startDate']),
       endDate: DateTime.parse(json['endDate']),
       dailyCalorieGoal: json['dailyCalorieGoal'],
-      dailyWaterGoal: json['dailyWaterGoal'],
       createdAt: DateTime.parse(json['createdAt']),
       notes: json['notes'] ?? '',
     );
@@ -188,7 +176,6 @@ class Challenge {
     DateTime? startDate,
     DateTime? endDate,
     int? dailyCalorieGoal,
-    int? dailyWaterGoal,
     DateTime? createdAt,
     String? notes,
   }) {
@@ -198,7 +185,6 @@ class Challenge {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       dailyCalorieGoal: dailyCalorieGoal ?? this.dailyCalorieGoal,
-      dailyWaterGoal: dailyWaterGoal ?? this.dailyWaterGoal,
       createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
     );
@@ -218,7 +204,6 @@ class Challenge {
         other.startDate == startDate &&
         other.endDate == endDate &&
         other.dailyCalorieGoal == dailyCalorieGoal &&
-        other.dailyWaterGoal == dailyWaterGoal &&
         other.createdAt == createdAt &&
         other.notes == notes;
   }
@@ -231,7 +216,6 @@ class Challenge {
       startDate,
       endDate,
       dailyCalorieGoal,
-      dailyWaterGoal,
       createdAt,
       notes,
     );

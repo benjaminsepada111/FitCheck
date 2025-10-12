@@ -131,6 +131,7 @@ class FoodEntry {
   final double servingSize; // in grams
   final String servingUnit; // e.g., "cup", "piece", "grams"
   final double caloriesPer100g;
+  final String? imageBase64; // Optional base64 encoded image
 
   FoodEntry({
     required this.id,
@@ -139,6 +140,7 @@ class FoodEntry {
     required this.servingSize,
     required this.servingUnit,
     required this.caloriesPer100g,
+    this.imageBase64,
   });
 
   // Calculate calories for the actual serving size
@@ -154,6 +156,7 @@ class FoodEntry {
       'servingSize': servingSize,
       'servingUnit': servingUnit,
       'caloriesPer100g': caloriesPer100g,
+      if (imageBase64 != null) 'imageBase64': imageBase64,
     };
   }
 
@@ -165,6 +168,7 @@ class FoodEntry {
       servingSize: json['servingSize'].toDouble(),
       servingUnit: json['servingUnit'],
       caloriesPer100g: json['caloriesPer100g'].toDouble(),
+      imageBase64: json['imageBase64'],
     );
   }
 
@@ -172,8 +176,9 @@ class FoodEntry {
   static FoodEntry fromSearchResult(
     FoodSearchResult searchResult,
     double servingSize,
-    String servingUnit,
-  ) {
+    String servingUnit, {
+    String? imageBase64,
+  }) {
     return FoodEntry(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       fdcId: searchResult.fdcId,
@@ -181,6 +186,7 @@ class FoodEntry {
       servingSize: servingSize,
       servingUnit: servingUnit,
       caloriesPer100g: searchResult.calories,
+      imageBase64: imageBase64,
     );
   }
 
@@ -191,6 +197,7 @@ class FoodEntry {
     double? servingSize,
     String? servingUnit,
     double? caloriesPer100g,
+    String? imageBase64,
   }) {
     return FoodEntry(
       id: id ?? this.id,
@@ -199,6 +206,7 @@ class FoodEntry {
       servingSize: servingSize ?? this.servingSize,
       servingUnit: servingUnit ?? this.servingUnit,
       caloriesPer100g: caloriesPer100g ?? this.caloriesPer100g,
+      imageBase64: imageBase64 ?? this.imageBase64,
     );
   }
 }

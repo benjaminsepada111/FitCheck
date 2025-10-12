@@ -326,7 +326,7 @@ class ChallengeHistorySheet extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Goals: ${challenge.dailyCalorieGoal} cal • ${challenge.dailyWaterGoal} glasses daily',
+                    'Goal: ${challenge.dailyCalorieGoal} cal daily',
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 14,
@@ -461,7 +461,6 @@ class ChallengeHistorySheet extends StatelessWidget {
       'progress': progress,
       'status': status,
       'dailyCalorieGoal': challenge.dailyCalorieGoal,
-      'dailyWaterGoal': challenge.dailyWaterGoal,
       'notes': challenge.notes,
       'startDate': challenge.startDate,
       'endDate': challenge.endDate,

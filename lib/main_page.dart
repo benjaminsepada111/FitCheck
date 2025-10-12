@@ -13,6 +13,7 @@ import 'package:capstone_project/color/colors.dart';
 // add your other page imports
 import 'food_page.dart';
 import 'profile.dart';
+import 'WorkoutPage/workout_history_page.dart';
 import 'services/user_data_service.dart';
 import 'UserInputFile/genderselection.dart';
 
@@ -31,7 +32,6 @@ class _MainPageState extends State<MainPage> {
   // Challenge and tracking data
   Challenge? _currentChallenge;
   int _currentCalories = 0;
-  int _currentWater = 0;
   List<Challenge> _challengeHistory = [];
 
   // Keys for accessing child widget methods - remove this for now since we need to check the actual state class name
@@ -245,14 +245,6 @@ class _MainPageState extends State<MainPage> {
     // No need to manually save here anymore
   }
 
-  void _onWaterChanged(int water) {
-    setState(() {
-      _currentWater = water;
-    });
-    // The new system automatically saves to storage via WaterStorageService
-    // No need to manually save here anymore
-  }
-
   void _refreshTrackers() {
     // For now, we'll use a simpler approach without the key reference
     // The tracker will auto-refresh on challenge changes through setState
@@ -452,7 +444,6 @@ class _MainPageState extends State<MainPage> {
               Trackers(
                 currentChallenge: _currentChallenge,
                 onCaloriesChanged: _onCaloriesChanged,
-                onWaterChanged: _onWaterChanged,
               ),
               const SizedBox(height: 12),
               ChallengeCalendar(
@@ -470,7 +461,11 @@ class _MainPageState extends State<MainPage> {
           // Remove this line since FoodPage doesn't have this parameter yet
           // onCaloriesUpdated: _refreshTrackers,
         );
-      case 2: // Profile
+      case 2: // Workout
+        return WorkoutHistoryPage(
+          currentChallenge: _currentChallenge,
+        );
+      case 3: // Profile
         return const ProfilePage();
       default:
         return const Center(child: Text("Page not found"));
@@ -479,8 +474,8 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Profile page should not have the FitCheck header
-    if (_selectedIndex == 2) {
+    // Only Profile page should not have the FitCheck header
+    if (_selectedIndex == 3) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: _getBody(),
@@ -491,7 +486,7 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    // Home & Food keep the header
+    // Home, Food & Workout keep the header
     return Scaffold(
       backgroundColor: Colors.white,
       body: NestedScrollView(

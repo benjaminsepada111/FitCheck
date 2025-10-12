@@ -1,11 +1,14 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final Function(String foodName, int calories, {double? grams})? onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, String? imageBase64})? onFoodAdded;
 
   const AddFoodSheet({
     super.key,
@@ -22,12 +25,15 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   final TextEditingController _gramsController = TextEditingController();
   final TextEditingController _manualFoodController = TextEditingController();
   final TextEditingController _manualCaloriesController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
 
   List<FoodSearchResult> _searchResults = [];
   FoodSearchResult? _selectedFood;
   bool _isLoading = false;
   bool _isManualEntry = false;
   String? _errorMessage;
+  File? _selectedImage;
+  String? _imageBase64;
 
   @override
   void dispose() {
@@ -105,6 +111,35 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     });
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1200,
+      );
+
+      if (pickedFile != null) {
+        final imageFile = File(pickedFile.path);
+        final bytes = await imageFile.readAsBytes();
+        setState(() {
+          _selectedImage = imageFile;
+          _imageBase64 = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      _showError('Failed to pick image');
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+      _imageBase64 = null;
+    });
+  }
+
   void _toggleEntryMode() {
     setState(() {
       _isManualEntry = !_isManualEntry;
@@ -115,6 +150,8 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       _manualFoodController.clear();
       _manualCaloriesController.clear();
       _errorMessage = null;
+      _selectedImage = null;
+      _imageBase64 = null;
     });
   }
 
@@ -161,7 +198,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, grams: grams);
+      widget.onFoodAdded!(foodName, calories, grams: grams, imageBase64: _imageBase64);
     }
 
     Navigator.pop(context);
@@ -222,7 +259,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     }
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories);
+      widget.onFoodAdded!(foodName, calories, imageBase64: _imageBase64);
     }
 
     Navigator.pop(context);
@@ -373,7 +410,18 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               children: [
                 Row(
                   children: [
-
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.restaurant_menu,
+                        color: AppColors.secondary,
+                        size: 24,
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       "Add ${widget.mealName}",
@@ -642,78 +690,97 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
           ],
 
-          // Search Results
+          // Search Results with constrained height
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text(
-              'Search Results',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade800,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Search Results',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                Text(
+                  '${_searchResults.length} items',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            ...List.generate(_searchResults.length, (index) {
-              final food = _searchResults[index];
-              final isSelected = _selectedFood?.fdcId == food.fdcId;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.secondary.withOpacity(0.08) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.secondary.withOpacity(0.4)
-                        : Colors.grey.shade200,
-                    width: isSelected ? 2 : 1,
-                  ),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 250),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade200, width: 1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: _searchResults.length,
+                separatorBuilder: (context, index) => Divider(
+                  height: 1,
+                  color: Colors.grey.shade200,
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  title: Text(
-                    USDAApiService.formatFoodDescription(food),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.local_fire_department,
-                          size: 14,
-                          color: Colors.grey.shade600,
+                itemBuilder: (context, index) {
+                  final food = _searchResults[index];
+                  final isSelected = _selectedFood?.fdcId == food.fdcId;
+                  return Container(
+                    color: isSelected ? AppColors.secondary.withOpacity(0.08) : Colors.white,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      title: Text(
+                        USDAApiService.formatFoodDescription(food),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: Colors.black87,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${food.calories.toStringAsFixed(0)} cal per 100g',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.local_fire_department,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${food.calories.toStringAsFixed(0)} cal per 100g',
+                              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      trailing: isSelected
+                          ? Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      )
+                          : null,
+                      onTap: () => _selectFood(food),
                     ),
-                  ),
-                  trailing: isSelected
-                      ? Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  )
-                      : null,
-                  onTap: () => _selectFood(food),
-                ),
-              );
-            }),
+                  );
+                },
+              ),
+            ),
           ] else if (_searchController.text.isEmpty && !_isLoading) ...[
             const SizedBox(height: 16),
             Container(
@@ -838,8 +905,102 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
             _buildCaloriePreview(),
           ],
+
+          // Image Upload Section
+          const SizedBox(height: 24),
+          _buildImageUploadSection(),
         ],
       ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Food Photo (Optional)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        if (_selectedImage == null) ...[
+          // Image picker buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt, size: 20),
+                  label: const Text('Camera'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.secondary,
+                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library, size: 20),
+                  label: const Text('Gallery'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.secondary,
+                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Image preview with remove button
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  _selectedImage!,
+                  height: 150,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: _removeImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -916,6 +1077,10 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               ),
             ),
           ),
+
+          // Image Upload Section for Manual Entry
+          const SizedBox(height: 20),
+          _buildImageUploadSection(),
         ],
       ),
     );

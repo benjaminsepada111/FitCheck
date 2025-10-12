@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
@@ -9,13 +8,11 @@ import '../app_text_styles.dart';
 class Trackers extends StatefulWidget {
   final Challenge? currentChallenge;
   final Function(int calories) onCaloriesChanged;
-  final Function(int water) onWaterChanged;
 
   const Trackers({
     super.key,
     this.currentChallenge,
     required this.onCaloriesChanged,
-    required this.onWaterChanged,
   });
 
   @override
@@ -25,7 +22,8 @@ class Trackers extends StatefulWidget {
 class _TrackersState extends State<Trackers> {
   int _currentCalories = 0;
   int _calorieGoal = 2000;
-  int _currentWater = 0;
+  int _currentBadges = 0;
+  int _badgeGoal = 10;
   bool _isLoading = true;
 
   @override
@@ -69,22 +67,17 @@ class _TrackersState extends State<Trackers> {
 
       debugPrint('📈 Trackers - Total calories for today: $totalCalories');
 
-      // Get water intake from storage
-      final waterIntake = await WaterStorageService.getWaterIntakeForDate(today);
-
       if (mounted) {
         setState(() {
           _calorieGoal = goal;
           _currentCalories = totalCalories;
-          _currentWater = waterIntake;
           _isLoading = false;
         });
 
-        debugPrint('📈 Trackers - Updated state: Calories=$_currentCalories/$_calorieGoal, Water=$_currentWater');
+        debugPrint('📈 Trackers - Updated state: Calories=$_currentCalories/$_calorieGoal');
 
         // Notify parent components
         widget.onCaloriesChanged(_currentCalories);
-        widget.onWaterChanged(_currentWater);
       }
     } catch (e) {
       debugPrint('Error loading tracker data: $e');
@@ -92,12 +85,10 @@ class _TrackersState extends State<Trackers> {
         setState(() {
           _calorieGoal = widget.currentChallenge?.dailyCalorieGoal ?? 2000;
           _currentCalories = 0;
-          _currentWater = 0;
           _isLoading = false;
         });
 
         widget.onCaloriesChanged(0);
-        widget.onWaterChanged(0);
       }
     }
   }
@@ -134,33 +125,75 @@ class _TrackersState extends State<Trackers> {
     return (current / goal).clamp(0.0, 1.0);
   }
 
-  void _showWaterUpdateSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => WaterIntakeSheet(
-        currentWater: _currentWater,
-        onWaterUpdated: (newWater) async {
-          await WaterStorageService.setWaterIntakeForDate(DateTime.now(), newWater);
-          setState(() => _currentWater = newWater);
-          widget.onWaterChanged(newWater);
-        },
-      ),
-    );
-  }
-
   Widget _buildTracker(String label, int current, int goal, double progress, {bool isClickable = true}) {
+    // Special handling for Badge - it's a button, not a tracker
+    if (label == "Badge" || label == "Achievement") {
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: GestureDetector(
+            onTap: () {
+              // TODO: Navigate to achievements page
+              print("Badge/Achievement button tapped");
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Gold circle icon (no progress ring) - same size as tracker circles
+                Center(
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final size = constraints.maxWidth.clamp(60.0, 80.0);
+                        return Container(
+                          width: size,
+                          height: size,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.amber.shade600,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.amber.shade300.withOpacity(0.5),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.workspace_premium,
+                            color: Colors.white,
+                            size: (size * 0.45).clamp(27.0, 36.0),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 11),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Regular tracker for Calories and Streak
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: GestureDetector(
           onTap: () {
-            if (label == "Water" && isClickable) {
-              _showWaterUpdateSheet();
-            }
-            // Calories are auto-synced, so no manual input needed
-            // Streak is not clickable
+            // Calories and Streak are auto-synced, so no manual input needed
           },
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -250,10 +283,11 @@ class _TrackersState extends State<Trackers> {
     switch (label) {
       case "Streak":
         return "$current/$goal days";
-      case "Water":
-        return "$current/$goal glasses";
       case "Calories":
         return "$current/$goal cal";
+      case "Badge":
+      case "Achievement":
+        return "$current/$goal badges";
       default:
         return "$current/$goal";
     }
@@ -359,13 +393,12 @@ class _TrackersState extends State<Trackers> {
     }
 
     // Active challenge state
-    final waterGoal = widget.currentChallenge!.dailyWaterGoal;
     final streakGoal = _getStreakGoal();
     final currentStreak = _calculateStreak();
 
     final calorieProgress = _calculateProgress(_currentCalories, _calorieGoal);
-    final waterProgress = _calculateProgress(_currentWater, waterGoal);
     final streakProgress = _calculateProgress(currentStreak, streakGoal);
+    final badgeProgress = _calculateProgress(_currentBadges, _badgeGoal);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,294 +408,51 @@ class _TrackersState extends State<Trackers> {
           style: AppTextStyles.heading2,
         ),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.secondary.shade200, width: 1),
-          ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildTracker("Calories", _currentCalories, _calorieGoal, calorieProgress, isClickable: false),
-                Container(
-                  width: 1,
-                  color: AppColors.secondary.shade300,
-                ),
-                _buildTracker("Water", _currentWater, waterGoal, waterProgress),
-                Container(
-                  width: 1,
-                  color: AppColors.secondary.shade300,
-                ),
-                _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Water Storage Service
-class WaterStorageService {
-  static const String _waterIntakeKey = 'water_intake';
-
-  static Future<int> getWaterIntakeForDate(DateTime date) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = '${_waterIntakeKey}_${_formatDate(date)}';
-      return prefs.getInt(dateKey) ?? 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  static Future<void> setWaterIntakeForDate(DateTime date, int glasses) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = '${_waterIntakeKey}_${_formatDate(date)}';
-      await prefs.setInt(dateKey, glasses);
-    } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  static String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-}
-
-// Water Intake Sheet
-class WaterIntakeSheet extends StatefulWidget {
-  final int currentWater;
-  final Function(int) onWaterUpdated;
-
-  const WaterIntakeSheet({
-    super.key,
-    required this.currentWater,
-    required this.onWaterUpdated,
-  });
-
-  @override
-  State<WaterIntakeSheet> createState() => _WaterIntakeSheetState();
-}
-
-class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
-  late int _waterCount;
-
-  @override
-  void initState() {
-    super.initState();
-    _waterCount = widget.currentWater;
-  }
-
-  void _updateWater(int change) {
-    setState(() {
-      _waterCount = (_waterCount + change).clamp(0, 20); // Max 20 glasses
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.6,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              MediaQuery.of(context).viewInsets.bottom + 20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle bar
-                Container(
-                  width: 40,
-                  height: 4,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Trackers container (Calories and Streak)
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.secondary.shade200, width: 1),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                // Title
-                const Text(
-                  'Water Intake',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Track your daily water consumption',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Large water display
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blue.shade50,
-                    border: Border.all(color: Colors.blue.shade200, width: 3),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.local_drink,
-                        size: 40,
-                        color: Colors.blue.shade600,
+                      _buildTracker("Calories", _currentCalories, _calorieGoal, calorieProgress, isClickable: false),
+                      Container(
+                        width: 1,
+                        color: AppColors.secondary.shade300,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$_waterCount',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                      Text(
-                        'glasses',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.blue.shade600,
-                        ),
-                      ),
+                      _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // Control buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildWaterButton(
-                      icon: Icons.remove,
-                      onPressed: _waterCount > 0 ? () => _updateWater(-1) : null,
-                      color: Colors.red.shade400,
-                    ),
-                    _buildWaterButton(
-                      icon: Icons.add,
-                      onPressed: () => _updateWater(1),
-                      color: Colors.blue.shade600,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Quick add buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildQuickAddButton('-5', () => _updateWater(-5)),
-                    _buildQuickAddButton('+1', () => _updateWater(1)),
-                    _buildQuickAddButton('+3', () => _updateWater(3)),
-                    _buildQuickAddButton('+5', () => _updateWater(5)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Save button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      widget.onWaterUpdated(_waterCount);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Save Water Intake',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+              ),
+              const SizedBox(width: 12),
+              // Badge button (separate from trackers)
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.secondary.shade200, width: 1),
                   ),
+                  child: _buildTracker("Badge", _currentBadges, _badgeGoal, badgeProgress, isClickable: false),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildWaterButton({
-    required IconData icon,
-    required VoidCallback? onPressed,
-    required Color color,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          shape: const CircleBorder(),
-          padding: const EdgeInsets.all(20),
-          elevation: 0,
-        ),
-        child: Icon(icon, size: 30),
-      ),
-    );
-  }
-
-  Widget _buildQuickAddButton(String label, VoidCallback onPressed) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.grey.shade100,
-        foregroundColor: Colors.grey.shade700,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
+      ],
     );
   }
 }

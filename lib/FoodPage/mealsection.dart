@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'add_food_sheet.dart';
@@ -83,7 +84,7 @@ class MealsSectionState extends State<MealsSection> {
   }
 
 
-  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams}) async {
+  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams, String? imageBase64}) async {
     try {
       // Create new food entry
       final foodEntry = FoodEntry(
@@ -95,6 +96,7 @@ class MealsSectionState extends State<MealsSection> {
         caloriesPer100g: grams != null && grams > 0
             ? (calories / grams) * 100
             : calories.toDouble(),
+        imageBase64: imageBase64,
       );
 
       if (widget.challengeId == null) {
@@ -328,11 +330,12 @@ class MealsSectionState extends State<MealsSection> {
           iconPath: meal["icon"] as String,
           isRecommended: meal["isRecommended"] as bool,
           foodEntries: _mealEntries[meal["name"]] ?? [],
-          onFoodAdded: (foodName, calories, {grams}) => _onFoodAdded(
+          onFoodAdded: (foodName, calories, {grams, imageBase64}) => _onFoodAdded(
             foodName,
             calories,
             meal["name"] as String,
             grams: grams,
+            imageBase64: imageBase64,
           ),
           onFoodRemoved: _removeFoodEntry,
         )),
@@ -355,7 +358,7 @@ class _MealCard extends StatefulWidget {
   final String iconPath;
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
-  final Function(String foodName, int calories, {double? grams}) onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, String? imageBase64}) onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
 
   const _MealCard({
@@ -494,8 +497,8 @@ class _MealCardState extends State<_MealCard> {
                         backgroundColor: Colors.transparent,
                         builder: (context) => AddFoodSheet(
                           mealName: widget.name,
-                          onFoodAdded: (foodName, calories, {grams}) {
-                            widget.onFoodAdded(foodName, calories, grams: grams);
+                          onFoodAdded: (foodName, calories, {grams, imageBase64}) {
+                            widget.onFoodAdded(foodName, calories, grams: grams, imageBase64: imageBase64);
                           },
                         ),
                       );
@@ -534,6 +537,19 @@ class _MealCardState extends State<_MealCard> {
                             ),
                             child: Row(
                               children: [
+                                // Show image thumbnail if available
+                                if (entry.imageBase64 != null) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Image.memory(
+                                      base64Decode(entry.imageBase64!),
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,10 +3,12 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
+import 'package:capstone_project/services/workout_service.dart';
 import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
@@ -24,16 +26,14 @@ class DailyLogsPage extends StatefulWidget {
 
 class _DailyLogsPageState extends State<DailyLogsPage> {
   int _loggedCalories = 0;
-  int _loggedWater = 0;
   Map<String, List<FoodEntry>> _foodEntriesByMeal = {};
   List<Milestone> _milestones = [];
+  List<Workout> _workouts = [];
   bool _isLoading = true;
-  bool _isToday = false;
 
   @override
   void initState() {
     super.initState();
-    _isToday = _isSameDate(widget.selectedDate, DateTime.now());
     _loadDailyData();
   }
 
@@ -87,14 +87,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           _isSameDate(m.date, widget.selectedDate)
       ).toList();
 
-      // Load water intake from storage
-      int waterIntake = await _getWaterIntakeForDate(widget.selectedDate);
+      // Load workouts for the selected date
+      final workoutsForDate = widget.challenge != null
+          ? await WorkoutService.getWorkoutsForDate(widget.challenge!.id, widget.selectedDate)
+          : <Workout>[];
+
+      debugPrint('📊 Daily Logs - Found ${workoutsForDate.length} workouts for ${widget.selectedDate}');
 
       setState(() {
         _loggedCalories = totalCalories;
-        _loggedWater = waterIntake;
         _foodEntriesByMeal = mealEntries;
         _milestones = dateMilestones;
+        _workouts = workoutsForDate;
         _isLoading = false;
       });
     } catch (e) {
@@ -114,22 +118,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     }
   }
 
-  // Water intake storage methods
-  Future<int> _getWaterIntakeForDate(DateTime date) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = 'water_intake_${_formatDateKey(date)}';
-      return prefs.getInt(dateKey) ?? 0;
-    } catch (e) {
-      debugPrint('Error loading water intake: $e');
-      return 0;
-    }
-  }
-
-  String _formatDateKey(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
   String _formatDate(DateTime date) {
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -142,11 +130,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   double _getCalorieProgress() {
     if (widget.challenge == null) return 0.0;
     return (_loggedCalories / widget.challenge!.dailyCalorieGoal).clamp(0.0, 1.0);
-  }
-
-  double _getWaterProgress() {
-    if (widget.challenge == null) return 0.0;
-    return (_loggedWater / widget.challenge!.dailyWaterGoal).clamp(0.0, 1.0);
   }
 
   int _calculateStreak() {
@@ -230,6 +213,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               // Progress Photo Section
               if (_milestones.isNotEmpty) _buildProgressPhotos(),
 
+              // Workout Section
+              if (_workouts.isNotEmpty) _buildWorkoutSection(),
+
               // Food Logs Section
               _buildFoodLogs(),
 
@@ -243,9 +229,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
   Widget _buildDailySummary() {
     final calorieGoal = widget.challenge?.dailyCalorieGoal ?? 2000;
-    final waterGoal = widget.challenge?.dailyWaterGoal ?? 8;
     final calorieProgress = _getCalorieProgress();
-    final waterProgress = _getWaterProgress();
     final streakProgress = _getStreakProgress();
     final currentStreak = _calculateStreak();
     final streakGoal = _getStreakGoal();
@@ -272,13 +256,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 _loggedCalories,
                 calorieGoal,
                 calorieProgress,
-                AppColors.secondary,
-              ),
-              _buildCircularProgress(
-                'Water',
-                _loggedWater,
-                waterGoal,
-                waterProgress,
                 AppColors.secondary,
               ),
               _buildCircularProgress(
@@ -383,6 +360,331 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           // Display all milestones for this date
           ..._milestones.map((milestone) => _buildMilestoneCard(milestone)),
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Workouts',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                '${_workouts.length} ${_workouts.length == 1 ? 'workout' : 'workouts'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Display workout cards
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: _workouts.map((workout) => _buildWorkoutCard(workout)).toList(),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutCard(Workout workout) {
+    return GestureDetector(
+      onTap: () => _showWorkoutDetail(workout),
+      child: Container(
+        width: (MediaQuery.of(context).size.width - 44) / 2, // Half width minus padding
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image or placeholder
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: workout.imageBase64 != null
+                  ? Image.memory(
+                      base64Decode(workout.imageBase64!),
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      height: 120,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.secondary.withOpacity(0.7),
+                            AppColors.secondary.withOpacity(0.4),
+                          ],
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.fitness_center,
+                        size: 40,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+            ),
+            // Exercise details
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    workout.exerciseName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.repeat, size: 14, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${workout.sets} sets',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.numbers, size: 14, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${workout.reps} reps',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWorkoutDetail(Workout workout) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image
+                if (workout.imageBase64 != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: Image.memory(
+                      base64Decode(workout.imageBase64!),
+                      width: double.infinity,
+                      height: 250,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.secondary.withOpacity(0.7),
+                          AppColors.secondary.withOpacity(0.4),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.fitness_center,
+                        size: 64,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                  ),
+                // Details
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        workout.exerciseName,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDetailItem(
+                              Icons.repeat,
+                              'Sets',
+                              workout.sets.toString(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDetailItem(
+                              Icons.numbers,
+                              'Reps',
+                              workout.reps.toString(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (workout.notes != null && workout.notes!.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Icon(Icons.note_outlined, size: 18, color: Colors.grey.shade600),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Notes',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          workout.notes!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade800,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatTime(workout.timestamp),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.secondary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
         ],
       ),
     );
@@ -642,70 +944,294 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   }
 
   Widget _buildFoodEntry(FoodEntry entry) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.foodName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+    return GestureDetector(
+      onTap: () => _showFoodDetail(entry),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Food image or placeholder
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: entry.imageBase64 != null
+                  ? Image.memory(
+                      base64Decode(entry.imageBase64!),
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.secondary.withOpacity(0.6),
+                            AppColors.secondary.withOpacity(0.3),
+                          ],
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.restaurant,
+                        size: 24,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            // Food details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.foodName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    if (entry.servingSize > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (entry.servingSize > 0) ...[
+                        Icon(Icons.scale, size: 12, color: Colors.grey.shade600),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${entry.servingSize.toStringAsFixed(0)}g',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        Text(
+                          ' • ',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                      Icon(Icons.local_fire_department, size: 12, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
                       Text(
-                        '${entry.servingSize.toStringAsFixed(0)}g',
+                        '${entry.totalCalories.round()} cal',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
                       ),
-                      Text(
-                        ' • ',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
                     ],
-                    Text(
-                      '${entry.totalCalories.round()} kcal',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+            ),
+            // Calorie badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${entry.totalCalories.round()}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFoodDetail(FoodEntry entry) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image
+                if (entry.imageBase64 != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: Image.memory(
+                      base64Decode(entry.imageBase64!),
+                      width: double.infinity,
+                      height: 250,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.secondary.withOpacity(0.6),
+                          AppColors.secondary.withOpacity(0.3),
+                        ],
                       ),
                     ),
-                  ],
+                    child: Center(
+                      child: Icon(
+                        Icons.restaurant,
+                        size: 64,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                  ),
+                // Details
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.foodName,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildFoodDetailItem(
+                              Icons.local_fire_department,
+                              'Calories',
+                              '${entry.totalCalories.round()}',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildFoodDetailItem(
+                              Icons.scale,
+                              'Serving',
+                              '${entry.servingSize.toStringAsFixed(0)}g',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Nutritional Info',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${entry.caloriesPer100g.toStringAsFixed(1)} cal per 100g',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFoodDetailItem(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.secondary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.secondary,
             ),
-            child: Text(
-              '${entry.totalCalories.round()} cal',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
             ),
           ),
         ],

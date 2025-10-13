@@ -15,6 +15,8 @@ import 'food_page.dart';
 import 'profile.dart';
 import 'WorkoutPage/workout_history_page.dart';
 import 'services/user_data_service.dart';
+import 'services/user_time_tracker.dart';
+import 'services/login_tracker_service.dart';
 import 'UserInputFile/genderselection.dart';
 
 class MainPage extends StatefulWidget {
@@ -40,7 +42,35 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    _initializeTimeTracking();
+    _recordDailyLogin();
     _loadChallengeData();
+  }
+
+  /// Initialize time tracking for the user on app startup
+  Future<void> _initializeTimeTracking() async {
+    try {
+      final isInitialized = await UserTimeTracker.isInitialized();
+      if (!isInitialized) {
+        await UserTimeTracker.initializeUserStartDate();
+        debugPrint('Time tracking initialized for user on app startup');
+      } else {
+        debugPrint('Time tracking already initialized');
+      }
+    } catch (e) {
+      debugPrint('Warning: Failed to initialize time tracking: $e');
+      // Don't block app startup if time tracking fails
+    }
+  }
+
+  /// Record that user opened the app today
+  Future<void> _recordDailyLogin() async {
+    try {
+      await LoginTrackerService.recordDailyLogin();
+    } catch (e) {
+      debugPrint('Warning: Failed to record daily login: $e');
+      // Don't block app startup if login tracking fails
+    }
   }
 
   Future<void> _loadChallengeData() async {

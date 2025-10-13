@@ -3,6 +3,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
+import 'package:capstone_project/achievements_page.dart';
 import '../app_text_styles.dart';
 
 class Trackers extends StatefulWidget {
@@ -98,7 +99,7 @@ class _TrackersState extends State<Trackers> {
     _loadTodaysData();
   }
 
-  int _calculateStreak() {
+  int _calculateChallengeDay() {
     if (widget.currentChallenge == null) return 0;
 
     final now = DateTime.now();
@@ -110,7 +111,7 @@ class _TrackersState extends State<Trackers> {
     return difference > 0 ? difference : 0;
   }
 
-  int _getStreakGoal() {
+  int _getChallengeDaysGoal() {
     if (widget.currentChallenge == null) return 30;
 
     final totalDays = widget.currentChallenge!.endDate
@@ -133,8 +134,12 @@ class _TrackersState extends State<Trackers> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: GestureDetector(
             onTap: () {
-              // TODO: Navigate to achievements page
-              print("Badge/Achievement button tapped");
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AchievementsPage(),
+                ),
+              );
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -235,9 +240,9 @@ class _TrackersState extends State<Trackers> {
                                     color: _getProgressColor(progress),
                                   ),
                                 ),
-                                if (label == "Streak")
+                                if (label == "Progress")
                                   Text(
-                                    "${current}d",
+                                    "Day $current",
                                     style: TextStyle(
                                       fontSize: (size * 0.15).clamp(10.0, 12.0),
                                       color: _getProgressColor(progress),
@@ -281,8 +286,8 @@ class _TrackersState extends State<Trackers> {
 
   String _getDisplayText(String label, int current, int goal) {
     switch (label) {
-      case "Streak":
-        return "$current/$goal days";
+      case "Progress":
+        return "Day $current/$goal";
       case "Calories":
         return "$current/$goal cal";
       case "Badge":
@@ -393,11 +398,11 @@ class _TrackersState extends State<Trackers> {
     }
 
     // Active challenge state
-    final streakGoal = _getStreakGoal();
-    final currentStreak = _calculateStreak();
+    final challengeDaysGoal = _getChallengeDaysGoal();
+    final currentChallengeDay = _calculateChallengeDay();
 
     final calorieProgress = _calculateProgress(_currentCalories, _calorieGoal);
-    final streakProgress = _calculateProgress(currentStreak, streakGoal);
+    final challengeDayProgress = _calculateProgress(currentChallengeDay, challengeDaysGoal);
     final badgeProgress = _calculateProgress(_currentBadges, _badgeGoal);
 
     return Column(
@@ -412,7 +417,7 @@ class _TrackersState extends State<Trackers> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Trackers container (Calories and Streak)
+              // Trackers container (Calories and Challenge Day)
               Expanded(
                 flex: 2,
                 child: Container(
@@ -430,7 +435,7 @@ class _TrackersState extends State<Trackers> {
                         width: 1,
                         color: AppColors.secondary.shade300,
                       ),
-                      _buildTracker("Streak", currentStreak, streakGoal, streakProgress, isClickable: false),
+                      _buildTracker("Progress", currentChallengeDay, challengeDaysGoal, challengeDayProgress, isClickable: false),
                     ],
                   ),
                 ),

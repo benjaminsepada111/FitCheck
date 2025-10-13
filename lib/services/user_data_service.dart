@@ -86,6 +86,7 @@ class UserDataService {
     String? activityLevel,
     String? goal,
     double? goalAdjustment,
+    DateTime? startDate,
   }) async {
     try {
       final currentData = await loadUserData() ?? UserData();
@@ -100,6 +101,7 @@ class UserDataService {
         activityLevel: activityLevel,
         goal: goal,
         goalAdjustment: goalAdjustment,
+        startDate: startDate,
       );
 
       return await saveUserData(updatedData);

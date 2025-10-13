@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../LoginPages/login_page.dart';
 import '../color/colors.dart';
+import '../services/user_time_tracker.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -53,6 +54,15 @@ class _SignUpPageState extends State<SignUpPage> {
       if (userCredential.user != null) {
         // Send verification email
         await userCredential.user!.sendEmailVerification();
+
+        // Initialize time tracking for new user
+        try {
+          await UserTimeTracker.initializeUserStartDate();
+          debugPrint('Time tracking initialized for new user');
+        } catch (e) {
+          debugPrint('Warning: Failed to initialize time tracking: $e');
+          // Don't block signup if time tracking fails
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -9,6 +9,7 @@ class UserData {
   final String? activityLevel;
   final String? goal;
   final double? goalAdjustment; // custom calorie adjustment
+  final DateTime? startDate; // user's journey start date for time tracking
 
   UserData({
     this.name,
@@ -20,6 +21,7 @@ class UserData {
     this.activityLevel,
     this.goal,
     this.goalAdjustment,
+    this.startDate,
   });
 
   // Calculate age from birth date
@@ -62,6 +64,7 @@ class UserData {
       'activityLevel': activityLevel,
       'goal': goal,
       'goalAdjustment': goalAdjustment,
+      'startDate': startDate?.toIso8601String(),
     };
   }
 
@@ -79,6 +82,9 @@ class UserData {
       activityLevel: json['activityLevel'],
       goal: json['goal'],
       goalAdjustment: json['goalAdjustment']?.toDouble(),
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'])
+          : null,
     );
   }
 
@@ -93,6 +99,7 @@ class UserData {
     String? activityLevel,
     String? goal,
     double? goalAdjustment,
+    DateTime? startDate,
   }) {
     return UserData(
       name: name ?? this.name,
@@ -104,6 +111,7 @@ class UserData {
       activityLevel: activityLevel ?? this.activityLevel,
       goal: goal ?? this.goal,
       goalAdjustment: goalAdjustment ?? this.goalAdjustment,
+      startDate: startDate ?? this.startDate,
     );
   }
 

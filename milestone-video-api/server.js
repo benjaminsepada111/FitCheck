@@ -44,6 +44,10 @@ app.get('/', (req, res) => res.send('Milestone Video API is running'));
  *   - notes: JSON array string (["note1","note2",...])
  *   - duration: seconds per image (number)
  *   - musicUrl: external music file URL (optional)
+ *
+ * NEW: Videos now play milestones in REVERSE order
+ * - Last milestone photo appears first
+ * - First milestone photo appears last
  */
 app.post('/api/generate-video',
   upload.fields([
@@ -109,9 +113,22 @@ app.post('/api/generate-video',
       }
 
       console.log(`🖼️ Total images to process: ${uploadedUrls.length}`);
+      console.log('🔄 Reversing milestone order for video generation...');
 
-      // Build Shotstack timeline
-      const imageClips = uploadedUrls.map((src, i) => ({
+      // ========================================
+      // REVERSE THE ORDER OF IMAGES AND NOTES
+      // Images come in order [0,1,2,3] (first to last)
+      // We need video to play [3,2,1,0] (last to first)
+      // ========================================
+      const reversedUrls = [...uploadedUrls].reverse();
+      const reversedNotes = [...notes].reverse();
+
+      console.log('✅ Order reversed: Last milestone will appear first');
+      console.log(`📸 Original order: ${uploadedUrls.length} images`);
+      console.log(`📸 Video will show: Image ${uploadedUrls.length} → Image 1`);
+
+      // Build Shotstack timeline with REVERSED order
+      const imageClips = reversedUrls.map((src, i) => ({
         asset: {
           type: 'image',
           src
@@ -126,10 +143,10 @@ app.post('/api/generate-video',
         scale: 1.0
       }));
 
-      // Only add title clips for notes that exist
-      const titleClips = uploadedUrls
+      // Only add title clips for notes that exist (also reversed)
+      const titleClips = reversedUrls
         .map((src, i) => {
-          const noteText = notes[i] || '';
+          const noteText = reversedNotes[i] || '';
           if (!noteText || noteText.trim() === '') return null;
 
           return {
@@ -173,13 +190,12 @@ app.post('/api/generate-video',
           format: 'mp4',
           resolution: 'sd',
           quality: 'medium',
-          aspectRatio: '9:16' // 👈 This line forces portrait video
+          aspectRatio: '9:16'
         }
       };
 
-
       console.log('📤 Sending request to Shotstack API...');
-      console.log('🎬 Timeline:', JSON.stringify(payload.timeline, null, 2));
+      console.log('🎬 Video will play from LAST milestone to FIRST milestone');
 
       // Send to Shotstack render endpoint
       const response = await axios.post(
@@ -199,7 +215,7 @@ app.post('/api/generate-video',
       return res.json({
         success: true,
         data: response.data,
-        message: 'Video render started successfully'
+        message: 'Video render started successfully (reversed milestone order)'
       });
 
     } catch (err) {
@@ -282,5 +298,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔑 Shotstack API: ${SHOTSTACK_KEY ? 'Configured ✅' : 'Missing ❌'}`);
   console.log(`🌐 Endpoint: ${SHOTSTACK_BASE}`);
   console.log(`📁 Upload directory: ${UPLOAD_DIR}`);
+  console.log('🔄 Video Order: REVERSED (Last → First milestone)');
   console.log('---');
 });

@@ -196,22 +196,23 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
   }
 
   Widget _buildLoadingState() {
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: 3,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
-      itemBuilder: (context, index) {
-        return Container(
-          width: 150,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(12),
+    return Row(
+      children: [
+        for (int index = 0; index < 3; index++) ...[
+          if (index > 0) const SizedBox(width: 6),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
           ),
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      },
+        ],
+      ],
     );
   }
 
@@ -242,121 +243,128 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
       );
     }
 
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: _recommendedFoods.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
-      itemBuilder: (context, index) {
-        final food = _recommendedFoods[index];
-        return GestureDetector(
-          onTap: () => _onFoodTapped(food),
-          child: Container(
-            width: 150,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey.shade100,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha:0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+    // Take only first 3 items to fit on screen
+    final displayFoods = _recommendedFoods.take(3).toList();
+
+    return Row(
+      children: [
+        for (int index = 0; index < displayFoods.length; index++) ...[
+          if (index > 0) const SizedBox(width: 6),
+          Expanded(
+            child: _buildFoodCard(displayFoods[index]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFoodCard(RecommendedFood food) {
+    return GestureDetector(
+      onTap: () => _onFoodTapped(food),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey.shade100,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha:0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-            child: Stack(
-              children: [
-                // Image or placeholder
-                if (food.image.isNotEmpty && food.source != 'fallback')
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      food.image,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _buildFoodPlaceholder(food.name),
-                    ),
-                  )
-                else
-                  _buildFoodPlaceholder(food.name),
-
-                // Gradient overlay
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withValues(alpha:0.7),
-                        Colors.black.withValues(alpha:0.3),
-                        Colors.transparent
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      stops: const [0.0, 0.4, 1.0],
-                    ),
-                  ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Image or placeholder
+            if (food.image.isNotEmpty && food.source != 'fallback')
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  food.image,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildFoodPlaceholder(food.name),
                 ),
+              )
+            else
+              _buildFoodPlaceholder(food.name),
 
-                // Food info
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          food.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          food.caloriesText,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            // Gradient overlay
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha:0.7),
+                    Colors.black.withValues(alpha:0.3),
+                    Colors.transparent
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  stops: const [0.0, 0.4, 1.0],
                 ),
+              ),
+            ),
 
-                // Time-based indicator
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _getMealTypeColor().withValues(alpha:0.9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _currentMealType.toUpperCase(),
+            // Food info
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      food.name,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 8,
                         fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      food.caloriesText,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Time-based indicator
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _getMealTypeColor().withValues(alpha:0.9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _currentMealType.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 

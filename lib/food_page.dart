@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:capstone_project/FoodPage/foodlogger.dart';
 import 'package:capstone_project/FoodPage/mealsection.dart';
@@ -7,6 +8,8 @@ import 'package:capstone_project/MainPage/create_challenge_sheet.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/services/image_storage_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class FoodPage extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -174,145 +177,514 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
       mealType = 'Dinner';
     }
 
-    showDialog(
+    // Show dialog to enter grams and optional image for recommended food
+    _showAddRecommendedFoodDialog(foodName, calories, mealType);
+  }
+
+  void _showAddRecommendedFoodDialog(String foodName, int caloriesPer100g, String mealType) {
+    final TextEditingController gramsController = TextEditingController();
+    final ImagePicker picker = ImagePicker();
+    File? selectedImage;
+    bool isLoading = false;
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
-                  shape: BoxShape.circle,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          Future<void> pickImage(ImageSource source) async {
+            try {
+              final pickedFile = await picker.pickImage(
+                source: source,
+                imageQuality: 80,
+                maxWidth: 1200,
+              );
+
+              if (pickedFile != null) {
+                setModalState(() {
+                  selectedImage = File(pickedFile.path);
+                });
+              }
+            } catch (e) {
+              debugPrint('Error picking image: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Failed to pick image'),
+                  backgroundColor: Colors.red.shade600,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Icon(
-                  _getFoodIcon(foodName),
-                  color: AppColors.secondary,
-                  size: 32,
+              );
+            }
+          }
+
+          void removeImage() {
+            setModalState(() {
+              selectedImage = null;
+            });
+          }
+
+          Future<void> saveFood() async {
+            final gramsText = gramsController.text.trim();
+            if (gramsText.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Please enter the amount in grams'),
+                  backgroundColor: Colors.red.shade600,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                foodName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              );
+              return;
+            }
+
+            final grams = double.tryParse(gramsText);
+            if (grams == null || grams <= 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Please enter a valid amount greater than 0'),
+                  backgroundColor: Colors.red.shade600,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.secondary.withOpacity(0.1),
-                      AppColors.secondary.withOpacity(0.05),
+              );
+              return;
+            }
+
+            if (grams > 5000) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Amount seems too large. Please enter a reasonable amount.'),
+                  backgroundColor: Colors.red.shade600,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+              return;
+            }
+
+            // Calculate actual calories based on grams
+            final actualCalories = ((caloriesPer100g / 100) * grams).round();
+
+            // Upload image if selected
+            String? uploadedImageUrl;
+            if (selectedImage != null && widget.currentChallenge != null) {
+              uploadedImageUrl = await ImageStorageService.uploadFoodImage(
+                selectedImage!,
+                challengeId: widget.currentChallenge!.id,
+              );
+
+              if (uploadedImageUrl == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Failed to upload image. Food will be saved without photo.'),
+                    backgroundColor: Colors.orange.shade600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              }
+            }
+
+            Navigator.pop(context);
+            _confirmAddFood(foodName, actualCalories, mealType, grams: grams, imageUrl: uploadedImageUrl);
+          }
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      left: 24,
+                      right: 24,
+                      top: 24,
+                      bottom: 24,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.restaurant_menu,
+                                color: AppColors.secondary,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    foodName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1A1A1A),
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Add to $mealType',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Color(0xFF666666), size: 24),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.secondary.withOpacity(0.2),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                  const SizedBox(height: 24),
+
+                  // Calories info
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.secondary.withValues(alpha: 0.1),
+                          AppColors.secondary.withValues(alpha: 0.05),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.secondary.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Icon(
-                          Icons.local_fire_department,
-                          color: AppColors.secondary,
-                          size: 20,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.local_fire_department,
+                            color: AppColors.secondary,
+                            size: 20,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Calories',
+                        const SizedBox(width: 12),
+                        Text(
+                          '$caloriesPer100g cal per 100g',
                           style: TextStyle(
-                            fontWeight: FontWeight.w600,
                             fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary,
                           ),
                         ),
                       ],
                     ),
-                    Text(
-                      '$calories kcal',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Grams input
+                  Text(
+                    'Enter Amount',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: gramsController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) => setModalState(() {}),
+                    decoration: InputDecoration(
+                      hintText: "Enter amount in grams",
+                      hintStyle: TextStyle(color: Colors.grey.shade400),
+                      suffixText: 'grams',
+                      suffixStyle: TextStyle(
                         color: AppColors.secondary,
-                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.secondary, width: 2),
+                      ),
+                    ),
+                  ),
+
+                  // Calorie preview
+                  if (gramsController.text.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Builder(
+                      builder: (context) {
+                        final grams = double.tryParse(gramsController.text);
+                        if (grams == null || grams <= 0) return const SizedBox.shrink();
+
+                        final totalCalories = ((caloriesPer100g / 100) * grams).round();
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.secondary.withValues(alpha: 0.1),
+                                AppColors.secondary.withValues(alpha: 0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.secondary.withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.local_fire_department,
+                                  color: AppColors.secondary,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Calories',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$totalCalories cal',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.secondary,
+                                        fontSize: 24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${grams.toStringAsFixed(0)}g',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.secondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Add this to your $mealType?',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 15,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+
+                  const SizedBox(height: 24),
+
+                  // Image upload section
+                  Text(
+                    'Food Photo (Optional)',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _confirmAddFood(foodName, calories, mealType);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
+                  const SizedBox(height: 10),
+
+                  if (selectedImage == null) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => pickImage(ImageSource.camera),
+                            icon: const Icon(Icons.camera_alt, size: 20),
+                            label: const Text('Camera'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.secondary,
+                              side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.5)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => pickImage(ImageSource.gallery),
+                            icon: const Icon(Icons.photo_library, size: 20),
+                            label: const Text('Gallery'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.secondary,
+                              side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.5)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Stack(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            selectedImage!,
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Add to $mealType',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: removeImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                  ],
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                ),
+                // Action buttons - outside scroll view
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                    top: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: saveFood,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Add Food',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -329,15 +701,18 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
     return Icons.restaurant_menu;
   }
 
-  void _confirmAddFood(String foodName, int calories, String mealType) async {
+  void _confirmAddFood(String foodName, int calories, String mealType, {double? grams, String? imageUrl}) async {
     try {
       final foodEntry = FoodEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         fdcId: 0,
         foodName: foodName,
-        servingSize: 100.0,
+        servingSize: grams ?? 100.0,
         servingUnit: 'g',
-        caloriesPer100g: calories.toDouble(),
+        caloriesPer100g: grams != null && grams > 0
+            ? (calories / grams) * 100
+            : calories.toDouble(),
+        imageUrl: imageUrl,
       );
 
       if (widget.currentChallenge == null) {

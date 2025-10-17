@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import 'profile.dart';
+import 'profile_setup.dart';
 import 'genderselection.dart';
 import 'weightselectorpage.dart';
 import 'birthdate.dart';
@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
     const BirthdatePage(),
     const WeightSelectorPage(),
     const HeightPage(),
-    const Profile(),
+    const ProfileSetupPage(),
   ];
 
   @override

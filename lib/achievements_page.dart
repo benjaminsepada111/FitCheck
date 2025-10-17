@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/app_text_styles.dart';
-import 'package:capstone_project/services/statistics_service.dart';
-import 'package:capstone_project/services/achievement_time_service.dart';
-import 'package:capstone_project/services/user_time_tracker.dart';
+import 'package:capstone_project/services/user_achievement_service.dart';
 
 class AchievementsPage extends StatefulWidget {
   const AchievementsPage({super.key});
@@ -14,14 +12,8 @@ class AchievementsPage extends StatefulWidget {
 
 class _AchievementsPageState extends State<AchievementsPage> {
   bool _isLoading = true;
-  Map<String, int> _statistics = {
-    'totalCalories': 0,
-    'loginDays': 0,
-    'workoutsLogged': 0,
-    'mealsLogged': 0,
-  };
-  Map<String, AchievementStatus> _achievements = {};
-  Map<String, dynamic> _timeMetrics = {};
+  Map<String, dynamic> _userStats = {};
+  List<Map<String, dynamic>> _achievements = [];
 
   @override
   void initState() {
@@ -32,18 +24,16 @@ class _AchievementsPageState extends State<AchievementsPage> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load statistics, achievements, and time metrics in parallel
+      // Load user stats and achievements from Firebase in parallel
       final results = await Future.wait([
-        StatisticsService.getAllStatistics(),
-        AchievementTimeService.checkAllAchievements(),
-        UserTimeTracker.getAllTimeMetrics(),
+        UserAchievementService.getUserStats(),
+        UserAchievementService.getAllAchievementsWithDetails(),
       ]);
 
       if (mounted) {
         setState(() {
-          _statistics = results[0] as Map<String, int>;
-          _achievements = results[1] as Map<String, AchievementStatus>;
-          _timeMetrics = results[2] as Map<String, dynamic>;
+          _userStats = results[0] as Map<String, dynamic>;
+          _achievements = results[1] as List<Map<String, dynamic>>;
           _isLoading = false;
         });
       }
@@ -56,6 +46,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
   }
 
   Future<void> _refreshData() async {
+    // Refresh achievements from server
+    await UserAchievementService.checkAndUnlockAchievements();
     await _loadData();
   }
 
@@ -114,7 +106,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                           style: AppTextStyles.heading2,
                         ),
                         Text(
-                          '${_achievements.values.where((a) => a.unlocked).length}/${_achievements.length}',
+                          '${_achievements.where((a) => a['unlocked'] == true).length}/${_achievements.length}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -133,6 +125,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
   }
 
   Widget _buildStatisticsGrid() {
+    // Extract stats from Firebase user stats
+    final totalCaloriesConsumed = _userStats['total_calories_consumed'] ?? 0;
+    final totalLoginDays = _userStats['total_login_days'] ?? 0;
+    final totalWorkouts = _userStats['total_workouts'] ?? 0;
+    final mealLoggingDays = _userStats['meal_logging_days'] ?? 0;
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -142,20 +140,20 @@ class _AchievementsPageState extends State<AchievementsPage> {
       childAspectRatio: 2.0,
       children: [
         _buildStatCard(
-          label: 'Total Calories',
-          value: _statistics['totalCalories'].toString(),
+          label: 'Calories Consumed',
+          value: totalCaloriesConsumed.toString(),
         ),
         _buildStatCard(
-          label: 'Login Days',
-          value: _statistics['loginDays'].toString(),
+          label: 'Login',
+          value: totalLoginDays.toString(),
         ),
         _buildStatCard(
           label: 'Workouts',
-          value: _statistics['workoutsLogged'].toString(),
+          value: totalWorkouts.toString(),
         ),
         _buildStatCard(
           label: 'Meals',
-          value: _statistics['mealsLogged'].toString(),
+          value: mealLoggingDays.toString(),
         ),
       ],
     );
@@ -219,37 +217,40 @@ class _AchievementsPageState extends State<AchievementsPage> {
       );
     }
 
-    // Achievement metadata (icons and colors)
-    final achievementMeta = {
-      'first_step': {'icon': Icons.flag, 'color': Colors.blue, 'title': 'First Step'},
-      'week_warrior': {'icon': Icons.calendar_view_week, 'color': Colors.green, 'title': 'Week Warrior'},
-      'two_week_champion': {'icon': Icons.military_tech, 'color': Colors.teal, 'title': 'Two Week Champion'},
-      'fitness_enthusiast': {'icon': Icons.fitness_center, 'color': Colors.orange, 'title': 'Fitness Enthusiast'},
-      'meal_master': {'icon': Icons.restaurant_menu, 'color': Colors.purple, 'title': 'Meal Master'},
-      'consistency_king': {'icon': Icons.emoji_events, 'color': Colors.amber, 'title': 'Consistency King'},
-      'monthly_milestone': {'icon': Icons.calendar_month, 'color': Colors.blue, 'title': 'Monthly Milestone'},
-      'quarter_master': {'icon': Icons.workspace_premium, 'color': Colors.deepPurple, 'title': 'Quarter Master'},
-      'century_club': {'icon': Icons.stars, 'color': Colors.pink, 'title': 'Century Club'},
-      'half_year_hero': {'icon': Icons.diamond, 'color': Colors.indigo, 'title': 'Half Year Hero'},
+    // Map icon names to IconData
+    final iconMap = {
+      'flag': Icons.flag,
+      'local_fire_department': Icons.local_fire_department,
+      'calendar_today': Icons.calendar_today,
+      'photo_camera': Icons.photo_camera,
+      'restaurant': Icons.restaurant,
+      'fitness_center': Icons.fitness_center,
+      'emoji_events': Icons.emoji_events,
     };
 
     return Column(
-      children: _achievements.entries.map((entry) {
-        final achievementId = entry.key;
-        final achievement = entry.value;
-        final meta = achievementMeta[achievementId] ?? {
-          'icon': Icons.star,
-          'color': Colors.grey,
-          'title': achievementId,
-        };
+      children: _achievements.map((achievement) {
+        final iconName = achievement['icon'] as String;
+        final icon = iconMap[iconName] ?? Icons.star;
+        final color = Color(achievement['color'] as int);
+        final unlocked = achievement['unlocked'] as bool;
+        final progress = (achievement['progress'] as num).toDouble();
+        final currentValue = achievement['currentValue'] as int;
+        final threshold = achievement['threshold'] as int;
+
+        // Build description with progress
+        String description = achievement['description'] as String;
+        if (!unlocked) {
+          description = '$description ($currentValue/$threshold)';
+        }
 
         return _buildAchievementCard(
-          title: meta['title'] as String,
-          description: achievement.description,
-          icon: meta['icon'] as IconData,
-          unlocked: achievement.unlocked,
-          color: meta['color'] as Color,
-          progress: achievement.progress,
+          title: achievement['title'] as String,
+          description: description,
+          icon: icon,
+          unlocked: unlocked,
+          color: color,
+          progress: progress,
         );
       }).toList(),
     );

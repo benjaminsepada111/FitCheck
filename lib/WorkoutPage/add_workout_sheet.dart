@@ -5,6 +5,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -227,6 +228,14 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
       if (!mounted) return;
 
       if (success) {
+        // Track workout for achievements
+        try {
+          await UserAchievementService.trackWorkoutCompletion();
+        } catch (e) {
+          debugPrint('Error tracking workout achievement: $e');
+          // Don't block the success flow if achievement tracking fails
+        }
+
         if (widget.onWorkoutAdded != null) {
           widget.onWorkoutAdded!();
         }

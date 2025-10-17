@@ -127,40 +127,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
-  double _getCalorieProgress() {
-    if (widget.challenge == null) return 0.0;
-    return (_loggedCalories / widget.challenge!.dailyCalorieGoal).clamp(0.0, 1.0);
-  }
-
-  int _calculateStreak() {
-    if (widget.challenge == null) return 0;
-
-    final startDate = widget.challenge!.startDate;
-
-    // If selected date is before challenge start, return 0
-    if (widget.selectedDate.isBefore(startDate)) return 0;
-
-    // Calculate days from start to selected date
-    final difference = widget.selectedDate.difference(startDate).inDays + 1;
-    return difference > 0 ? difference : 0;
-  }
-
-  int _getStreakGoal() {
-    if (widget.challenge == null) return 30;
-
-    final totalDays = widget.challenge!.endDate
-        .difference(widget.challenge!.startDate)
-        .inDays + 1;
-
-    return totalDays;
-  }
-
-  double _getStreakProgress() {
-    final currentStreak = _calculateStreak();
-    final streakGoal = _getStreakGoal();
-    if (streakGoal <= 0) return 0.0;
-    return (currentStreak / streakGoal).clamp(0.0, 1.0);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -228,11 +194,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   }
 
   Widget _buildDailySummary() {
-    final calorieGoal = widget.challenge?.dailyCalorieGoal ?? 2000;
-    final calorieProgress = _getCalorieProgress();
-    final streakProgress = _getStreakProgress();
-    final currentStreak = _calculateStreak();
-    final streakGoal = _getStreakGoal();
+    // Calculate meals logged (count non-empty meal types)
+    final mealsLogged = _foodEntriesByMeal.values
+        .where((entries) => entries.isNotEmpty)
+        .length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -247,23 +212,28 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildCircularProgress(
-                'Calories',
-                _loggedCalories,
-                calorieGoal,
-                calorieProgress,
-                AppColors.secondary,
+              Expanded(
+                child: _buildStatCard(
+                  label: 'Workouts',
+                  value: _workouts.length.toString(),
+                ),
               ),
-              _buildCircularProgress(
-                'Streak',
-                currentStreak,
-                streakGoal,
-                streakProgress,
-                AppColors.secondary,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  label: 'Calories',
+                  value: _loggedCalories.toString(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  label: 'Meals',
+                  value: mealsLogged.toString(),
+                ),
               ),
             ],
           ),
@@ -272,61 +242,47 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
-  Widget _buildCircularProgress(
-      String label,
-      int current,
-      int goal,
-      double progress,
-      Color color,
-      ) {
-    return Column(
-      children: [
-        SizedBox(
-          width: 80,
-          height: 80,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 8,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    progress >= 1.0 ? color.withOpacity(0.8) : color,
-                  ),
-                ),
-              ),
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+  Widget _buildStatCard({
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.shade200, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
           ),
-        ),
-        Text(
-          '$current/$goal',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

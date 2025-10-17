@@ -6,6 +6,7 @@
   import 'package:capstone_project/color/colors.dart';
   import 'package:capstone_project/models/milestone.dart';
   import 'package:capstone_project/services/milestone_service.dart';
+  import 'package:capstone_project/services/user_achievement_service.dart';
 
   class AddMilestoneSheet extends StatefulWidget {
     final Function(Milestone milestone, File? imageFile) onSave;
@@ -32,7 +33,7 @@
       }
     }
 
-    void _saveMilestone() {
+    void _saveMilestone() async {
       if (_selectedImage == null) return;
 
       final now = DateTime.now();
@@ -48,7 +49,17 @@
         updatedAt: now,
       );
 
+      // Track photo upload for achievements
+      try {
+        await UserAchievementService.trackPhotoUpload();
+      } catch (e) {
+        debugPrint('Error tracking photo achievement: $e');
+        // Don't block the success flow if achievement tracking fails
+      }
+
       widget.onSave(milestone, _selectedImage);
+
+      if (!mounted) return;
       Navigator.pop(context);
     }
 

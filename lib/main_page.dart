@@ -17,6 +17,7 @@ import 'WorkoutPage/workout_history_page.dart';
 import 'services/user_data_service.dart';
 import 'services/user_time_tracker.dart';
 import 'services/login_tracker_service.dart';
+import 'services/user_achievement_service.dart';
 import 'UserInputFile/genderselection.dart';
 
 class MainPage extends StatefulWidget {
@@ -67,6 +68,52 @@ class _MainPageState extends State<MainPage> {
   Future<void> _recordDailyLogin() async {
     try {
       await LoginTrackerService.recordDailyLogin();
+
+      // Track daily login for achievements
+      await UserAchievementService.trackDailyLogin();
+
+      // Check for newly unlocked achievements
+      final newlyUnlocked = await UserAchievementService.checkAndUnlockAchievements();
+
+      // Show achievement unlock notifications
+      if (newlyUnlocked.isNotEmpty && mounted) {
+        for (final id in newlyUnlocked) {
+          final achievement = UserAchievementService.getAchievementWithMetadata(id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Achievement Unlocked!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          achievement['title'] as String,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     } catch (e) {
       debugPrint('Warning: Failed to record daily login: $e');
       // Don't block app startup if login tracking fails

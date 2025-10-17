@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
+import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AddFoodSheet extends StatefulWidget {
@@ -197,9 +198,19 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     ).round();
     final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
 
+    // Track meal logging and calories for achievements
+    try {
+      await UserAchievementService.trackMealLogging(calories: calories);
+    } catch (e) {
+      debugPrint('Error tracking meal achievement: $e');
+      // Don't block the success flow if achievement tracking fails
+    }
+
     if (widget.onFoodAdded != null) {
       widget.onFoodAdded!(foodName, calories, grams: grams, imageBase64: _imageBase64);
     }
+
+    if (!mounted) return;
 
     Navigator.pop(context);
 
@@ -258,9 +269,19 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
+    // Track meal logging and calories for achievements
+    try {
+      await UserAchievementService.trackMealLogging(calories: calories);
+    } catch (e) {
+      debugPrint('Error tracking meal achievement: $e');
+      // Don't block the success flow if achievement tracking fails
+    }
+
     if (widget.onFoodAdded != null) {
       widget.onFoodAdded!(foodName, calories, imageBase64: _imageBase64);
     }
+
+    if (!mounted) return;
 
     Navigator.pop(context);
 

@@ -6,6 +6,7 @@ import '../app_text_styles.dart';
 import 'daily_logs.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
+import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChallengeCalendar extends StatefulWidget {
@@ -334,7 +335,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'This will reset your progress and stop tracking.',
+                      'This will mark the challenge as complete and stop tracking.',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -349,13 +350,24 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              widget.onChallengeEnded();
-              Navigator.pop(context);
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-              ScaffoldMessenger.of(context).showSnackBar(
+              // Track challenge completion for achievements
+              try {
+                await UserAchievementService.trackChallengeCompletion();
+              } catch (e) {
+                debugPrint('Error tracking challenge achievement: $e');
+                // Don't block the success flow if achievement tracking fails
+              }
+
+              widget.onChallengeEnded();
+              navigator.pop();
+
+              scaffoldMessenger.showSnackBar(
                 SnackBar(
-                  content: const Text('Challenge ended successfully'),
+                  content: const Text('Challenge completed successfully!'),
                   backgroundColor: Colors.green,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(

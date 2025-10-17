@@ -1,11 +1,11 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/workout_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
+import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -31,8 +31,9 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
   final ImagePicker _imagePicker = ImagePicker();
 
   bool _isSaving = false;
+  bool _isUploadingImage = false;
   File? _selectedImage;
-  String? _imageBase64;
+  String? _imageUrl;
 
   @override
   void dispose() {
@@ -66,10 +67,9 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
 
       if (pickedFile != null) {
         final imageFile = File(pickedFile.path);
-        final bytes = await imageFile.readAsBytes();
         setState(() {
           _selectedImage = imageFile;
-          _imageBase64 = base64Encode(bytes);
+          _imageUrl = null; // Reset URL until uploaded
         });
       }
     } catch (e) {
@@ -88,10 +88,9 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
 
       if (pickedFile != null) {
         final imageFile = File(pickedFile.path);
-        final bytes = await imageFile.readAsBytes();
         setState(() {
           _selectedImage = imageFile;
-          _imageBase64 = base64Encode(bytes);
+          _imageUrl = null; // Reset URL until uploaded
         });
       }
     } catch (e) {
@@ -102,7 +101,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
   void _removeImage() {
     setState(() {
       _selectedImage = null;
-      _imageBase64 = null;
+      _imageUrl = null;
     });
   }
 
@@ -209,6 +208,27 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         throw Exception('User not authenticated');
       }
 
+      // Upload image to Cloud Storage if selected
+      String? uploadedImageUrl;
+      if (_selectedImage != null) {
+        debugPrint('📤 Uploading workout image...');
+        setState(() => _isUploadingImage = true);
+
+        uploadedImageUrl = await ImageStorageService.uploadWorkoutImage(
+          _selectedImage!,
+          challengeId: widget.currentChallenge.id,
+        );
+
+        setState(() => _isUploadingImage = false);
+
+        if (uploadedImageUrl == null) {
+          debugPrint('❌ Workout image upload failed!');
+          _showError('Failed to upload image. Workout will be saved without photo.');
+        } else {
+          debugPrint('✅ Workout image uploaded: $uploadedImageUrl');
+        }
+      }
+
       final timestamp = DateTime.now();
       final workoutId = WorkoutService.generateWorkoutId();
 
@@ -219,7 +239,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         sets: sets,
         reps: reps,
         notes: notes.isEmpty ? null : notes,
-        imageBase64: _imageBase64,
+        imageUrl: uploadedImageUrl,
         timestamp: timestamp,
       );
 

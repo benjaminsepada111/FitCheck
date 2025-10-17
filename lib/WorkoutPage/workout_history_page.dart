@@ -1,10 +1,9 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/WorkoutPage/add_workout_sheet.dart';
 import 'package:intl/intl.dart';
 
@@ -123,8 +122,25 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         throw Exception('No active challenge');
       }
 
+      // Delete image from Cloud Storage if it exists
+      if (workout.imageUrl != null) {
+        debugPrint('🗑️ Deleting workout image from Cloud Storage: ${workout.imageUrl}');
+        await ImageStorageService.deleteImage(workout.imageUrl!);
+      }
+
+      // Create the workout document name to match what's in Firestore
+      final sanitized = workout.exerciseName
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
+          .replaceAll(RegExp(r'\s+'), '_')
+          .trim();
+      final timeStamp = workout.timestamp.millisecondsSinceEpoch.toString();
+      final workoutDocName = '${sanitized}_$timeStamp';
+
+      debugPrint('🗑️ Deleting workout with doc name: $workoutDocName');
+
       final success = await WorkoutService.deleteWorkout(
-        workout.id,
+        workoutDocName,
         widget.currentChallenge!.id,
         workout.timestamp,
       );
@@ -146,11 +162,12 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
-        _loadWorkouts();
+        await _loadWorkouts(); // Reload the list
       } else {
         throw Exception('Failed to delete workout');
       }
     } catch (e) {
+      debugPrint('❌ Error deleting workout: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -186,52 +203,72 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     }
   }
 
-  Widget _buildBase64Image(String base64String) {
-    try {
-      final Uint8List imageBytes = base64Decode(base64String);
-      return Container(
-        constraints: const BoxConstraints(
-          maxWidth: 100,
-          maxHeight: 100,
-        ),
-        child: Image.memory(
-          imageBytes,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 80,
-              height: 80,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.fitness_center,
-                color: AppColors.secondary,
-                size: 28,
-              ),
-            );
-          },
-        ),
-      );
-    } catch (e) {
-      debugPrint('Error decoding base64 image: $e');
-      return Container(
-        width: 80,
-        height: 80,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.secondary.withOpacity(0.1),
+  Widget _buildWorkoutImage(Workout workout) {
+    // Prefer Cloud Storage URL over legacy base64
+    if (workout.imageUrl != null && workout.imageUrl!.isNotEmpty) {
+      return SizedBox(
+        width: 70,
+        height: 100,
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          Icons.fitness_center,
-          color: AppColors.secondary,
-          size: 28,
+          child: Image.network(
+            workout.imageUrl!,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 70,
+                height: 100,
+                color: Colors.grey.shade200,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                    strokeWidth: 2,
+                    color: AppColors.secondary,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('Error loading workout image: $error');
+              return Container(
+                width: 70,
+                height: 100,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.broken_image,
+                  color: AppColors.secondary,
+                  size: 28,
+                ),
+              );
+            },
+          ),
         ),
       );
     }
+
+    // Fallback to default icon
+    return Container(
+      width: 70,
+      height: 100,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        Icons.fitness_center,
+        color: AppColors.secondary,
+        size: 28,
+      ),
+    );
   }
 
   @override
@@ -372,53 +409,18 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                   ),
                 ],
               ),
-              child: Dismissible(
-                key: Key(workout.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade400,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white, size: 28),
-                ),
-                confirmDismiss: (direction) async {
-                  _showDeleteConfirmation(workout);
-                  return false;
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Leading Icon or Image
-                      if (workout.imageBase64 != null && workout.imageBase64!.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: _buildBase64Image(workout.imageBase64!),
-                        )
-                      else
-                        Container(
-                          width: 80,
-                          height: 80,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.fitness_center,
-                            color: AppColors.secondary,
-                            size: 28,
-                          ),
-                        ),
-                      const SizedBox(width: 12),
-                      // Content
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Leading Icon or Image
+                    _buildWorkoutImage(workout),
+                    const SizedBox(width: 12),
+                    // Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               workout.exerciseName,
@@ -494,8 +496,15 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    // Delete button
+                    IconButton(
+                      onPressed: () => _showDeleteConfirmation(workout),
+                      icon: const Icon(Icons.remove_circle_outline),
+                      color: Colors.red.shade400,
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ],
                 ),
               ),
             )),

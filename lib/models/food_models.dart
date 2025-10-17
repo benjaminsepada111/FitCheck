@@ -131,7 +131,8 @@ class FoodEntry {
   final double servingSize; // in grams
   final String servingUnit; // e.g., "cup", "piece", "grams"
   final double caloriesPer100g;
-  final String? imageBase64; // Optional base64 encoded image
+  final String? imageUrl; // Optional Cloud Storage image URL
+  final String? imageBase64; // Legacy field for backward compatibility
 
   FoodEntry({
     required this.id,
@@ -140,6 +141,7 @@ class FoodEntry {
     required this.servingSize,
     required this.servingUnit,
     required this.caloriesPer100g,
+    this.imageUrl,
     this.imageBase64,
   });
 
@@ -156,6 +158,7 @@ class FoodEntry {
       'servingSize': servingSize,
       'servingUnit': servingUnit,
       'caloriesPer100g': caloriesPer100g,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (imageBase64 != null) 'imageBase64': imageBase64,
     };
   }
@@ -168,6 +171,7 @@ class FoodEntry {
       servingSize: json['servingSize'].toDouble(),
       servingUnit: json['servingUnit'],
       caloriesPer100g: json['caloriesPer100g'].toDouble(),
+      imageUrl: json['imageUrl'],
       imageBase64: json['imageBase64'],
     );
   }
@@ -177,6 +181,7 @@ class FoodEntry {
     FoodSearchResult searchResult,
     double servingSize,
     String servingUnit, {
+    String? imageUrl,
     String? imageBase64,
   }) {
     return FoodEntry(
@@ -186,6 +191,7 @@ class FoodEntry {
       servingSize: servingSize,
       servingUnit: servingUnit,
       caloriesPer100g: searchResult.calories,
+      imageUrl: imageUrl,
       imageBase64: imageBase64,
     );
   }
@@ -197,6 +203,7 @@ class FoodEntry {
     double? servingSize,
     String? servingUnit,
     double? caloriesPer100g,
+    String? imageUrl,
     String? imageBase64,
   }) {
     return FoodEntry(
@@ -206,6 +213,7 @@ class FoodEntry {
       servingSize: servingSize ?? this.servingSize,
       servingUnit: servingUnit ?? this.servingUnit,
       caloriesPer100g: caloriesPer100g ?? this.caloriesPer100g,
+      imageUrl: imageUrl ?? this.imageUrl,
       imageBase64: imageBase64 ?? this.imageBase64,
     );
   }

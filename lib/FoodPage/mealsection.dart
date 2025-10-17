@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'add_food_sheet.dart';
 import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/color/colors.dart';
 
@@ -84,7 +84,7 @@ class MealsSectionState extends State<MealsSection> {
   }
 
 
-  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams, String? imageBase64}) async {
+  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams, String? imageUrl}) async {
     try {
       // Create new food entry
       final foodEntry = FoodEntry(
@@ -96,7 +96,7 @@ class MealsSectionState extends State<MealsSection> {
         caloriesPer100g: grams != null && grams > 0
             ? (calories / grams) * 100
             : calories.toDouble(),
-        imageBase64: imageBase64,
+        imageUrl: imageUrl,
       );
 
       if (widget.challengeId == null) {
@@ -154,6 +154,12 @@ class MealsSectionState extends State<MealsSection> {
     try {
       if (widget.challengeId == null) {
         throw Exception('No active challenge');
+      }
+
+      // Delete the image from Cloud Storage if it exists
+      if (entry.imageUrl != null) {
+        debugPrint('🗑️ Deleting image from Cloud Storage: ${entry.imageUrl}');
+        await ImageStorageService.deleteImage(entry.imageUrl!);
       }
 
       // Find the meal log containing this entry and remove it
@@ -330,12 +336,13 @@ class MealsSectionState extends State<MealsSection> {
           iconPath: meal["icon"] as String,
           isRecommended: meal["isRecommended"] as bool,
           foodEntries: _mealEntries[meal["name"]] ?? [],
-          onFoodAdded: (foodName, calories, {grams, imageBase64}) => _onFoodAdded(
+          challengeId: widget.challengeId,
+          onFoodAdded: (foodName, calories, {grams, imageUrl}) => _onFoodAdded(
             foodName,
             calories,
             meal["name"] as String,
             grams: grams,
-            imageBase64: imageBase64,
+            imageUrl: imageUrl,
           ),
           onFoodRemoved: _removeFoodEntry,
         )),
@@ -358,8 +365,9 @@ class _MealCard extends StatefulWidget {
   final String iconPath;
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
-  final Function(String foodName, int calories, {double? grams, String? imageBase64}) onFoodAdded;
+  final Function(String foodName, int calories, {double? grams, String? imageUrl}) onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
+  final String? challengeId;
 
   const _MealCard({
     required this.name,
@@ -369,6 +377,7 @@ class _MealCard extends StatefulWidget {
     required this.foodEntries,
     required this.onFoodAdded,
     required this.onFoodRemoved,
+    this.challengeId,
   });
 
   @override
@@ -497,8 +506,9 @@ class _MealCardState extends State<_MealCard> {
                         backgroundColor: Colors.transparent,
                         builder: (context) => AddFoodSheet(
                           mealName: widget.name,
-                          onFoodAdded: (foodName, calories, {grams, imageBase64}) {
-                            widget.onFoodAdded(foodName, calories, grams: grams, imageBase64: imageBase64);
+                          challengeId: widget.challengeId,
+                          onFoodAdded: (foodName, calories, {grams, imageUrl}) {
+                            widget.onFoodAdded(foodName, calories, grams: grams, imageUrl: imageUrl);
                           },
                         ),
                       );
@@ -537,19 +547,61 @@ class _MealCardState extends State<_MealCard> {
                             ),
                             child: Row(
                               children: [
-                                // Show image thumbnail if available
-                                if (entry.imageBase64 != null) ...[
+                                // Show image thumbnail or default icon
+                                if (entry.imageUrl != null && entry.imageUrl!.isNotEmpty)
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(6),
-                                    child: Image.memory(
-                                      base64Decode(entry.imageBase64!),
-                                      width: 50,
-                                      height: 50,
+                                    child: Image.network(
+                                      entry.imageUrl!,
+                                      width: 60,
+                                      height: 80,
                                       fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          width: 60,
+                                          height: 80,
+                                          color: Colors.grey.shade300,
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            color: Colors.grey.shade500,
+                                          ),
+                                        );
+                                      },
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Container(
+                                          width: 60,
+                                          height: 80,
+                                          color: Colors.grey.shade200,
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    width: 60,
+                                    height: 80,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Icon(
+                                      Icons.restaurant,
+                                      color: AppColors.secondary,
+                                      size: 24,
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                ],
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

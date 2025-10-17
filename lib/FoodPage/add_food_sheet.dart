@@ -1,19 +1,21 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
+import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final Function(String foodName, int calories, {double? grams, String? imageBase64})? onFoodAdded;
+  final String? challengeId; // Required for image uploads
+  final Function(String foodName, int calories, {double? grams, String? imageUrl})? onFoodAdded;
 
   const AddFoodSheet({
     super.key,
     required this.mealName,
+    this.challengeId,
     this.onFoodAdded,
   });
 
@@ -34,7 +36,8 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   bool _isManualEntry = false;
   String? _errorMessage;
   File? _selectedImage;
-  String? _imageBase64;
+  String? _imageUrl;
+  bool _isUploadingImage = false;
 
   @override
   void dispose() {
@@ -122,10 +125,9 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
       if (pickedFile != null) {
         final imageFile = File(pickedFile.path);
-        final bytes = await imageFile.readAsBytes();
         setState(() {
           _selectedImage = imageFile;
-          _imageBase64 = base64Encode(bytes);
+          _imageUrl = null; // Reset URL until uploaded
         });
       }
     } catch (e) {
@@ -137,7 +139,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   void _removeImage() {
     setState(() {
       _selectedImage = null;
-      _imageBase64 = null;
+      _imageUrl = null;
     });
   }
 
@@ -152,7 +154,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       _manualCaloriesController.clear();
       _errorMessage = null;
       _selectedImage = null;
-      _imageBase64 = null;
+      _imageUrl = null;
     });
   }
 
@@ -192,6 +194,26 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
+    // Upload image to Cloud Storage if selected
+    String? uploadedImageUrl;
+    if (_selectedImage != null && widget.challengeId != null) {
+      setState(() => _isUploadingImage = true);
+
+      uploadedImageUrl = await ImageStorageService.uploadFoodImage(
+        _selectedImage!,
+        challengeId: widget.challengeId!,
+      );
+
+      setState(() => _isUploadingImage = false);
+
+      if (uploadedImageUrl == null) {
+        _showError('Failed to upload image. Food will be saved without photo.');
+        // Continue anyway, just without the image
+      }
+    } else if (_selectedImage != null && widget.challengeId == null) {
+      _showError('Cannot upload image without an active challenge.');
+    }
+
     final calories = USDAApiService.calculateCaloriesForAmount(
       food: _selectedFood!,
       grams: grams,
@@ -207,7 +229,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     }
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, grams: grams, imageBase64: _imageBase64);
+      widget.onFoodAdded!(foodName, calories, grams: grams, imageUrl: uploadedImageUrl);
     }
 
     if (!mounted) return;
@@ -269,6 +291,26 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
+    // Upload image to Cloud Storage if selected
+    String? uploadedImageUrl;
+    if (_selectedImage != null && widget.challengeId != null) {
+      setState(() => _isUploadingImage = true);
+
+      uploadedImageUrl = await ImageStorageService.uploadFoodImage(
+        _selectedImage!,
+        challengeId: widget.challengeId!,
+      );
+
+      setState(() => _isUploadingImage = false);
+
+      if (uploadedImageUrl == null) {
+        _showError('Failed to upload image. Food will be saved without photo.');
+        // Continue anyway, just without the image
+      }
+    } else if (_selectedImage != null && widget.challengeId == null) {
+      _showError('Cannot upload image without an active challenge.');
+    }
+
     // Track meal logging and calories for achievements
     try {
       await UserAchievementService.trackMealLogging(calories: calories);
@@ -278,7 +320,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     }
 
     if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, imageBase64: _imageBase64);
+      widget.onFoodAdded!(foodName, calories, imageUrl: uploadedImageUrl);
     }
 
     if (!mounted) return;

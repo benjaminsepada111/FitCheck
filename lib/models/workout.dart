@@ -5,7 +5,8 @@ class Workout {
   final int sets;
   final int reps;
   final String? notes;
-  final String? imageBase64; // Changed from imageUrl to imageBase64
+  final String? imageUrl; // Cloud Storage URL
+  final String? imageBase64; // Legacy field for backward compatibility
   final DateTime timestamp;
 
   Workout({
@@ -15,6 +16,7 @@ class Workout {
     required this.sets,
     required this.reps,
     this.notes,
+    this.imageUrl,
     this.imageBase64,
     required this.timestamp,
   });
@@ -28,6 +30,7 @@ class Workout {
       'sets': sets,
       'reps': reps,
       'notes': notes,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (imageBase64 != null) 'imageBase64': imageBase64,
       'timestamp': timestamp.toIso8601String(),
     };
@@ -42,6 +45,7 @@ class Workout {
       sets: map['sets'] ?? 0,
       reps: map['reps'] ?? 0,
       notes: map['notes'],
+      imageUrl: map['imageUrl'],
       imageBase64: map['imageBase64'],
       timestamp: DateTime.parse(map['timestamp']),
     );
@@ -55,6 +59,7 @@ class Workout {
     int? sets,
     int? reps,
     String? notes,
+    String? imageUrl,
     String? imageBase64,
     DateTime? timestamp,
   }) {
@@ -65,6 +70,7 @@ class Workout {
       sets: sets ?? this.sets,
       reps: reps ?? this.reps,
       notes: notes ?? this.notes,
+      imageUrl: imageUrl ?? this.imageUrl,
       imageBase64: imageBase64 ?? this.imageBase64,
       timestamp: timestamp ?? this.timestamp,
     );

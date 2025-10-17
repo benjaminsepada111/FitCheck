@@ -1,14 +1,13 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/milestone.dart';
+import 'image_storage_service.dart';
 
 class MilestoneService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static const String _usersCollection = 'users';
   static const String _challengesCollection = 'challenges';
@@ -50,26 +49,23 @@ class MilestoneService {
     }
   }
 
-  /// Upload image to Firebase Storage
+  /// Upload image to Firebase Storage using centralized ImageStorageService
   static Future<String?> _uploadImage(String userId, String challengeId, String milestoneId, File imageFile) async {
     try {
-      final ref = _storage
-          .ref()
-          .child('users')
-          .child(userId)
-          .child('challenges')
-          .child(challengeId)
-          .child('milestones')
-          .child('$milestoneId.jpg');
+      final downloadUrl = await ImageStorageService.uploadMilestoneImage(
+        imageFile,
+        challengeId: challengeId,
+      );
 
-      final uploadTask = ref.putFile(imageFile);
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
+      if (downloadUrl != null) {
+        debugPrint('Milestone image uploaded successfully: $downloadUrl');
+      } else {
+        debugPrint('Failed to upload milestone image');
+      }
 
-      debugPrint('Image uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
-      debugPrint('Error uploading image: $e');
+      debugPrint('Error uploading milestone image: $e');
       return null;
     }
   }
@@ -290,14 +286,17 @@ class MilestoneService {
     }
   }
 
-  /// Delete image from Firebase Storage
+  /// Delete image from Firebase Storage using centralized ImageStorageService
   static Future<void> _deleteImage(String imageUrl) async {
     try {
-      final ref = _storage.refFromURL(imageUrl);
-      await ref.delete();
-      debugPrint('Image deleted from storage');
+      final success = await ImageStorageService.deleteImage(imageUrl);
+      if (success) {
+        debugPrint('Milestone image deleted from storage');
+      } else {
+        debugPrint('Failed to delete milestone image');
+      }
     } catch (e) {
-      debugPrint('Error deleting image: $e');
+      debugPrint('Error deleting milestone image: $e');
     }
   }
 

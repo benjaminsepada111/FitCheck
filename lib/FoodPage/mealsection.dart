@@ -5,6 +5,7 @@ import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class MealsSection extends StatefulWidget {
   final VoidCallback? onCaloriesUpdated; // Add callback for tracker updates
@@ -297,7 +298,7 @@ class MealsSectionState extends State<MealsSection> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: FitCheckLoader());
     }
 
     final meals = _getOrderedMeals();

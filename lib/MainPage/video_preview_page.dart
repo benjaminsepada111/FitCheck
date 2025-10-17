@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/api_service.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 // ============================================================================
 // MAIN VIDEO EDITOR PAGE
@@ -620,7 +621,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color:AppColors.secondary),
+              FitCheckLoader(),
               const SizedBox(height: 20),
               Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
             ],
@@ -643,13 +644,11 @@ class _VideoEditorPageState extends State<VideoEditorPage>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: AppColors.secondary),
+              FitCheckLoader(),
               const SizedBox(height: 20),
-              const Text('Please wait while we process your video...\n\nThis may take 2-5 minutes.',
+              const Text('Please wait while we process your video...',
                   textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-              const SizedBox(height: 12),
-              Text('Render ID: $renderId',
-                  style: const TextStyle(fontSize: 10, color: Colors.white38)),
+
             ],
           ),
         ),
@@ -994,7 +993,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: AppColors.secondary, strokeWidth: 3),
+          FitCheckLoader(),
           const SizedBox(height: 24),
           const Text('Loading video...', style: TextStyle(color: Colors.white70, fontSize: 16)),
         ],

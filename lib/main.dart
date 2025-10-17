@@ -7,10 +7,10 @@ import 'LoginPages/login_page.dart';
 import 'SignUpPages/signuppage.dart';
 import 'main_page.dart';
 import 'app_text_styles.dart';
+import 'splash_screen.dart'; // Add this import
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -32,7 +32,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         fontFamily: "Sen",
       ),
-      home: const AuthWrapper(),
+      home: SplashScreen(
+        nextPage: const AuthWrapper(),
+      ),
       routes: {
         '/auth': (context) => const AuthWrapper(),
         '/onboarding': (context) => const OnboardingScreen(),

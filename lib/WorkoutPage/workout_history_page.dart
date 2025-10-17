@@ -6,6 +6,7 @@ import 'package:capstone_project/services/workout_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/WorkoutPage/add_workout_sheet.dart';
 import 'package:intl/intl.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -290,9 +291,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-                    ),
+                    child: FitCheckLoader(),
                   )
                 : _workouts.isEmpty
                     ? _buildEmptyState()

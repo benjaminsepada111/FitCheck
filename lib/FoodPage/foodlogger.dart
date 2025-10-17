@@ -3,6 +3,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class FoodLogger extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -135,7 +136,7 @@ class FoodLoggerState extends State<FoodLogger> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Center(
-              child: CircularProgressIndicator(color: AppColors.secondary),
+              child: FitCheckLoader(),
             ),
           ),
         ],

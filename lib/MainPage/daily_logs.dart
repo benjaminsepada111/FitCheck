@@ -9,6 +9,7 @@ import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/workout_service.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
@@ -163,7 +164,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: FitCheckLoader())
           : RefreshIndicator(
         onRefresh: _loadDailyData,
         child: SingleChildScrollView(

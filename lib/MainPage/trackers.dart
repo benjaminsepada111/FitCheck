@@ -5,6 +5,7 @@ import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/achievements_page.dart';
 import '../app_text_styles.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class Trackers extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -337,7 +338,7 @@ class _TrackersState extends State<Trackers> {
               ],
             ),
             child: const Center(
-              child: CircularProgressIndicator(),
+              child: FitCheckLoader(),
             ),
           ),
         ],

@@ -7,6 +7,7 @@ import 'daily_logs.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChallengeCalendar extends StatefulWidget {
@@ -359,7 +360,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                 await UserAchievementService.trackChallengeCompletion();
               } catch (e) {
                 debugPrint('Error tracking challenge achievement: $e');
-                // Don't block the success flow if achievement tracking fails
               }
 
               widget.onChallengeEnded();
@@ -389,10 +389,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
 
   @override
   Widget build(BuildContext context) {
-    final calendarDays = _buildCalendarDays();
-    final weeks = _buildWeeks(calendarDays);
     final screenWidth = MediaQuery.of(context).size.width;
-
     final horizontalPadding = screenWidth > 400 ? 16.0 : 12.0;
     final buttonSize = screenWidth > 400 ? 44.0 : 40.0;
     final iconSize = screenWidth > 400 ? 24.0 : 20.0;
@@ -423,7 +420,14 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
               ),
             ],
           ),
-          child: Column(
+          child: _isLoadingCompletions
+              ? SizedBox(
+            height: 280,
+            child: Center(
+              child: FitCheckLoader(),
+            ),
+          )
+              : Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -507,13 +511,16 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                     .toList(),
               ),
               const SizedBox(height: 8),
-              Column(children: weeks),
+              Column(
+                children: _buildWeeks(_buildCalendarDays()),
+              ),
             ],
-            ),
+          ),
         ),
       ],
     );
   }
+
   Widget _buildLegendItem(Color color, String label, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -566,8 +573,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       ),
     );
 
-    // Reload completions when returning from daily log
-    // This ensures check marks appear immediately
     await _loadMonthCompletions();
   }
 
@@ -597,7 +602,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       textColor = Colors.white;
       labelText = 'TODAY';
     } else if (isComplete && isInChallenge) {
-      // ✅ Day is complete → use secondary color
       backgroundColor = AppColors.secondary;
       textColor = Colors.white;
     } else if (isInChallenge) {
@@ -619,7 +623,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
           : Colors.black.withOpacity(0.2);
     }
 
-
     Widget dateWidget = Container(
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -638,9 +641,8 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             : null,
       ),
       child: Stack(
-        alignment: Alignment.center, // ✅ centers the date + label
+        alignment: Alignment.center,
         children: [
-          // Date number + label
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -670,7 +672,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             ],
           ),
 
-          // Checkmark
           if (isComplete && isClickable)
             Positioned(
               top: 2,

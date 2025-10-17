@@ -18,6 +18,8 @@ import 'package:capstone_project/services/api_service.dart';
 import 'video_preview_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gal/gal.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
+
 
 class MilestonePreviewPage extends StatefulWidget {
   final List<Milestone> milestones;
@@ -364,7 +366,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(),
+              const FitCheckLoader(),
               const SizedBox(height: 20),
               Text(message, textAlign: TextAlign.center),
             ],
@@ -385,20 +387,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(),
+              const FitCheckLoader(),
               const SizedBox(height: 20),
               const Text(
-                'Please wait while we create your milestone video...\n\nThis may take 2-5 minutes depending on the number of images.',
+                'Please wait while we create your milestone video...',
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Render ID: $renderId',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                ),
-              ),
+
             ],
           ),
         ),

@@ -9,8 +9,6 @@ import '../MainPage/custom_bottom_navbar.dart';
 import '../MainPage/challenge_history_sheet.dart';
 import '../MainPage/create_challenge_sheet.dart';
 import 'package:capstone_project/color/colors.dart';
-
-// add your other page imports
 import 'food_page.dart';
 import 'profile.dart';
 import 'WorkoutPage/workout_history_page.dart';
@@ -19,9 +17,18 @@ import 'services/user_time_tracker.dart';
 import 'services/login_tracker_service.dart';
 import 'services/user_achievement_service.dart';
 import 'UserInputFile/genderselection.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
+
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  final Challenge? initialChallenge;
+  final List<Challenge>? initialChallengeHistory;
+
+  const MainPage({
+    super.key,
+    this.initialChallenge,
+    this.initialChallengeHistory,
+  });
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -30,22 +37,56 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   String _selectedChallenge = "No Challenge";
-  int _milestoneKey = 0; // Key to force milestone refresh
+  int _milestoneKey = 0;
 
-  // Challenge and tracking data
   Challenge? _currentChallenge;
   int _currentCalories = 0;
   List<Challenge> _challengeHistory = [];
-
-  // Keys for accessing child widget methods - remove this for now since we need to check the actual state class name
-  // final GlobalKey<_TrackersState> _trackersKey = GlobalKey<_TrackersState>();
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeTimeTracking();
-    _recordDailyLogin();
-    _loadChallengeData();
+    _initializeWithPreloadedData();
+  }
+
+  /// Initialize with preloaded data, then continue background tasks
+  Future<void> _initializeWithPreloadedData() async {
+    try {
+      // Use preloaded data if provided
+      if (widget.initialChallenge != null || widget.initialChallengeHistory != null) {
+        if (mounted) {
+          setState(() {
+            _currentChallenge = widget.initialChallenge;
+            _challengeHistory = widget.initialChallengeHistory ?? [];
+            _selectedChallenge = widget.initialChallenge?.title ?? "No Challenge";
+            _isInitialized = true;
+          });
+        }
+      } else {
+        // Fallback: load data synchronously if no preload
+        await _loadChallengeData();
+        if (mounted) {
+          setState(() {
+            _isInitialized = true;
+          });
+        }
+      }
+
+      // Start background tasks (don't wait for these)
+      _initializeTimeTracking();
+      _recordDailyLogin();
+
+      // Refresh challenge data in background to ensure latest state
+      _refreshChallengeDataInBackground();
+    } catch (e) {
+      debugPrint('Error in _initializeWithPreloadedData: $e');
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    }
   }
 
   /// Initialize time tracking for the user on app startup
@@ -60,7 +101,6 @@ class _MainPageState extends State<MainPage> {
       }
     } catch (e) {
       debugPrint('Warning: Failed to initialize time tracking: $e');
-      // Don't block app startup if time tracking fails
     }
   }
 
@@ -68,14 +108,10 @@ class _MainPageState extends State<MainPage> {
   Future<void> _recordDailyLogin() async {
     try {
       await LoginTrackerService.recordDailyLogin();
-
-      // Track daily login for achievements
       await UserAchievementService.trackDailyLogin();
 
-      // Check for newly unlocked achievements
       final newlyUnlocked = await UserAchievementService.checkAndUnlockAchievements();
 
-      // Show achievement unlock notifications
       if (newlyUnlocked.isNotEmpty && mounted) {
         for (final id in newlyUnlocked) {
           final achievement = UserAchievementService.getAchievementWithMetadata(id);
@@ -116,29 +152,48 @@ class _MainPageState extends State<MainPage> {
       }
     } catch (e) {
       debugPrint('Warning: Failed to record daily login: $e');
-      // Don't block app startup if login tracking fails
     }
   }
 
-  Future<void> _loadChallengeData() async {
+  /// Refresh challenge data in the background without blocking UI
+  Future<void> _refreshChallengeDataInBackground() async {
     try {
-      // Load all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
-
-      // Get active challenges
       final activeChallenges = await ChallengeService.getActiveChallenges();
 
       if (mounted) {
         setState(() {
           _challengeHistory = allChallenges;
 
-          // Set the first active challenge as current (since we only allow one active challenge)
           if (activeChallenges.isNotEmpty) {
             _currentChallenge = activeChallenges.first;
             _selectedChallenge = _currentChallenge!.title;
           } else {
             _currentChallenge = null;
             _selectedChallenge = "No Challenge";
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing challenge data in background: $e');
+    }
+  }
+
+  Future<void> _loadChallengeData() async {
+    try {
+      final allChallenges = await ChallengeService.getUserChallenges();
+      final activeChallenges = await ChallengeService.getActiveChallenges();
+
+      if (mounted) {
+        setState(() {
+          _challengeHistory = allChallenges;
+
+          if (activeChallenges.isNotEmpty) {
+            _currentChallenge = activeChallenges.first;
+            _selectedChallenge = _currentChallenge!.title;
+          } else {
+            _currentChallenge = null;
+            _selectedChallenge = "No Active Challenge";
           }
         });
       }
@@ -157,7 +212,6 @@ class _MainPageState extends State<MainPage> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
-      // Refresh milestones when returning to home tab
       if (index == 0 && _currentChallenge != null) {
         _milestoneKey++;
       }
@@ -223,17 +277,14 @@ class _MainPageState extends State<MainPage> {
     if (_currentChallenge == null) return;
 
     try {
-      // Delete from Firebase database
       final success = await ChallengeService.deleteChallenge(_currentChallenge!.id);
 
       if (success) {
-        // Refresh challenge data from Firebase to ensure consistency
         await _loadChallengeData();
       } else {
         throw Exception('Failed to delete from database');
       }
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Challenge deleted successfully'),
@@ -264,13 +315,9 @@ class _MainPageState extends State<MainPage> {
       _challengeHistory.add(challenge);
     });
 
-    // Refresh challenge data from Firebase to ensure consistency
     _loadChallengeData();
-
-    // Refresh tracker data when new challenge is created
     _refreshTrackers();
 
-    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -310,7 +357,6 @@ class _MainPageState extends State<MainPage> {
       _selectedChallenge = "No Active Challenge";
     });
 
-    // Refresh tracker data when challenge ends
     _refreshTrackers();
   }
 
@@ -318,16 +364,10 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       _currentCalories = calories;
     });
-    // The new system automatically saves to storage via FoodStorageService
-    // No need to manually save here anymore
   }
 
   void _refreshTrackers() {
-    // For now, we'll use a simpler approach without the key reference
-    // The tracker will auto-refresh on challenge changes through setState
-    setState(() {
-      // This will trigger the widget to rebuild and fetch fresh data
-    });
+    setState(() {});
   }
 
   void _onChallengeSelected(String challengeTitle) {
@@ -346,25 +386,21 @@ class _MainPageState extends State<MainPage> {
       if (challengeTitle == "No Active Challenge") {
         _currentChallenge = null;
       } else {
-        // Find challenge in history
         try {
           _currentChallenge = _challengeHistory.firstWhere(
-                  (challenge) => challenge.title == challengeTitle
-          );
+                  (challenge) => challenge.title == challengeTitle);
         } catch (e) {
           _currentChallenge = null;
         }
       }
     });
 
-    // Refresh tracker data when challenge changes
     _refreshTrackers();
   }
 
   List<PopupMenuEntry<String>> _buildPopupMenuItems() {
     List<PopupMenuEntry<String>> items = [];
 
-    // Only show "No Active Challenge" if there's no current challenge
     if (_currentChallenge == null) {
       items.add(
         PopupMenuItem(
@@ -394,9 +430,7 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    // Add recent challenges from history (only inactive ones when there's an active challenge)
     for (Challenge challenge in _challengeHistory.take(3)) {
-      // If there's a current challenge, only show it in the list
       if (_currentChallenge != null && challenge.id != _currentChallenge!.id) {
         continue;
       }
@@ -436,7 +470,6 @@ class _MainPageState extends State<MainPage> {
 
     items.add(const PopupMenuDivider());
 
-    // Show "Create New Challenge" only if no active challenge, otherwise show "Delete Challenge"
     if (_currentChallenge == null) {
       items.add(
         const PopupMenuItem(
@@ -479,7 +512,6 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    // View challenge history
     items.add(
       const PopupMenuItem(
         value: "View Challenge History",
@@ -505,7 +537,7 @@ class _MainPageState extends State<MainPage> {
 
   Widget _getBody() {
     switch (_selectedIndex) {
-      case 0: // Home
+      case 0:
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
@@ -517,7 +549,6 @@ class _MainPageState extends State<MainPage> {
                 onCreateChallenge: _showCreateChallenge,
               ),
               const SizedBox(height: 12),
-              // Updated Trackers widget - auto-refreshes when challenge changes
               Trackers(
                 currentChallenge: _currentChallenge,
                 onCaloriesChanged: _onCaloriesChanged,
@@ -531,18 +562,16 @@ class _MainPageState extends State<MainPage> {
             ],
           ),
         );
-      case 1: // Food - Updated to pass challenge data and callback
+      case 1:
         return FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
-          // Remove this line since FoodPage doesn't have this parameter yet
-          // onCaloriesUpdated: _refreshTrackers,
         );
-      case 2: // Workout
+      case 2:
         return WorkoutHistoryPage(
           currentChallenge: _currentChallenge,
         );
-      case 3: // Profile
+      case 3:
         return const ProfilePage();
       default:
         return const Center(child: Text("Page not found"));
@@ -551,7 +580,6 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Only Profile page should not have the FitCheck header
     if (_selectedIndex == 3) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -563,7 +591,6 @@ class _MainPageState extends State<MainPage> {
       );
     }
 
-    // Home, Food & Workout keep the header
     return Scaffold(
       backgroundColor: Colors.white,
       body: NestedScrollView(
@@ -671,27 +698,34 @@ class MainPageWrapper extends StatefulWidget {
 class _MainPageWrapperState extends State<MainPageWrapper> {
   bool _isLoading = true;
   bool _isProfileComplete = false;
+  Challenge? _preloadedChallenge;
+  List<Challenge> _preloadedChallengeHistory = [];
 
   @override
   void initState() {
     super.initState();
-    _checkUserProfile();
+    _preloadDataAndCheckProfile();
   }
 
-  Future<void> _checkUserProfile() async {
+  /// Preload all data while showing loader, then check profile
+  Future<void> _preloadDataAndCheckProfile() async {
     try {
-      // Check if user has completed their profile
-      final hasData = await UserDataService.hasUserData();
-      final profileComplete = await UserDataService.isProfileComplete();
+      // Run profile check and data preloading in parallel
+      final results = await Future.wait([
+        _checkUserProfileAsync(),
+        _preloadChallengeData(),
+      ]);
+
+      final profileComplete = results[0] as bool;
 
       if (mounted) {
         setState(() {
-          _isProfileComplete = hasData && profileComplete;
+          _isProfileComplete = profileComplete;
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error checking user profile: $e');
+      print('Error in _preloadDataAndCheckProfile: $e');
       if (mounted) {
         setState(() {
           _isProfileComplete = false;
@@ -701,22 +735,54 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
     }
   }
 
+  /// Check user profile asynchronously
+  Future<bool> _checkUserProfileAsync() async {
+    try {
+      final hasData = await UserDataService.hasUserData();
+      final profileComplete = await UserDataService.isProfileComplete();
+      return hasData && profileComplete;
+    } catch (e) {
+      print('Error checking user profile: $e');
+      return false;
+    }
+  }
+
+  /// Preload challenge data in background
+  Future<void> _preloadChallengeData() async {
+    try {
+      final allChallenges = await ChallengeService.getUserChallenges();
+      final activeChallenges = await ChallengeService.getActiveChallenges();
+
+      if (mounted) {
+        setState(() {
+          _preloadedChallengeHistory = allChallenges;
+          _preloadedChallenge =
+          activeChallenges.isNotEmpty ? activeChallenges.first : null;
+        });
+      }
+    } catch (e) {
+      print('Error preloading challenge data: $e');
+      // Continue anyway - MainPage will load data if preload fails
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF06111D),
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        backgroundColor: Color(0xFFFFFFFF),
+        body: FitCheckLoader(fullscreen: true),
       );
     }
 
     if (_isProfileComplete) {
-      // User has completed profile setup - show main app
-      return const MainPage();
+      // User has completed profile setup - show main app with preloaded data
+      return MainPage(
+        initialChallenge: _preloadedChallenge,
+        initialChallengeHistory: _preloadedChallengeHistory,
+      );
     } else {
-      // User needs to complete profile setup - show input flow
+      // User needs to complete profile setup
       return const GenderSelection();
     }
   }

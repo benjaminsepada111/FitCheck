@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/spoonacular_service.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class RecommendedFoods extends StatefulWidget {
   final Function(String foodName, int calories)? onFoodTapped;
@@ -207,7 +208,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: FitCheckLoader(),
               ),
             ),
           ),

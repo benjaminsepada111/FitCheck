@@ -535,8 +535,7 @@ class _MainPageState extends State<MainPage> {
         return FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
-          // Remove this line since FoodPage doesn't have this parameter yet
-          // onCaloriesUpdated: _refreshTrackers,
+          onCaloriesUpdated: _refreshTrackers,
         );
       case 2: // Workout
         return WorkoutHistoryPage(

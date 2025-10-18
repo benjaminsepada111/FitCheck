@@ -140,7 +140,7 @@ class StatisticsService {
     }
   }
 
-  /// Get total number of meals logged
+  /// Get total number of food entries logged (not meal types)
   static Future<int> getMealsLogged() async {
     try {
       final user = _auth.currentUser;
@@ -149,10 +149,11 @@ class StatisticsService {
       final challenges = await ChallengeService.getUserChallenges();
       if (challenges.isEmpty) return 0;
 
-      int totalMeals = 0;
+      int totalFoodEntries = 0;
 
       for (final challenge in challenges) {
-        final mealsSnapshot = await _firestore
+        // Get all food logs for this challenge
+        final foodLogsSnapshot = await _firestore
             .collection('users')
             .doc(user.uid)
             .collection('challenges')
@@ -160,13 +161,19 @@ class StatisticsService {
             .collection('foodlogs')
             .get();
 
-        totalMeals += mealsSnapshot.docs.length;
+        // Count all food entries across all meal logs
+        for (final doc in foodLogsSnapshot.docs) {
+          final data = doc.data();
+          if (data['entries'] != null && data['entries'] is List) {
+            totalFoodEntries += (data['entries'] as List).length;
+          }
+        }
       }
 
-      debugPrint('Total meals logged: $totalMeals');
-      return totalMeals;
+      debugPrint('Total food entries logged: $totalFoodEntries');
+      return totalFoodEntries;
     } catch (e) {
-      debugPrint('Error calculating meals logged: $e');
+      debugPrint('Error calculating food entries logged: $e');
       return 0;
     }
   }

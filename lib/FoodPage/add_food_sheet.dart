@@ -38,6 +38,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   File? _selectedImage;
   String? _imageUrl;
   bool _isUploadingImage = false;
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -194,71 +195,78 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    // Upload image to Cloud Storage if selected
-    String? uploadedImageUrl;
-    if (_selectedImage != null && widget.challengeId != null) {
-      setState(() => _isUploadingImage = true);
+    setState(() => _isSaving = true);
 
-      uploadedImageUrl = await ImageStorageService.uploadFoodImage(
-        _selectedImage!,
-        challengeId: widget.challengeId!,
-      );
-
-      setState(() => _isUploadingImage = false);
-
-      if (uploadedImageUrl == null) {
-        _showError('Failed to upload image. Food will be saved without photo.');
-        // Continue anyway, just without the image
-      }
-    } else if (_selectedImage != null && widget.challengeId == null) {
-      _showError('Cannot upload image without an active challenge.');
-    }
-
-    final calories = USDAApiService.calculateCaloriesForAmount(
-      food: _selectedFood!,
-      grams: grams,
-    ).round();
-    final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
-
-    // Track meal logging and calories for achievements
     try {
-      await UserAchievementService.trackMealLogging(calories: calories);
-    } catch (e) {
-      debugPrint('Error tracking meal achievement: $e');
-      // Don't block the success flow if achievement tracking fails
-    }
+      // Upload image to Cloud Storage if selected
+      String? uploadedImageUrl;
+      if (_selectedImage != null && widget.challengeId != null) {
+        setState(() => _isUploadingImage = true);
 
-    if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, grams: grams, imageUrl: uploadedImageUrl);
-    }
+        uploadedImageUrl = await ImageStorageService.uploadFoodImage(
+          _selectedImage!,
+          challengeId: widget.challengeId!,
+        );
 
-    if (!mounted) return;
+        setState(() => _isUploadingImage = false);
 
-    Navigator.pop(context);
+        if (uploadedImageUrl == null) {
+          _showError('Failed to upload image. Food will be saved without photo.');
+          // Continue anyway, just without the image
+        }
+      } else if (_selectedImage != null && widget.challengeId == null) {
+        _showError('Cannot upload image without an active challenge.');
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
+      final calories = USDAApiService.calculateCaloriesForAmount(
+        food: _selectedFood!,
+        grams: grams,
+      ).round();
+      final foodName = USDAApiService.formatFoodDescription(_selectedFood!);
+
+      // Track meal logging and calories for achievements
+      try {
+        await UserAchievementService.trackMealLogging(calories: calories);
+      } catch (e) {
+        debugPrint('Error tracking meal achievement: $e');
+        // Don't block the success flow if achievement tracking fails
+      }
+
+      if (widget.onFoodAdded != null) {
+        widget.onFoodAdded!(foodName, calories, grams: grams, imageUrl: uploadedImageUrl);
+      }
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
               ),
-              child: const Icon(Icons.check, color: Colors.white, size: 16),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text('Added ${grams.toStringAsFixed(0)}g $foodName to ${widget.mealName}'),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Added ${grams.toStringAsFixed(0)}g $foodName to ${widget.mealName}'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+      );
+    } catch (e) {
+      setState(() => _isSaving = false);
+      _showError('Failed to add food. Please try again.');
+    }
   }
 
   void _saveManualFood() async {
@@ -291,63 +299,70 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    // Upload image to Cloud Storage if selected
-    String? uploadedImageUrl;
-    if (_selectedImage != null && widget.challengeId != null) {
-      setState(() => _isUploadingImage = true);
+    setState(() => _isSaving = true);
 
-      uploadedImageUrl = await ImageStorageService.uploadFoodImage(
-        _selectedImage!,
-        challengeId: widget.challengeId!,
-      );
-
-      setState(() => _isUploadingImage = false);
-
-      if (uploadedImageUrl == null) {
-        _showError('Failed to upload image. Food will be saved without photo.');
-        // Continue anyway, just without the image
-      }
-    } else if (_selectedImage != null && widget.challengeId == null) {
-      _showError('Cannot upload image without an active challenge.');
-    }
-
-    // Track meal logging and calories for achievements
     try {
-      await UserAchievementService.trackMealLogging(calories: calories);
-    } catch (e) {
-      debugPrint('Error tracking meal achievement: $e');
-      // Don't block the success flow if achievement tracking fails
-    }
+      // Upload image to Cloud Storage if selected
+      String? uploadedImageUrl;
+      if (_selectedImage != null && widget.challengeId != null) {
+        setState(() => _isUploadingImage = true);
 
-    if (widget.onFoodAdded != null) {
-      widget.onFoodAdded!(foodName, calories, imageUrl: uploadedImageUrl);
-    }
+        uploadedImageUrl = await ImageStorageService.uploadFoodImage(
+          _selectedImage!,
+          challengeId: widget.challengeId!,
+        );
 
-    if (!mounted) return;
+        setState(() => _isUploadingImage = false);
 
-    Navigator.pop(context);
+        if (uploadedImageUrl == null) {
+          _showError('Failed to upload image. Food will be saved without photo.');
+          // Continue anyway, just without the image
+        }
+      } else if (_selectedImage != null && widget.challengeId == null) {
+        _showError('Cannot upload image without an active challenge.');
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
+      // Track meal logging and calories for achievements
+      try {
+        await UserAchievementService.trackMealLogging(calories: calories);
+      } catch (e) {
+        debugPrint('Error tracking meal achievement: $e');
+        // Don't block the success flow if achievement tracking fails
+      }
+
+      if (widget.onFoodAdded != null) {
+        widget.onFoodAdded!(foodName, calories, imageUrl: uploadedImageUrl);
+      }
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
               ),
-              child: const Icon(Icons.check, color: Colors.white, size: 16),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text('Added $foodName to ${widget.mealName}')),
-          ],
+              const SizedBox(width: 12),
+              Expanded(child: Text('Added $foodName to ${widget.mealName}')),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+      );
+    } catch (e) {
+      setState(() => _isSaving = false);
+      _showError('Failed to add food. Please try again.');
+    }
   }
 
   void _showError(String message) {
@@ -610,7 +625,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -632,7 +647,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: _saveFood,
+                    onPressed: _isSaving ? null : _saveFood,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: Colors.white,
@@ -641,14 +656,25 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      disabledBackgroundColor: AppColors.secondary.withValues(alpha: 0.6),
+                      disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
                     ),
-                    child: const Text(
-                      'Add Food',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Add Food',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ),
               ],

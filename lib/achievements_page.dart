@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/app_text_styles.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
+import 'package:capstone_project/services/statistics_service.dart';
 
 class AchievementsPage extends StatefulWidget {
   const AchievementsPage({super.key});
@@ -14,6 +15,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
   bool _isLoading = true;
   Map<String, dynamic> _userStats = {};
   List<Map<String, dynamic>> _achievements = [];
+  int _totalMealsLogged = 0;
 
   @override
   void initState() {
@@ -24,16 +26,18 @@ class _AchievementsPageState extends State<AchievementsPage> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load user stats and achievements from Firebase in parallel
+      // Load user stats, achievements, and total meals from Firebase in parallel
       final results = await Future.wait([
         UserAchievementService.getUserStats(),
         UserAchievementService.getAllAchievementsWithDetails(),
+        StatisticsService.getMealsLogged(),
       ]);
 
       if (mounted) {
         setState(() {
           _userStats = results[0] as Map<String, dynamic>;
           _achievements = results[1] as List<Map<String, dynamic>>;
+          _totalMealsLogged = results[2] as int;
           _isLoading = false;
         });
       }
@@ -129,7 +133,6 @@ class _AchievementsPageState extends State<AchievementsPage> {
     final totalCaloriesConsumed = _userStats['total_calories_consumed'] ?? 0;
     final totalLoginDays = _userStats['total_login_days'] ?? 0;
     final totalWorkouts = _userStats['total_workouts'] ?? 0;
-    final mealLoggingDays = _userStats['meal_logging_days'] ?? 0;
 
     return GridView.count(
       crossAxisCount: 2,
@@ -153,7 +156,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
         ),
         _buildStatCard(
           label: 'Meals',
-          value: mealLoggingDays.toString(),
+          value: _totalMealsLogged.toString(),
         ),
       ],
     );

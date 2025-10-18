@@ -514,29 +514,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       ],
     );
   }
-  Widget _buildLegendItem(Color color, String label, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildWeekRow(List<Widget> children) {
     return Padding(
@@ -579,54 +556,97 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
     final isComplete = day != null ? _isDayComplete(day) : false;
     final isClickable = isInChallenge || isStart || isEnd;
 
-    Color backgroundColor;
-    Color textColor;
+    // Determine if day is in the future
+    final currentDate = day != null ? DateTime(currentMonth.year, currentMonth.month, day) : null;
+    final today = DateTime.now();
+    final isFuture = currentDate != null && currentDate.isAfter(DateTime(today.year, today.month, today.day));
+
+    Color? backgroundColor;
+    Color textColor = Colors.black;
     String? labelText;
     BorderRadius borderRadius = BorderRadius.circular(8);
+    Border? border;
+    IconData? icon;
+    Gradient? gradient;
+
+    // Priority order for visual states (using red color scheme):
+    // 1. Start date - Deep red with gradient + flag icon
+    // 2. End date - Deep red with gradient + finish flag icon
+    // 3. Current day - Solid red with TODAY label + star icon
+    // 4. Completed days - Solid red with checkmark
+    // 5. Incomplete challenge days (missed) - Light red with warning icon
+    // 6. Future challenge days - Very light red with circle outline
+    // 7. Other month days - Grey
+    // 8. Non-challenge days - Light grey
 
     if (isStart) {
-      backgroundColor = AppColors.secondary;
+      // START day - Deep red with gradient from bottom
+      gradient = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [AppColors.secondary.shade600, AppColors.secondary.shade900],
+      );
       textColor = Colors.white;
       labelText = 'START';
+      icon = Icons.flag;
     } else if (isEnd) {
-      backgroundColor = AppColors.secondary;
+      // END day - Deep red with gradient from bottom + checkered flag
+      gradient = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [AppColors.secondary.shade600, AppColors.secondary.shade900],
+      );
       textColor = Colors.white;
       labelText = 'END';
+      icon = Icons.sports_score;
     } else if (isCurrentDay && isInChallenge) {
+      // TODAY within challenge - Solid red with star icon
       backgroundColor = AppColors.secondary;
       textColor = Colors.white;
       labelText = 'TODAY';
+      icon = Icons.star;
     } else if (isComplete && isInChallenge) {
-      // ✅ Day is complete → use secondary color
+      // Completed day - Solid red with checkmark icon
       backgroundColor = AppColors.secondary;
       textColor = Colors.white;
-    } else if (isInChallenge) {
-      backgroundColor = AppColors.secondary.withOpacity(0.1);
-      textColor = AppColors.secondary;
+      icon = Icons.check_circle;
+    } else if (isInChallenge && !isFuture) {
+      // Incomplete challenge day (missed) - Light red with warning
+      backgroundColor = AppColors.secondary.shade50;
+      textColor = AppColors.secondary.shade900;
+      border = Border.all(color: AppColors.secondary.shade300, width: 1.5);
+      icon = Icons.warning_amber_rounded;
+    } else if (isInChallenge && isFuture) {
+      // Future challenge day - Very light red with border
+      backgroundColor = AppColors.secondary.shade50.withOpacity(0.3);
+      textColor = AppColors.secondary.shade700;
+      border = Border.all(color: AppColors.secondary.shade200, width: 1);
+      icon = Icons.radio_button_unchecked;
     } else if (isCurrentDay) {
-      backgroundColor = Colors.red.shade300;
-      textColor = Colors.white;
+      // TODAY outside challenge - White with red border
+      backgroundColor = Colors.white;
+      textColor = AppColors.secondary;
       labelText = 'TODAY';
+      border = Border.all(color: AppColors.secondary, width: 2);
     } else if (isOtherMonth) {
-      backgroundColor = Colors.grey.shade200.withOpacity(0.3);
-      textColor = widget.currentChallenge != null
-          ? Colors.grey.shade500
-          : Colors.grey.shade400.withOpacity(0.6);
+      // Other month days - Very light grey
+      backgroundColor = Colors.grey.shade100.withOpacity(0.3);
+      textColor = Colors.grey.shade400;
     } else {
-      backgroundColor = Colors.grey.shade200.withOpacity(0.3);
+      // Regular non-challenge days - Light grey
+      backgroundColor = Colors.grey.shade50;
       textColor = widget.currentChallenge != null
-          ? Colors.black87
-          : Colors.black.withOpacity(0.2);
+          ? Colors.grey.shade600
+          : Colors.grey.shade400;
     }
 
 
     Widget dateWidget = Container(
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: gradient == null ? backgroundColor : null,
+        gradient: gradient,
         borderRadius: borderRadius,
-        border: isCurrentDay && !isInChallenge && !isStart && !isEnd
-            ? Border.all(color: AppColors.secondary, width: 2)
-            : null,
+        border: border,
         boxShadow: isClickable
             ? [
           BoxShadow(
@@ -638,7 +658,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             : null,
       ),
       child: Stack(
-        alignment: Alignment.center, // ✅ centers the date + label
+        alignment: Alignment.center,
         children: [
           // Date number + label
           Column(
@@ -670,30 +690,15 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             ],
           ),
 
-          // Checkmark
-          if (isComplete && isClickable)
+          // Icon indicator
+          if (icon != null)
             Positioned(
               top: 2,
               right: 2,
-              child: Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.check,
-                  size: 12,
-                  color: isStart || isEnd ? AppColors.secondary : Colors.green,
-                ),
+              child: Icon(
+                icon,
+                size: 12,
+                color: textColor.withOpacity(0.9),
               ),
             ),
         ],

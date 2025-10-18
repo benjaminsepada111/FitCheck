@@ -117,7 +117,6 @@ class _WeeklyCheckInDialogState extends State<WeeklyCheckInDialog> {
         );
       }
     } catch (e) {
-      debugPrint('Error submitting check-in: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

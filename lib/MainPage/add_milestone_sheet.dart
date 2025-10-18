@@ -53,7 +53,6 @@
       try {
         await UserAchievementService.trackPhotoUpload();
       } catch (e) {
-        debugPrint('Error tracking photo achievement: $e');
         // Don't block the success flow if achievement tracking fails
       }
 

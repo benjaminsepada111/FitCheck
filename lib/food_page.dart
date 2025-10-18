@@ -207,7 +207,6 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
                 });
               }
             } catch (e) {
-              debugPrint('Error picking image: $e');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Failed to pick image'),
@@ -303,7 +302,6 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
                 _confirmAddFood(foodName, actualCalories, mealType, grams: grams, imageUrl: uploadedImageUrl);
               }
             } catch (e) {
-              debugPrint('Error saving food: $e');
               setModalState(() {
                 isLoading = false;
               });
@@ -771,16 +769,12 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
 
       if (success && mounted) {
         // Refresh both the meal section and food logger to show updates
-        debugPrint('🔄 Refreshing meal section and food logger...');
         await _mealsSectionKey.currentState?.loadMealData();
-        debugPrint('✅ Meal section refreshed');
 
         await _foodLoggerKey.currentState?.refreshData();
-        debugPrint('✅ Food logger refreshed');
 
         if (widget.onCaloriesUpdated != null) {
           widget.onCaloriesUpdated!();
-          debugPrint('✅ Home page trackers updated');
         }
 
         // Show success feedback after refresh
@@ -821,8 +815,6 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
         }
       }
     } catch (e) {
-      debugPrint('Error adding recommended food: $e');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

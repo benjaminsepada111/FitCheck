@@ -40,10 +40,8 @@ class StatisticsService {
         }
       }
 
-      debugPrint('Total calories calculated: $totalCalories');
       return totalCalories;
     } catch (e) {
-      debugPrint('Error calculating total calories: $e');
       return 0;
     }
   }
@@ -54,7 +52,6 @@ class StatisticsService {
       // Use LoginTrackerService which tracks daily app opens
       return await LoginTrackerService.getTotalLoginDays();
     } catch (e) {
-      debugPrint('Error getting login days: $e');
       return 0;
     }
   }
@@ -108,10 +105,8 @@ class StatisticsService {
         }
       }
 
-      debugPrint('Active days calculated: ${uniqueDays.length}');
       return uniqueDays.length;
     } catch (e) {
-      debugPrint('Error calculating active days: $e');
       return 0;
     }
   }
@@ -132,10 +127,8 @@ class StatisticsService {
         totalWorkouts += workouts.length;
       }
 
-      debugPrint('Total workouts logged: $totalWorkouts');
       return totalWorkouts;
     } catch (e) {
-      debugPrint('Error calculating workouts logged: $e');
       return 0;
     }
   }
@@ -170,10 +163,8 @@ class StatisticsService {
         }
       }
 
-      debugPrint('Total food entries logged: $totalFoodEntries');
       return totalFoodEntries;
     } catch (e) {
-      debugPrint('Error calculating food entries logged: $e');
       return 0;
     }
   }
@@ -195,7 +186,6 @@ class StatisticsService {
         'mealsLogged': results[3],
       };
     } catch (e) {
-      debugPrint('Error getting all statistics: $e');
       return {
         'totalCalories': 0,
         'loginDays': 0,

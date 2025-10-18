@@ -62,23 +62,19 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         'Snack': [],
       };
 
-      debugPrint('📊 Daily Logs - Found ${foodLogs.length} food logs for ${widget.selectedDate}');
 
       for (var log in foodLogs) {
         totalCalories += log.totalCalories.round();
-        debugPrint('  🍽️ ${log.mealType}: ${log.entries.length} entries, ${log.totalCalories.round()} cal');
 
         if (mealEntries.containsKey(log.mealType)) {
           mealEntries[log.mealType] = log.entries;
 
           // Log each entry
           for (var entry in log.entries) {
-            debugPrint('    - ${entry.foodName}: ${entry.totalCalories.round()} cal');
           }
         }
       }
 
-      debugPrint('📊 Total calories calculated: $totalCalories');
 
       // Load milestones for the selected date
       final allMilestones = widget.challenge != null
@@ -93,7 +89,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           ? await WorkoutService.getWorkoutsForDate(widget.challenge!.id, widget.selectedDate)
           : <Workout>[];
 
-      debugPrint('📊 Daily Logs - Found ${workoutsForDate.length} workouts for ${widget.selectedDate}');
 
       setState(() {
         _loggedCalories = totalCalories;
@@ -103,7 +98,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading daily data: $e');
       setState(() => _isLoading = false);
 
       if (mounted) {
@@ -1168,7 +1162,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           );
         },
         errorBuilder: (context, error, stackTrace) {
-          debugPrint('Error loading food image from URL: $error');
           return _buildFoodImagePlaceholder(width, height);
         },
       );
@@ -1183,12 +1176,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           height: height,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            debugPrint('Error loading food image from base64: $error');
             return _buildFoodImagePlaceholder(width, height);
           },
         );
       } catch (e) {
-        debugPrint('Error decoding base64 image: $e');
         return _buildFoodImagePlaceholder(width, height);
       }
     }

@@ -33,17 +33,6 @@ class ChallengeHistorySheet extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // Drag handle
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
               // Header Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -84,13 +73,14 @@ class ChallengeHistorySheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: Colors.white,
               shape: BoxShape.circle,
+              border: Border.all(color: AppColors.secondary.shade200, width: 2),
             ),
             child: Icon(
               Icons.history,
               size: screenWidth * 0.15,
-              color: Colors.grey.shade400,
+              color: AppColors.secondary,
             ),
           ),
           const SizedBox(height: 24),
@@ -160,9 +150,6 @@ class ChallengeHistorySheet extends StatelessWidget {
     final completedChallenges = challengeHistory
         .where((c) => c.endDate.isBefore(now))
         .length;
-    final successRate = totalChallenges > 0
-        ? ((completedChallenges / totalChallenges) * 100).round()
-        : 0;
 
     return Column(
       children: [
@@ -189,9 +176,9 @@ class ChallengeHistorySheet extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           margin: const EdgeInsets.only(top: 16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: AppColors.secondary.shade200),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -205,11 +192,6 @@ class ChallengeHistorySheet extends StatelessWidget {
                 completedChallenges.toString(),
                 "Completed",
                 Colors.green.shade600,
-              ),
-              _buildStatistic(
-                "$successRate%",
-                "Success Rate",
-                Colors.blue.shade600,
               ),
             ],
           ),
@@ -257,15 +239,7 @@ class ChallengeHistorySheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: AppColors.secondary.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +261,7 @@ class ChallengeHistorySheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
@@ -368,41 +342,11 @@ class ChallengeHistorySheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
                 value: progress / 100,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: statusColor.withValues(alpha: 0.2),
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                 minHeight: 6,
               ),
             ),
-
-            // Notes (if any)
-            if (challenge.notes.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.note, size: 14, color: Colors.blue.shade600),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        challenge.notes,
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),

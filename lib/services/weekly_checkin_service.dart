@@ -20,7 +20,6 @@ class WeeklyCheckInService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -33,10 +32,8 @@ class WeeklyCheckInService {
           .doc(checkIn.id)
           .set(checkIn.toJson());
 
-      debugPrint('Weekly check-in saved successfully');
       return true;
     } catch (e) {
-      debugPrint('Error saving weekly check-in: $e');
       return false;
     }
   }
@@ -46,7 +43,6 @@ class WeeklyCheckInService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -63,7 +59,6 @@ class WeeklyCheckInService {
           .map((doc) => WeeklyCheckIn.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      debugPrint('Error getting check-ins: $e');
       return [];
     }
   }
@@ -73,7 +68,6 @@ class WeeklyCheckInService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -92,7 +86,6 @@ class WeeklyCheckInService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting latest check-in: $e');
       return null;
     }
   }
@@ -115,7 +108,6 @@ class WeeklyCheckInService {
 
       return latestCheckIn.weekNumber < weekNumber;
     } catch (e) {
-      debugPrint('Error checking if needs check-in: $e');
       return false;
     }
   }
@@ -169,12 +161,10 @@ class WeeklyCheckInService {
           dailyCalorieGoal: newCalorieGoal,
         );
         await ChallengeService.updateChallenge(updatedChallenge);
-        debugPrint('Updated challenge calorie goal from $currentCalorieGoal to $newCalorieGoal');
       }
 
       return true;
     } catch (e) {
-      debugPrint('Error processing check-in: $e');
       return false;
     }
   }

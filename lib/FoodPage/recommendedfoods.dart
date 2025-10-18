@@ -50,9 +50,6 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
         throw Exception('No foods returned from API');
       }
     } catch (e) {
-      // Log error (replace with proper logging framework in production)
-      debugPrint('Spoonacular API error: $e');
-
       // Try the recipe-based recommendations as fallback
       try {
         final recipeFoods = await SpoonacularService.getRecommendedFoods(
@@ -69,8 +66,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
           return;
         }
       } catch (e2) {
-        // Log error (replace with proper logging framework in production)
-        debugPrint('Recipe API also failed: $e2');
+        // Both API calls failed
       }
 
       // If both API calls fail, show curated fallback foods

@@ -54,7 +54,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading workouts: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -125,7 +124,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 
       // Delete image from Cloud Storage if it exists
       if (workout.imageUrl != null) {
-        debugPrint('🗑️ Deleting workout image from Cloud Storage: ${workout.imageUrl}');
         await ImageStorageService.deleteImage(workout.imageUrl!);
       }
 
@@ -138,7 +136,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
       final timeStamp = workout.timestamp.millisecondsSinceEpoch.toString();
       final workoutDocName = '${sanitized}_$timeStamp';
 
-      debugPrint('🗑️ Deleting workout with doc name: $workoutDocName');
 
       final success = await WorkoutService.deleteWorkout(
         workoutDocName,
@@ -168,7 +165,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         throw Exception('Failed to delete workout');
       }
     } catch (e) {
-      debugPrint('❌ Error deleting workout: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -234,7 +230,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               );
             },
             errorBuilder: (context, error, stackTrace) {
-              debugPrint('Error loading workout image: $error');
               return Container(
                 width: 70,
                 height: 100,

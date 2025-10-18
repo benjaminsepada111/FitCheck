@@ -58,9 +58,7 @@ class _SignUpPageState extends State<SignUpPage> {
         // Initialize time tracking for new user
         try {
           await UserTimeTracker.initializeUserStartDate();
-          debugPrint('Time tracking initialized for new user');
         } catch (e) {
-          debugPrint('Warning: Failed to initialize time tracking: $e');
           // Don't block signup if time tracking fails
         }
 

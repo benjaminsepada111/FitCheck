@@ -38,7 +38,6 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading user data: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -69,7 +68,6 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading account info: $e');
     }
   }
 

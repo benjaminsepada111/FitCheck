@@ -96,7 +96,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       }
     } catch (e) {
       // No popup - silently handle error
-      print('Error sending verification email: $e');
     } finally {
       if (mounted) setState(() => _isResendLoading = false);
     }

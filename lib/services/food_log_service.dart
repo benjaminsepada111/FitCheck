@@ -17,7 +17,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -31,11 +30,9 @@ class FoodLogService {
           .set(foodLog.toJson());
 
       // Log (replace with proper logging framework in production)
-      debugPrint('Food log saved: ${foodLog.mealType} for ${foodLog.date}');
       return true;
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error saving food log: $e');
       return false;
     }
   }
@@ -46,7 +43,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -70,7 +66,6 @@ class FoodLogService {
           .toList();
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error getting food logs for date: $e');
       return [];
     }
   }
@@ -85,7 +80,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -105,7 +99,6 @@ class FoodLogService {
           .toList();
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error getting food logs for date range: $e');
       return [];
     }
   }
@@ -116,7 +109,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -135,7 +127,6 @@ class FoodLogService {
       return null;
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error getting food log: $e');
       return null;
     }
   }
@@ -146,7 +137,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -162,11 +152,9 @@ class FoodLogService {
           .update(updatedLog.toJson());
 
       // Log (replace with proper logging framework in production)
-      debugPrint('Food log updated: ${foodLog.id}');
       return true;
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error updating food log: $e');
       return false;
     }
   }
@@ -177,7 +165,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -191,11 +178,9 @@ class FoodLogService {
           .delete();
 
       // Log (replace with proper logging framework in production)
-      debugPrint('Food log deleted: $logId');
       return true;
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error deleting food log: $e');
       return false;
     }
   }
@@ -211,14 +196,12 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found when adding food entry');
         return false;
       }
 
       // Validate inputs
       if (mealType.isEmpty || foodEntry.foodName.isEmpty) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: Invalid meal type or food name');
         return false;
       }
 
@@ -235,7 +218,6 @@ class FoodLogService {
           updatedAt: DateTime.now(),
         );
         // Log (replace with proper logging framework in production)
-      debugPrint('Updating existing meal log with new food entry: ${foodEntry.foodName}');
         return await updateFoodLog(updatedLog, challengeId: challengeId);
       } else {
         // Create new meal
@@ -248,12 +230,10 @@ class FoodLogService {
           updatedAt: DateTime.now(),
         );
         // Log (replace with proper logging framework in production)
-      debugPrint('Creating new meal log for $mealType with food entry: ${foodEntry.foodName}');
         return await saveFoodLog(newLog, challengeId: challengeId);
       }
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error adding food entry to $mealType: $e');
       return false;
     }
   }
@@ -264,32 +244,26 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Warning: No authenticated user when calculating daily calories');
         return 0.0;
       }
 
       final foodLogs = await getFoodLogsForDate(date, challengeId: challengeId);
-      debugPrint('🔢 getDailyCalories - Found ${foodLogs.length} food logs for $date');
 
       double totalCalories = 0;
 
       for (final log in foodLogs) {
         try {
-          debugPrint('  🍽️ ${log.mealType}: ${log.totalCalories} cal (${log.entries.length} entries)');
           totalCalories += log.totalCalories;
         } catch (e) {
           // Log (replace with proper logging framework in production)
-      debugPrint('Error calculating calories for log ${log.id}: $e');
           // Continue with other logs even if one fails
         }
       }
 
       // Log (replace with proper logging framework in production)
-      debugPrint('Total daily calories for ${date.toIso8601String().split('T')[0]}: $totalCalories');
       return totalCalories;
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error calculating daily calories: $e');
       return 0.0;
     }
   }
@@ -307,7 +281,6 @@ class FoodLogService {
       return breakdown;
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error getting meal calorie breakdown: $e');
       return {};
     }
   }
@@ -350,7 +323,6 @@ class FoodLogService {
       final user = _auth.currentUser;
       if (user == null) {
         // Log (replace with proper logging framework in production)
-      debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -379,7 +351,6 @@ class FoodLogService {
       return uniqueEntries.values.toList();
     } catch (e) {
       // Log (replace with proper logging framework in production)
-      debugPrint('Error getting recent food entries: $e');
       return [];
     }
   }

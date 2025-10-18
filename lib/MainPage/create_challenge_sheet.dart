@@ -179,7 +179,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         _calculatedCalorieGoal = 2000;
       }
     } catch (e) {
-      print('Error calculating goals: $e');
       _calculatedCalorieGoal = 2000;
     } finally {
       setState(() => _isCalculating = false);

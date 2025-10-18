@@ -80,7 +80,6 @@ class _MainPageState extends State<MainPage> {
       // Refresh challenge data in background to ensure latest state
       _refreshChallengeDataInBackground();
     } catch (e) {
-      debugPrint('Error in _initializeWithPreloadedData: $e');
       if (mounted) {
         setState(() {
           _isInitialized = true;
@@ -95,12 +94,9 @@ class _MainPageState extends State<MainPage> {
       final isInitialized = await UserTimeTracker.isInitialized();
       if (!isInitialized) {
         await UserTimeTracker.initializeUserStartDate();
-        debugPrint('Time tracking initialized for user on app startup');
-      } else {
-        debugPrint('Time tracking already initialized');
       }
     } catch (e) {
-      debugPrint('Warning: Failed to initialize time tracking: $e');
+      // Silently handle time tracking initialization errors
     }
   }
 
@@ -151,7 +147,7 @@ class _MainPageState extends State<MainPage> {
         }
       }
     } catch (e) {
-      debugPrint('Warning: Failed to record daily login: $e');
+      // Silently handle daily login errors
     }
   }
 
@@ -175,7 +171,7 @@ class _MainPageState extends State<MainPage> {
         });
       }
     } catch (e) {
-      debugPrint('Error refreshing challenge data in background: $e');
+      // Silently handle background refresh errors
     }
   }
 
@@ -198,7 +194,6 @@ class _MainPageState extends State<MainPage> {
         });
       }
     } catch (e) {
-      print('Error loading challenge data: $e');
       if (mounted) {
         setState(() {
           _challengeHistory = [];
@@ -566,10 +561,7 @@ class _MainPageState extends State<MainPage> {
         return FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
-<<<<<<< HEAD
-=======
           onCaloriesUpdated: _refreshTrackers,
->>>>>>> backup_branch
         );
       case 2:
         return WorkoutHistoryPage(
@@ -729,7 +721,6 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
         });
       }
     } catch (e) {
-      print('Error in _preloadDataAndCheckProfile: $e');
       if (mounted) {
         setState(() {
           _isProfileComplete = false;
@@ -746,7 +737,6 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
       final profileComplete = await UserDataService.isProfileComplete();
       return hasData && profileComplete;
     } catch (e) {
-      print('Error checking user profile: $e');
       return false;
     }
   }
@@ -765,7 +755,6 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
         });
       }
     } catch (e) {
-      print('Error preloading challenge data: $e');
       // Continue anyway - MainPage will load data if preload fails
     }
   }

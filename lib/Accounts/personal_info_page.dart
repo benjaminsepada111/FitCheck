@@ -51,7 +51,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
         _emailController.text = _currentUser!.email ?? '';
       }
     } catch (e) {
-      print('Error loading user data: $e');
       _showError('Failed to load user information');
     } finally {
       if (mounted) {
@@ -85,7 +84,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
         _showError('Failed to update information. Please try again.');
       }
     } catch (e) {
-      print('Error saving user info: $e');
       _showError('An error occurred. Please try again.');
     } finally {
       if (mounted) {

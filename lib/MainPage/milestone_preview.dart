@@ -77,10 +77,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() {
           _cachedVideoUrl = cachedUrl;
         });
-        print('✅ Loaded cached video URL: $cachedUrl');
       }
     } catch (e) {
-      print('❌ Error loading cached video URL: $e');
+      // Error loading cached video URL
     }
   }
 
@@ -90,9 +89,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getCacheKey();
       await prefs.setString(cacheKey, url);
-      print('💾 Saved video URL to cache: $url');
     } catch (e) {
-      print('❌ Error saving cached video URL: $e');
+      // Error saving cached video URL
     }
   }
 
@@ -102,9 +100,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getCacheKey();
       await prefs.remove(cacheKey);
-      print('🗑️ Cleared cached video URL');
     } catch (e) {
-      print('❌ Error clearing cached video URL: $e');
+      // Error clearing cached video URL
     }
   }
 
@@ -148,7 +145,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
     // CHECK IF VIDEO ALREADY EXISTS
     if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
-      print('✅ Video already exists! URL: $_cachedVideoUrl');
       _showSnackBar('Opening existing video...');
 
       // Navigate directly to video preview
@@ -188,7 +184,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           final f = File(m.imagePath!);
           if (await f.exists()) {
             filesToUpload.add(f);
-            print('✅ Using local file for milestone $i: ${m.imagePath}');
             continue;
           }
         }
@@ -196,7 +191,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         // Priority 2: Download from imageUrl if exists
         if (m.imageUrl != null) {
           try {
-            print('⬇️ Downloading image $i from: ${m.imageUrl}');
             final resp = await http.get(
               Uri.parse(m.imageUrl!),
               headers: {'Accept': 'image/*'},
@@ -207,15 +201,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
               await saved.writeAsBytes(resp.bodyBytes);
               filesToUpload.add(saved);
-              print('✅ Downloaded and saved image $i');
               continue;
             }
           } catch (e) {
-            print('❌ Error downloading image $i: $e');
+            // Error downloading image
           }
         }
-
-        print('⚠️ Warning: No image found for milestone $i');
       }
 
       if (filesToUpload.isEmpty) {
@@ -224,8 +215,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() => _isExporting = false);
         return;
       }
-
-      print('📤 Uploading ${filesToUpload.length} images to server...');
 
       // Update loading message
       if (mounted) {
@@ -242,8 +231,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         durationPerImage: _slideshowInterval.inSeconds,
       );
 
-      print('📦 Generate video response: $response');
-
       // Extract render ID correctly from Shotstack response
       String? renderId;
       if (response['success'] == true) {
@@ -252,7 +239,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           final responseObj = data['response'];
           if (responseObj is Map && responseObj['id'] != null) {
             renderId = responseObj['id'].toString();
-            print('✅ Got render ID: $renderId');
           }
         }
       }
@@ -278,10 +264,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         attempt++;
 
         try {
-          print('🔍 Checking render status (attempt $attempt/$maxAttempts)...');
-
           final statusResp = await ApiService.checkRenderStatus(renderId);
-          print('📊 Status response: $statusResp');
 
           if (statusResp['success'] == true) {
             final data = statusResp['data'];
@@ -291,25 +274,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 final status = responseObj['status']?.toString();
                 final url = responseObj['url']?.toString();
 
-                print('Status: $status, URL: $url');
-
                 if (status == 'done' && url != null && url.isNotEmpty) {
                   resultUrl = url;
-                  print('✅ Video ready! URL: $resultUrl');
                   break;
                 } else if (status == 'failed') {
                   final error = responseObj['error'] ?? 'Unknown error';
                   throw Exception('Render failed: $error');
-                } else if (status == 'rendering') {
-                  print('⏳ Still rendering... ($attempt/$maxAttempts)');
-                } else {
-                  print('⏳ Status: $status ($attempt/$maxAttempts)');
                 }
               }
             }
           }
         } catch (e) {
-          print('❌ Status poll error (attempt $attempt): $e');
           if (attempt >= maxAttempts - 1) {
             throw Exception(
                 'Failed to check render status after $attempt attempts: $e');
@@ -329,18 +304,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         // Save to SharedPreferences for persistence
         await _saveCachedVideoUrl(resultUrl);
 
-        print('💾 Cached video URL: $_cachedVideoUrl');
-
         // Show video ready dialog with navigation option
         _showVideoReadyDialog(resultUrl);
       } else {
         _showSnackBar(
             'Render timeout after $attempt attempts. Video may still be processing.');
       }
-    } catch (e, stackTrace) {
-      print('❌ Export error: $e');
-      print('Stack trace: $stackTrace');
-
+    } catch (e) {
       if (mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
       }
@@ -505,7 +475,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         }
       }
     } catch (e) {
-      print('Error parsing URL extension: $e');
+      // Error parsing URL extension
     }
     return null;
   }

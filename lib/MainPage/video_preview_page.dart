@@ -198,7 +198,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               filesToUpload.add(saved);
             }
           } catch (e) {
-            print('Error downloading image $i: $e');
+            // Error downloading image
           }
         }
       }
@@ -475,7 +475,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         final file = File(savePath);
         if (await file.exists()) await file.delete();
       } catch (e) {
-        print('Error cleaning up temp file: $e');
+        // Error cleaning up temp file
       }
     } catch (e) {
       if (mounted && Navigator.canPop(context)) Navigator.pop(context);
@@ -514,7 +514,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
           final file = File(savePath);
           if (await file.exists()) await file.delete();
         } catch (e) {
-          print('Error cleaning up shared file: $e');
+          // Error cleaning up shared file
         }
       });
     } catch (e) {
@@ -526,7 +526,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
           subject: 'My Milestone Journey Video',
         );
       } catch (fallbackError) {
-        print('Fallback share error: $fallbackError');
+        // Fallback share error
       }
     }
   }
@@ -604,7 +604,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         }
       }
     } catch (e) {
-      print('Error parsing URL extension: $e');
+      // Error parsing URL extension
     }
     return null;
   }

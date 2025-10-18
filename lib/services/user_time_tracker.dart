@@ -31,14 +31,12 @@ class UserTimeTracker {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
       // Check if start date already exists
       final existingData = await _getTimeTrackingData();
       if (existingData != null && existingData['startDate'] != null) {
-        debugPrint('Start date already exists for user: ${existingData['startDate']}');
         return true; // Already initialized
       }
 
@@ -56,10 +54,8 @@ class UserTimeTracker {
         'lastUpdated': DateTime.now().toUtc().toIso8601String(),
       });
 
-      debugPrint('User start date initialized: ${startDate.toIso8601String()}');
       return true;
     } catch (e) {
-      debugPrint('Error initializing user start date: $e');
       return false;
     }
   }
@@ -74,7 +70,6 @@ class UserTimeTracker {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting user start date: $e');
       return null;
     }
   }
@@ -89,7 +84,6 @@ class UserTimeTracker {
     try {
       final startDate = await getUserStartDate();
       if (startDate == null) {
-        debugPrint('Warning: Start date not set. Call initializeUserStartDate first.');
         return 0;
       }
 
@@ -110,10 +104,8 @@ class UserTimeTracker {
       // Calculate difference in days
       final difference = nowMidnight.difference(startMidnight).inDays;
 
-      debugPrint('Days passed: $difference (from ${startMidnight.toIso8601String()} to ${nowMidnight.toIso8601String()})');
       return difference;
     } catch (e) {
-      debugPrint('Error calculating days passed: $e');
       return 0;
     }
   }
@@ -131,10 +123,8 @@ class UserTimeTracker {
       // Day 0-6 = Week 1, Day 7-13 = Week 2, etc.
       final weekNumber = (daysPassed ~/ 7) + 1;
 
-      debugPrint('Current week number: $weekNumber (day $daysPassed)');
       return weekNumber;
     } catch (e) {
-      debugPrint('Error calculating week number: $e');
       return 0;
     }
   }
@@ -148,7 +138,6 @@ class UserTimeTracker {
     try {
       final startDate = await getUserStartDate();
       if (startDate == null) {
-        debugPrint('Warning: Start date not set. Call initializeUserStartDate first.');
         return 0;
       }
 
@@ -165,10 +154,8 @@ class UserTimeTracker {
       // Ensure non-negative result
       final monthsPassed = monthDiff < 0 ? 0 : monthDiff;
 
-      debugPrint('Months passed: $monthsPassed');
       return monthsPassed;
     } catch (e) {
-      debugPrint('Error calculating months passed: $e');
       return 0;
     }
   }
@@ -182,10 +169,8 @@ class UserTimeTracker {
       final daysPassed = await getDaysPassed();
       final dayOfWeek = daysPassed % 7;
 
-      debugPrint('Day of current week: $dayOfWeek');
       return dayOfWeek;
     } catch (e) {
-      debugPrint('Error calculating day of week: $e');
       return 0;
     }
   }
@@ -203,7 +188,6 @@ class UserTimeTracker {
       final startDate = await getUserStartDate();
 
       if (startDate == null) {
-        debugPrint('Warning: Start date not set. Returning default metrics.');
         return {
           'daysPassed': 0,
           'weekNumber': 0,
@@ -229,7 +213,6 @@ class UserTimeTracker {
         'isInitialized': true,
       };
     } catch (e) {
-      debugPrint('Error getting all time metrics: $e');
       return {
         'daysPassed': 0,
         'weekNumber': 0,
@@ -286,7 +269,6 @@ class UserTimeTracker {
         'endDate': weekEndDate,
       };
     } catch (e) {
-      debugPrint('Error getting week date range: $e');
       return null;
     }
   }
@@ -299,7 +281,6 @@ class UserTimeTracker {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -314,10 +295,8 @@ class UserTimeTracker {
         'resetAt': DateTime.now().toUtc().toIso8601String(),
       }, SetOptions(merge: true));
 
-      debugPrint('User start date reset to: ${newStartDate.toIso8601String()}');
       return true;
     } catch (e) {
-      debugPrint('Error resetting start date: $e');
       return false;
     }
   }
@@ -343,7 +322,6 @@ class UserTimeTracker {
 
       return doc.exists ? doc.data() : null;
     } catch (e) {
-      debugPrint('Error getting time tracking data: $e');
       return null;
     }
   }

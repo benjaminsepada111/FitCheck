@@ -86,7 +86,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         });
       }
     } catch (e) {
-      debugPrint('USDA API Error: $e');
       String errorMessage = 'Unable to search foods. ';
 
       if (e.toString().contains('Failed to search foods: 400')) {
@@ -132,7 +131,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         });
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
       _showError('Failed to pick image');
     }
   }
@@ -228,7 +226,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       try {
         await UserAchievementService.trackMealLogging(calories: calories);
       } catch (e) {
-        debugPrint('Error tracking meal achievement: $e');
         // Don't block the success flow if achievement tracking fails
       }
 
@@ -326,7 +323,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       try {
         await UserAchievementService.trackMealLogging(calories: calories);
       } catch (e) {
-        debugPrint('Error tracking meal achievement: $e');
         // Don't block the success flow if achievement tracking fails
       }
 

@@ -42,7 +42,6 @@ class FoodLoggerState extends State<FoodLogger> {
   Future<void> _loadCalorieData() async {
     if (!mounted) return;
 
-    debugPrint('🔄 FoodLogger: Starting to load calorie data...');
 
     try {
       int goal = 2000;
@@ -64,7 +63,6 @@ class FoodLoggerState extends State<FoodLogger> {
           ? (await FoodLogService.getDailyCalories(today, challengeId: widget.currentChallenge!.id)).round()
           : 0;
 
-      debugPrint('📊 FoodLogger: Fetched data - Goal: $goal, Consumed: $consumed');
 
       if (mounted) {
         setState(() {
@@ -74,12 +72,10 @@ class FoodLoggerState extends State<FoodLogger> {
           _isLoading = false;
         });
 
-        debugPrint('✅ FoodLogger: State updated! New consumed: $_consumed');
 
         widget.onCaloriesUpdated?.call();
       }
     } catch (e) {
-      debugPrint('❌ FoodLogger Error loading calorie data: $e');
       if (mounted) {
         setState(() {
           _dailyGoal = widget.currentChallenge?.dailyCalorieGoal ?? 2000;
@@ -101,9 +97,7 @@ class FoodLoggerState extends State<FoodLogger> {
   }
 
   Future<void> refreshData() async {
-    debugPrint('🔄 FoodLogger: refreshData() called');
     await _loadCalorieData();
-    debugPrint('✅ FoodLogger: refreshData() completed');
   }
 
   int get _remaining => (_dailyGoal - _consumed).clamp(0, _dailyGoal);

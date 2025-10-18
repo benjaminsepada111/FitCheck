@@ -18,7 +18,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -41,10 +40,8 @@ class MilestoneService {
           .doc(milestone.id)
           .set(milestoneToSave.toJson());
 
-      debugPrint('Milestone saved for date: ${milestone.date}');
       return true;
     } catch (e) {
-      debugPrint('Error saving milestone: $e');
       return false;
     }
   }
@@ -57,15 +54,8 @@ class MilestoneService {
         challengeId: challengeId,
       );
 
-      if (downloadUrl != null) {
-        debugPrint('Milestone image uploaded successfully: $downloadUrl');
-      } else {
-        debugPrint('Failed to upload milestone image');
-      }
-
       return downloadUrl;
     } catch (e) {
-      debugPrint('Error uploading milestone image: $e');
       return null;
     }
   }
@@ -75,7 +65,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -97,7 +86,6 @@ class MilestoneService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting milestone for date: $e');
       return null;
     }
   }
@@ -111,7 +99,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -130,7 +117,6 @@ class MilestoneService {
           .map((doc) => Milestone.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      debugPrint('Error getting milestones for date range: $e');
       return [];
     }
   }
@@ -144,7 +130,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -163,21 +148,16 @@ class MilestoneService {
 
       final querySnapshot = await query.get();
 
-      debugPrint('🔍 getAllMilestones - Found ${querySnapshot.docs.length} documents for challengeId: $challengeId');
-      debugPrint('🔍 Query path: users/${user.uid}/challenges/$challengeId/milestones');
 
       final milestones = querySnapshot.docs
           .map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            debugPrint('  📄 Milestone: ${doc.id}, imageUrl: ${data['imageUrl']}, imagePath: ${data['imagePath']}');
             return Milestone.fromJson(data);
           })
           .toList();
 
-      debugPrint('🔍 Returning ${milestones.length} milestones');
       return milestones;
     } catch (e) {
-      debugPrint('❌ Error getting all milestones: $e');
       return [];
     }
   }
@@ -187,7 +167,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -205,7 +184,6 @@ class MilestoneService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting milestone: $e');
       return null;
     }
   }
@@ -215,7 +193,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -243,10 +220,8 @@ class MilestoneService {
           .doc(milestone.id)
           .update(milestoneToUpdate.toJson());
 
-      debugPrint('Milestone updated: ${milestone.id}');
       return true;
     } catch (e) {
-      debugPrint('Error updating milestone: $e');
       return false;
     }
   }
@@ -256,7 +231,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -278,10 +252,8 @@ class MilestoneService {
           .doc(milestoneId)
           .delete();
 
-      debugPrint('Milestone deleted: $milestoneId');
       return true;
     } catch (e) {
-      debugPrint('Error deleting milestone: $e');
       return false;
     }
   }
@@ -289,14 +261,9 @@ class MilestoneService {
   /// Delete image from Firebase Storage using centralized ImageStorageService
   static Future<void> _deleteImage(String imageUrl) async {
     try {
-      final success = await ImageStorageService.deleteImage(imageUrl);
-      if (success) {
-        debugPrint('Milestone image deleted from storage');
-      } else {
-        debugPrint('Failed to delete milestone image');
-      }
+      await ImageStorageService.deleteImage(imageUrl);
     } catch (e) {
-      debugPrint('Error deleting milestone image: $e');
+      // Error deleting image
     }
   }
 
@@ -305,7 +272,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -325,7 +291,6 @@ class MilestoneService {
           .map((doc) => Milestone.fromJson(doc.data()))
           .toList();
     } catch (e) {
-      debugPrint('Error getting milestones with images: $e');
       return [];
     }
   }
@@ -368,7 +333,6 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return {};
       }
 
@@ -395,7 +359,6 @@ class MilestoneService {
 
       return monthlyCounts;
     } catch (e) {
-      debugPrint('Error getting monthly summary: $e');
       return {};
     }
   }

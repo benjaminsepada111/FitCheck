@@ -18,7 +18,6 @@ class UserDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -32,10 +31,8 @@ class UserDataService {
       _cachedUserData = userData;
       _cachedUserId = user.uid;
 
-      debugPrint('User data saved successfully to Firebase');
       return true;
     } catch (e) {
-      debugPrint('Error saving user data to Firebase: $e');
       return false;
     }
   }
@@ -45,7 +42,6 @@ class UserDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return null;
       }
 
@@ -70,7 +66,6 @@ class UserDataService {
 
       return null;
     } catch (e) {
-      debugPrint('Error loading user data from Firebase: $e');
       return null;
     }
   }
@@ -106,7 +101,6 @@ class UserDataService {
 
       return await saveUserData(updatedData);
     } catch (e) {
-      debugPrint('Error updating user data: $e');
       return false;
     }
   }
@@ -116,7 +110,6 @@ class UserDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -131,7 +124,6 @@ class UserDataService {
       _cachedUserId = null;
       return true;
     } catch (e) {
-      debugPrint('Error clearing user data from Firebase: $e');
       return false;
     }
   }
@@ -197,7 +189,6 @@ class UserDataService {
 
       return doc.exists && doc.data() != null;
     } catch (e) {
-      debugPrint('Error checking user data existence: $e');
       return false;
     }
   }
@@ -240,7 +231,6 @@ class UserDataService {
       }
       return 2000; // Default fallback
     } catch (e) {
-      debugPrint('Error calculating daily calorie goal: $e');
       return 2000;
     }
   }
@@ -254,7 +244,6 @@ class UserDataService {
       }
       return 8; // Default fallback
     } catch (e) {
-      debugPrint('Error calculating daily water goal: $e');
       return 8;
     }
   }
@@ -268,7 +257,6 @@ class UserDataService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting calorie breakdown: $e');
       return null;
     }
   }
@@ -282,7 +270,6 @@ class UserDataService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting macro breakdown: $e');
       return null;
     }
   }
@@ -296,7 +283,6 @@ class UserDataService {
       }
       return 0.0;
     } catch (e) {
-      debugPrint('Error calculating predicted weight change: $e');
       return 0.0;
     }
   }
@@ -310,7 +296,6 @@ class UserDataService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting calorie range: $e');
       return null;
     }
   }

@@ -67,7 +67,6 @@ class _TrackersState extends State<Trackers> {
           ? (await FoodLogService.getDailyCalories(today, challengeId: widget.currentChallenge!.id)).round()
           : 0;
 
-      debugPrint('📈 Trackers - Total calories for today: $totalCalories');
 
       if (mounted) {
         setState(() {
@@ -76,13 +75,11 @@ class _TrackersState extends State<Trackers> {
           _isLoading = false;
         });
 
-        debugPrint('📈 Trackers - Updated state: Calories=$_currentCalories/$_calorieGoal');
 
         // Notify parent components
         widget.onCaloriesChanged(_currentCalories);
       }
     } catch (e) {
-      debugPrint('Error loading tracker data: $e');
       if (mounted) {
         setState(() {
           _calorieGoal = widget.currentChallenge?.dailyCalorieGoal ?? 2000;

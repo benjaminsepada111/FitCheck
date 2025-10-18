@@ -211,7 +211,6 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
       // Upload image to Cloud Storage if selected
       String? uploadedImageUrl;
       if (_selectedImage != null) {
-        debugPrint('📤 Uploading workout image...');
         setState(() => _isUploadingImage = true);
 
         uploadedImageUrl = await ImageStorageService.uploadWorkoutImage(
@@ -222,10 +221,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         setState(() => _isUploadingImage = false);
 
         if (uploadedImageUrl == null) {
-          debugPrint('❌ Workout image upload failed!');
           _showError('Failed to upload image. Workout will be saved without photo.');
-        } else {
-          debugPrint('✅ Workout image uploaded: $uploadedImageUrl');
         }
       }
 
@@ -252,7 +248,6 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         try {
           await UserAchievementService.trackWorkoutCompletion();
         } catch (e) {
-          debugPrint('Error tracking workout achievement: $e');
           // Don't block the success flow if achievement tracking fails
         }
 

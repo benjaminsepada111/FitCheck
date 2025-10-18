@@ -75,7 +75,6 @@ class MealsSectionState extends State<MealsSection> {
       }
     } catch (e) {
       // Log error (replace with proper logging framework in production)
-      debugPrint('Error loading meal data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
 
@@ -144,7 +143,6 @@ class MealsSectionState extends State<MealsSection> {
       }
     } catch (e) {
       // Log error (replace with proper logging framework in production)
-      debugPrint('Error adding food: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -166,7 +164,6 @@ class MealsSectionState extends State<MealsSection> {
 
       // Delete the image from Cloud Storage if it exists
       if (entry.imageUrl != null) {
-        debugPrint('🗑️ Deleting image from Cloud Storage: ${entry.imageUrl}');
         await ImageStorageService.deleteImage(entry.imageUrl!);
       }
 
@@ -224,7 +221,6 @@ class MealsSectionState extends State<MealsSection> {
       }
     } catch (e) {
       // Log error (replace with proper logging framework in production)
-      debugPrint('Error removing food entry: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

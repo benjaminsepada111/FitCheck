@@ -102,7 +102,6 @@ class UserAchievementService {
       final statsDoc = await statsRef.get();
       return statsDoc.data() as Map<String, dynamic>? ?? {};
     } catch (e) {
-      debugPrint('Error getting user stats: $e');
       return {};
     }
   }
@@ -117,7 +116,6 @@ class UserAchievementService {
       // Check achievements after stats update
       await checkAndUnlockAchievements();
     } catch (e) {
-      debugPrint('Error updating stats: $e');
       rethrow;
     }
   }
@@ -134,7 +132,6 @@ class UserAchievementService {
       // Check achievements after stats update
       await checkAndUnlockAchievements();
     } catch (e) {
-      debugPrint('Error incrementing stat: $e');
       rethrow;
     }
   }
@@ -173,7 +170,6 @@ class UserAchievementService {
       // Check achievements
       await checkAndUnlockAchievements();
     } catch (e) {
-      debugPrint('Error tracking daily login: $e');
     }
   }
 
@@ -200,14 +196,12 @@ class UserAchievementService {
         await checkAndUnlockAchievements();
       }
     } catch (e) {
-      debugPrint('Error tracking photo upload: $e');
     }
   }
 
   /// Track meal logging with calories
   static Future<void> trackMealLogging({int calories = 0}) async {
     try {
-      debugPrint('🍽️ Tracking meal: $calories calories');
       final statsRef = await _getUserStatsRef();
       final statsDoc = await statsRef.get();
       final stats = statsDoc.data() as Map<String, dynamic>? ?? {};
@@ -224,9 +218,7 @@ class UserAchievementService {
       // Track calories consumed
       if (calories > 0) {
         updates['total_calories_consumed'] = FieldValue.increment(calories);
-        debugPrint('📊 Adding $calories to total_calories_consumed');
       } else {
-        debugPrint('⚠️ No calories to track (calories = $calories)');
       }
 
       // Track meal logging day
@@ -234,15 +226,11 @@ class UserAchievementService {
         mealDates.add(todayKey);
         updates['meal_logging_dates'] = mealDates;
         updates['meal_logging_days'] = mealDates.length;
-        debugPrint('📅 New meal logging day: $todayKey');
       }
 
-      debugPrint('💾 Updating stats with: $updates');
       await statsRef.update(updates);
-      debugPrint('✅ Stats updated successfully');
       await checkAndUnlockAchievements();
     } catch (e) {
-      debugPrint('❌ Error tracking meal logging: $e');
     }
   }
 
@@ -257,7 +245,6 @@ class UserAchievementService {
 
       await checkAndUnlockAchievements();
     } catch (e) {
-      debugPrint('Error tracking workout completion: $e');
     }
   }
 
@@ -266,7 +253,6 @@ class UserAchievementService {
     try {
       await incrementStat('challenges_completed', 1);
     } catch (e) {
-      debugPrint('Error tracking challenge completion: $e');
     }
   }
 
@@ -303,7 +289,6 @@ class UserAchievementService {
 
       return achievements;
     } catch (e) {
-      debugPrint('Error getting user achievements: $e');
       return {};
     }
   }
@@ -339,13 +324,11 @@ class UserAchievementService {
         if (currentValue >= threshold) {
           await _unlockAchievement(achievementId);
           newlyUnlocked.add(achievementId);
-          debugPrint('Achievement unlocked: ${definition['title']}');
         }
       }
 
       return newlyUnlocked;
     } catch (e) {
-      debugPrint('Error checking achievements: $e');
       return [];
     }
   }
@@ -370,7 +353,6 @@ class UserAchievementService {
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error updating achievement progress: $e');
     }
   }
 
@@ -393,7 +375,6 @@ class UserAchievementService {
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error unlocking achievement: $e');
     }
   }
 
@@ -443,7 +424,6 @@ class UserAchievementService {
         };
       }).toList();
     } catch (e) {
-      debugPrint('Error getting all achievements: $e');
       return [];
     }
   }
@@ -477,7 +457,6 @@ class UserAchievementService {
         };
       }).toList();
     } catch (e) {
-      debugPrint('Error getting recently unlocked achievements: $e');
       return [];
     }
   }
@@ -494,7 +473,6 @@ class UserAchievementService {
         'total': totalCount,
       };
     } catch (e) {
-      debugPrint('Error getting achievement count: $e');
       return {'unlocked': 0, 'total': achievementDefinitions.length};
     }
   }

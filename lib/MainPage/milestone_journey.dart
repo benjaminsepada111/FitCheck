@@ -64,7 +64,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading milestones: $e');
+      // Error loading milestones
     } finally {
       if (mounted) {
         setState(() {
@@ -110,7 +110,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
         }
       }
     } catch (e) {
-      debugPrint('Error saving milestone: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

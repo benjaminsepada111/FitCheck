@@ -125,10 +125,8 @@ class AchievementTimeService {
         description: 'Be active for 50 different days ($activeDays/50)',
       );
 
-      debugPrint('Checked ${achievements.length} achievements');
       return achievements;
     } catch (e) {
-      debugPrint('Error checking achievements: $e');
       return _getLockedAchievements();
     }
   }

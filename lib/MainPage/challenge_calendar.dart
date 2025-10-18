@@ -86,7 +86,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
         _isLoadingCompletions = false;
       });
     } catch (e) {
-      debugPrint('Error loading month completions: $e');
       setState(() => _isLoadingCompletions = false);
     }
   }
@@ -117,7 +116,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       // Day is complete if any activity was logged
       return hasFood || hasWater || hasMilestone;
     } catch (e) {
-      debugPrint('Error checking day completion: $e');
       return false;
     }
   }
@@ -359,7 +357,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
               try {
                 await UserAchievementService.trackChallengeCompletion();
               } catch (e) {
-                debugPrint('Error tracking challenge achievement: $e');
               }
 
               widget.onChallengeEnded();
@@ -520,33 +517,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       ],
     );
   }
-<<<<<<< HEAD
-
-  Widget _buildLegendItem(Color color, String label, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-=======
->>>>>>> backup_branch
 
   Widget _buildWeekRow(List<Widget> children) {
     return Padding(
@@ -637,10 +607,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       labelText = 'TODAY';
       icon = Icons.star;
     } else if (isComplete && isInChallenge) {
-<<<<<<< HEAD
-=======
       // Completed day - Solid red with checkmark icon
->>>>>>> backup_branch
       backgroundColor = AppColors.secondary;
       textColor = Colors.white;
       icon = Icons.check_circle;
@@ -722,12 +689,8 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             ],
           ),
 
-<<<<<<< HEAD
-          if (isComplete && isClickable)
-=======
           // Icon indicator
           if (icon != null)
->>>>>>> backup_branch
             Positioned(
               top: 2,
               right: 2,

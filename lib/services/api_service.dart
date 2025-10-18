@@ -36,7 +36,6 @@ class ApiService {
     final request = http.MultipartRequest('POST', uri);
 
     // Attach image files
-    print('📤 Uploading ${images.length} images...');
     for (var i = 0; i < images.length; i++) {
       final img = images[i];
       final fileName = img.path.split('/').last;
@@ -47,7 +46,6 @@ class ApiService {
           filename: fileName,
         ),
       );
-      print('  ✓ Image ${i + 1}: $fileName');
     }
 
     // Attach music file if provided
@@ -60,7 +58,6 @@ class ApiService {
           filename: musicFileName,
         ),
       );
-      print('🎵 Uploading music file: $musicFileName');
     }
 
     // Add form fields
@@ -69,10 +66,8 @@ class ApiService {
 
     // Handle music URL or uploaded file
     if (musicFile != null) {
-      print('🎵 Using uploaded music file');
     } else if (musicUrl != null && musicUrl.isNotEmpty) {
       request.fields['musicUrl'] = musicUrl;
-      print('🎵 Background music URL: $musicUrl');
 
       // Validate music URL format
       final validExtensions = ['.mp3', '.wav', '.m4a', '.aac'];
@@ -81,38 +76,28 @@ class ApiService {
       );
 
       if (!hasValidExtension) {
-        print('⚠️  WARNING: Music URL may not have a supported format');
-        print('   Supported: mp3, wav, m4a, aac');
       }
 
       if (!musicUrl.startsWith('http://') && !musicUrl.startsWith('https://')) {
-        print('⚠️  WARNING: Music URL must start with http:// or https://');
       }
     } else {
-      print('🎵 No background music');
     }
 
-    print('📝 Captions: ${paddedNotes.where((n) => n.isNotEmpty).length} of ${images.length}');
-    print('⏱️  Duration per image: ${durationPerImage}s');
 
     // Send request
-    print('🚀 Sending request to backend...');
     final streamed = await request.send();
     final respStr = await streamed.stream.bytesToString();
 
     if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
-      print('✅ Video generation started successfully');
       final response = jsonDecode(respStr) as Map<String, dynamic>;
 
       // Extract and log render ID if available
       final renderId = response['data']?['response']?['id'];
       if (renderId != null) {
-        print('🎬 Render ID: $renderId');
       }
 
       return response;
     } else {
-      print('❌ Request failed: ${streamed.statusCode}');
       throw Exception('Video generation failed: ${streamed.statusCode} $respStr');
     }
   }
@@ -126,7 +111,6 @@ class ApiService {
   static Future<Map<String, dynamic>> checkRenderStatus(String renderId) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/api/render-status/$renderId');
 
-    print('🔍 Checking status for render: $renderId');
     final resp = await http.get(uri);
 
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
@@ -135,11 +119,9 @@ class ApiService {
       // Log status for debugging
       final status = data['data']?['response']?['status'];
       final progress = data['data']?['response']?['progress'];
-      print('📊 Status: $status${progress != null ? " ($progress%)" : ""}');
 
       return data;
     } else {
-      print('❌ Status check failed: ${resp.statusCode}');
       throw Exception('Status check failed: ${resp.statusCode} ${resp.body}');
     }
   }

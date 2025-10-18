@@ -38,7 +38,6 @@ class WorkoutService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -66,10 +65,8 @@ class WorkoutService {
           .doc(workoutDocName)
           .set(workout.toMap());
 
-      debugPrint('Workout created successfully: workouts/$dateKey/items/$workoutDocName');
       return true;
     } catch (e) {
-      debugPrint('Error creating workout: $e');
       return false;
     }
   }
@@ -79,7 +76,6 @@ class WorkoutService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -94,19 +90,16 @@ class WorkoutService {
           .collection(_workoutsCollection)
           .get();
 
-      debugPrint('Found ${datesSnapshot.docs.length} date documents');
 
       // For each date, get workouts from its subcollection
       for (var dateDoc in datesSnapshot.docs) {
         final dateKey = dateDoc.id;
-        debugPrint('Checking date: $dateKey');
 
         final workoutsSnapshot = await dateDoc.reference
             .collection('items')
             .orderBy('timestamp', descending: true)
             .get();
 
-        debugPrint('Found ${workoutsSnapshot.docs.length} workouts for $dateKey');
 
         final dateWorkouts = workoutsSnapshot.docs
             .map((doc) => Workout.fromMap(doc.data()))
@@ -118,10 +111,8 @@ class WorkoutService {
       // Sort all workouts by timestamp
       allWorkouts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      debugPrint('Total workouts retrieved: ${allWorkouts.length}');
       return allWorkouts;
     } catch (e) {
-      debugPrint('Error getting challenge workouts: $e');
       return [];
     }
   }
@@ -131,7 +122,6 @@ class WorkoutService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return [];
       }
 
@@ -152,7 +142,6 @@ class WorkoutService {
           .map((doc) => Workout.fromMap(doc.data()))
           .toList();
     } catch (e) {
-      debugPrint('Error getting workouts for date: $e');
       return [];
     }
   }
@@ -162,7 +151,6 @@ class WorkoutService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -180,10 +168,8 @@ class WorkoutService {
           .doc(workoutDocName)
           .update(workout.toMap());
 
-      debugPrint('Workout updated successfully: ${workout.exerciseName}');
       return true;
     } catch (e) {
-      debugPrint('Error updating workout: $e');
       return false;
     }
   }
@@ -193,7 +179,6 @@ class WorkoutService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -210,10 +195,8 @@ class WorkoutService {
           .doc(workoutDocName)
           .delete();
 
-      debugPrint('Workout deleted successfully: $workoutDocName');
       return true;
     } catch (e) {
-      debugPrint('Error deleting workout: $e');
       return false;
     }
   }
@@ -257,7 +240,6 @@ class WorkoutService {
 
       yield allWorkouts;
     } catch (e) {
-      debugPrint('Error in workouts stream: $e');
       yield [];
     }
   }

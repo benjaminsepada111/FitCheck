@@ -65,28 +65,20 @@ class ImageStorageService {
     String? challengeId, // null for profile images
   }) async {
     try {
-      debugPrint('🔧 _uploadImage called');
-      debugPrint('   Image path: ${imageFile.path}');
-      debugPrint('   Category: $category');
-      debugPrint('   Challenge ID: $challengeId');
 
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('❌ Error: No authenticated user found');
         return null;
       }
 
-      debugPrint('✅ User authenticated: ${user.uid}');
 
       // Check if file exists
       final fileExists = await imageFile.exists();
       if (!fileExists) {
-        debugPrint('❌ Error: Image file does not exist at path: ${imageFile.path}');
         return null;
       }
 
       final fileSize = await imageFile.length();
-      debugPrint('✅ File exists, size: $fileSize bytes');
 
       // Generate unique filename with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -97,7 +89,6 @@ class ImageStorageService {
           ? 'users/${user.uid}/challenges/$challengeId/$category/$fileName'
           : 'users/${user.uid}/$category/$fileName';
 
-      debugPrint('📤 Uploading image to: $storagePath');
 
       // Create reference
       final storageRef = _storage.ref().child(storagePath);
@@ -114,25 +105,17 @@ class ImageStorageService {
       );
 
       // Upload file
-      debugPrint('⏳ Starting upload task...');
       final uploadTask = storageRef.putFile(imageFile, metadata);
 
       // Wait for completion
-      debugPrint('⏳ Waiting for upload to complete...');
       final snapshot = await uploadTask;
-      debugPrint('✅ Upload completed! State: ${snapshot.state}');
 
       // Get download URL
-      debugPrint('⏳ Getting download URL...');
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      debugPrint('✅ Image uploaded successfully!');
-      debugPrint('   Download URL: $downloadUrl');
       return downloadUrl;
 
     } catch (e, stackTrace) {
-      debugPrint('❌ Error uploading image: $e');
-      debugPrint('Stack trace: $stackTrace');
       return null;
     }
   }
@@ -143,23 +126,19 @@ class ImageStorageService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
       // Extract path from URL
       final ref = _storage.refFromURL(imageUrl);
 
-      debugPrint('🗑️ Deleting image: ${ref.fullPath}');
 
       // Delete the file
       await ref.delete();
 
-      debugPrint('✅ Image deleted successfully');
       return true;
 
     } catch (e) {
-      debugPrint('❌ Error deleting image: $e');
       return false;
     }
   }
@@ -170,7 +149,6 @@ class ImageStorageService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return 0;
       }
 
@@ -189,11 +167,9 @@ class ImageStorageService {
         }
       }
 
-      debugPrint('📊 Total storage usage: ${_formatBytes(totalSize)}');
       return totalSize;
 
     } catch (e) {
-      debugPrint('❌ Error calculating storage usage: $e');
       return 0;
     }
   }
@@ -204,7 +180,6 @@ class ImageStorageService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -222,11 +197,9 @@ class ImageStorageService {
         }
       }
 
-      debugPrint('✅ Deleted $totalDeleted images from challenge $challengeId');
       return true;
 
     } catch (e) {
-      debugPrint('❌ Error deleting challenge images: $e');
       return false;
     }
   }
@@ -237,7 +210,6 @@ class ImageStorageService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('Error: No authenticated user found');
         return false;
       }
 
@@ -247,17 +219,14 @@ class ImageStorageService {
 
       final listResult = await _storage.ref().child(categoryPath).listAll();
 
-      debugPrint('🗑️ Deleting ${listResult.items.length} images from $category');
 
       for (final item in listResult.items) {
         await item.delete();
       }
 
-      debugPrint('✅ All images deleted from $category');
       return true;
 
     } catch (e) {
-      debugPrint('❌ Error deleting category images: $e');
       return false;
     }
   }
@@ -279,7 +248,6 @@ class ImageStorageService {
       await ref.getMetadata();
       return true;
     } catch (e) {
-      debugPrint('⚠️ Image not accessible: $imageUrl');
       return false;
     }
   }

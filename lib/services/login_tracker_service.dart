@@ -16,7 +16,6 @@ class LoginTrackerService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        debugPrint('No authenticated user for login tracking');
         return;
       }
 
@@ -36,9 +35,7 @@ class LoginTrackerService {
         'timestamp': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      debugPrint('✅ Login recorded for $dateKey');
     } catch (e) {
-      debugPrint('Error recording daily login: $e');
     }
   }
 
@@ -58,7 +55,6 @@ class LoginTrackerService {
 
       return snapshot.docs.length;
     } catch (e) {
-      debugPrint('Error getting total login days: $e');
       return 0;
     }
   }
@@ -83,7 +79,6 @@ class LoginTrackerService {
 
       return doc.exists;
     } catch (e) {
-      debugPrint('Error checking today login: $e');
       return false;
     }
   }
@@ -123,7 +118,6 @@ class LoginTrackerService {
 
       return streak;
     } catch (e) {
-      debugPrint('Error calculating streak: $e');
       return 0;
     }
   }

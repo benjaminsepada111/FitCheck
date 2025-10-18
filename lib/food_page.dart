@@ -226,6 +226,9 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
           }
 
           Future<void> saveFood() async {
+            // Prevent multiple submissions
+            if (isLoading) return;
+
             final gramsText = gramsController.text.trim();
             if (gramsText.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -264,31 +267,58 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
               return;
             }
 
-            // Calculate actual calories based on grams
-            final actualCalories = ((caloriesPer100g / 100) * grams).round();
+            // Set loading state
+            setModalState(() {
+              isLoading = true;
+            });
 
-            // Upload image if selected
-            String? uploadedImageUrl;
-            if (selectedImage != null && widget.currentChallenge != null) {
-              uploadedImageUrl = await ImageStorageService.uploadFoodImage(
-                selectedImage!,
-                challengeId: widget.currentChallenge!.id,
-              );
+            try {
+              // Calculate actual calories based on grams
+              final actualCalories = ((caloriesPer100g / 100) * grams).round();
 
-              if (uploadedImageUrl == null) {
+              // Upload image if selected
+              String? uploadedImageUrl;
+              if (selectedImage != null && widget.currentChallenge != null) {
+                uploadedImageUrl = await ImageStorageService.uploadFoodImage(
+                  selectedImage!,
+                  challengeId: widget.currentChallenge!.id,
+                );
+
+                if (uploadedImageUrl == null) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Failed to upload image. Food will be saved without photo.'),
+                        backgroundColor: Colors.orange.shade600,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  }
+                }
+              }
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                _confirmAddFood(foodName, actualCalories, mealType, grams: grams, imageUrl: uploadedImageUrl);
+              }
+            } catch (e) {
+              debugPrint('Error saving food: $e');
+              setModalState(() {
+                isLoading = false;
+              });
+
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Failed to upload image. Food will be saved without photo.'),
-                    backgroundColor: Colors.orange.shade600,
+                    content: const Text('Failed to add food. Please try again.'),
+                    backgroundColor: Colors.red.shade600,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 );
               }
             }
-
-            Navigator.pop(context);
-            _confirmAddFood(foodName, actualCalories, mealType, grams: grams, imageUrl: uploadedImageUrl);
           }
 
           return Container(
@@ -659,7 +689,7 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
-                          onPressed: saveFood,
+                          onPressed: isLoading ? null : saveFood,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.secondary,
                             foregroundColor: Colors.white,
@@ -668,14 +698,25 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            disabledBackgroundColor: AppColors.secondary.withValues(alpha: 0.6),
+                            disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
                           ),
-                          child: const Text(
-                            'Add Food',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text(
+                                  'Add Food',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -702,6 +743,8 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
   }
 
   void _confirmAddFood(String foodName, int calories, String mealType, {double? grams, String? imageUrl}) async {
+    if (!mounted) return;
+
     try {
       final foodEntry = FoodEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -728,11 +771,16 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
 
       if (success && mounted) {
         // Refresh both the meal section and food logger to show updates
+        debugPrint('🔄 Refreshing meal section and food logger...');
         await _mealsSectionKey.currentState?.loadMealData();
-        _foodLoggerKey.currentState?.refreshData();
+        debugPrint('✅ Meal section refreshed');
+
+        await _foodLoggerKey.currentState?.refreshData();
+        debugPrint('✅ Food logger refreshed');
 
         if (widget.onCaloriesUpdated != null) {
           widget.onCaloriesUpdated!();
+          debugPrint('✅ Home page trackers updated');
         }
 
         // Show success feedback after refresh
@@ -760,18 +808,21 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
             ),
           );
         }
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add $foodName. Please try again.'),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add $foodName. Please try again.'),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error adding recommended food: $e');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1031,7 +1082,12 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
           const SizedBox(height: 20),
           MealsSection(
             key: _mealsSectionKey,
-            onCaloriesUpdated: widget.onCaloriesUpdated,
+            onCaloriesUpdated: () async {
+              // Refresh Food Logger when food is added from Meals section
+              await _foodLoggerKey.currentState?.refreshData();
+              // Also update home page trackers
+              widget.onCaloriesUpdated?.call();
+            },
             challengeId: widget.currentChallenge?.id,
           ),
         ],

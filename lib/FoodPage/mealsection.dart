@@ -34,7 +34,12 @@ class MealsSectionState extends State<MealsSection> {
   }
 
   Future<void> loadMealData() async {
-    setState(() => _isLoading = true);
+    // Only show loading screen on initial load, not on refresh
+    bool isInitialLoad = _mealEntries.isEmpty && _mealCalories.isEmpty;
+
+    if (isInitialLoad) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       if (widget.challengeId == null) {
@@ -61,17 +66,19 @@ class MealsSectionState extends State<MealsSection> {
         calories[meal] = mealLog?.totalCalories.round() ?? 0;
       }
 
-      setState(() {
-        _mealEntries = entries;
-        _mealCalories = calories;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _mealEntries = entries;
+          _mealCalories = calories;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       // Log error (replace with proper logging framework in production)
       debugPrint('Error loading meal data: $e');
-      setState(() => _isLoading = false);
-
       if (mounted) {
+        setState(() => _isLoading = false);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to load meal data. Please check your connection.'),

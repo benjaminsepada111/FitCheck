@@ -195,10 +195,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   }
 
   Widget _buildDailySummary() {
-    // Calculate meals logged (count non-empty meal types)
+    // Calculate total food entries logged (not meal types)
     final mealsLogged = _foodEntriesByMeal.values
-        .where((entries) => entries.isNotEmpty)
-        .length;
+        .fold<int>(0, (sum, entries) => sum + entries.length);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -923,32 +922,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             // Food image or placeholder
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: entry.imageBase64 != null
-                  ? Image.memory(
-                      base64Decode(entry.imageBase64!),
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.secondary.withOpacity(0.6),
-                            AppColors.secondary.withOpacity(0.3),
-                          ],
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.restaurant,
-                        size: 24,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
+              child: _buildFoodImage(entry, width: 60, height: 60),
             ),
             const SizedBox(width: 12),
             // Food details
@@ -1033,38 +1007,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Image
-                if (entry.imageBase64 != null)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: Image.memory(
-                      base64Decode(entry.imageBase64!),
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                else
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.secondary.withOpacity(0.6),
-                          AppColors.secondary.withOpacity(0.3),
-                        ],
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.restaurant,
-                        size: 64,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: _buildFoodImage(entry, width: double.infinity, height: 250),
+                ),
                 // Details
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -1192,6 +1138,86 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Helper method to build food image from either imageUrl (Cloud Storage) or imageBase64 (legacy)
+  Widget _buildFoodImage(FoodEntry entry, {required double width, required double height}) {
+    // Priority 1: Use imageUrl from Cloud Storage (new method)
+    if (entry.imageUrl != null && entry.imageUrl!.isNotEmpty) {
+      return Image.network(
+        entry.imageUrl!,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: width,
+            height: height,
+            color: Colors.grey.shade200,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.secondary,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Error loading food image from URL: $error');
+          return _buildFoodImagePlaceholder(width, height);
+        },
+      );
+    }
+
+    // Priority 2: Use imageBase64 (legacy/backward compatibility)
+    if (entry.imageBase64 != null && entry.imageBase64!.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(entry.imageBase64!),
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Error loading food image from base64: $error');
+            return _buildFoodImagePlaceholder(width, height);
+          },
+        );
+      } catch (e) {
+        debugPrint('Error decoding base64 image: $e');
+        return _buildFoodImagePlaceholder(width, height);
+      }
+    }
+
+    // No image available - show placeholder
+    return _buildFoodImagePlaceholder(width, height);
+  }
+
+  /// Build placeholder for food images
+  Widget _buildFoodImagePlaceholder(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary.withOpacity(0.6),
+            AppColors.secondary.withOpacity(0.3),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.restaurant,
+          size: height > 100 ? 64 : 24,
+          color: Colors.white.withOpacity(0.8),
+        ),
       ),
     );
   }

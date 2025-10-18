@@ -566,6 +566,10 @@ class _MainPageState extends State<MainPage> {
         return FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
+<<<<<<< HEAD
+=======
+          onCaloriesUpdated: _refreshTrackers,
+>>>>>>> backup_branch
         );
       case 2:
         return WorkoutHistoryPage(

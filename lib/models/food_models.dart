@@ -218,3 +218,76 @@ class FoodEntry {
     );
   }
 }
+
+// Model for cached food items in Firebase
+class CachedFood {
+  final String id; // Document ID (generated or based on fdcId)
+  final int fdcId; // USDA FDC ID
+  final String name; // Cleaned, simplified food name
+  final double caloriesPer100g; // Calories per 100g
+  final String source; // 'cached' for preloaded, 'usda' for fetched from API
+  final DateTime timestamp; // Last updated timestamp
+  final String? searchTerms; // Comma-separated search terms for matching
+
+  CachedFood({
+    required this.id,
+    required this.fdcId,
+    required this.name,
+    required this.caloriesPer100g,
+    required this.source,
+    required this.timestamp,
+    this.searchTerms,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'fdcId': fdcId,
+      'name': name,
+      'caloriesPer100g': caloriesPer100g,
+      'source': source,
+      'timestamp': timestamp.millisecondsSinceEpoch,
+      if (searchTerms != null) 'searchTerms': searchTerms,
+    };
+  }
+
+  factory CachedFood.fromJson(Map<String, dynamic> json) {
+    return CachedFood(
+      id: json['id'] ?? '',
+      fdcId: json['fdcId'] ?? 0,
+      name: json['name'] ?? '',
+      caloriesPer100g: (json['caloriesPer100g'] ?? 0).toDouble(),
+      source: json['source'] ?? 'usda',
+      timestamp: json['timestamp'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'])
+          : DateTime.now(),
+      searchTerms: json['searchTerms'],
+    );
+  }
+
+  // Convert to FoodSearchResult for compatibility with existing code
+  FoodSearchResult toFoodSearchResult() {
+    return FoodSearchResult(
+      fdcId: fdcId,
+      description: name,
+      calories: caloriesPer100g,
+    );
+  }
+
+  // Create from FoodSearchResult
+  static CachedFood fromFoodSearchResult(
+    FoodSearchResult result, {
+    String source = 'usda',
+    String? searchTerms,
+  }) {
+    return CachedFood(
+      id: result.fdcId.toString(),
+      fdcId: result.fdcId,
+      name: result.description,
+      caloriesPer100g: result.calories,
+      source: source,
+      timestamp: DateTime.now(),
+      searchTerms: searchTerms,
+    );
+  }
+}

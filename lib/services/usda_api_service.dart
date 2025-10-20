@@ -10,12 +10,75 @@ class USDAApiService {
   // Replace with your API key or leave empty for demo mode (with rate limits)
   static const String _apiKey = 'qLe1ZmPZocFJ6aM2N71IrZqsvNVs8ctsVHgHie6e';
 
-  // Search for foods
+  // Clean and simplify food names by removing unnecessary details
+  static String cleanFoodName(String description) {
+    String cleaned = description;
+
+    // Convert to lowercase for processing
+    cleaned = cleaned.toLowerCase();
+
+    // Remove common unnecessary details
+    final unnecessaryPatterns = [
+      r',\s*with added vitamin [a-z]',
+      r',\s*with vitamin [a-z]',
+      r',\s*vitamin [a-z] added',
+      r',\s*fortified',
+      r',\s*enriched',
+      r',\s*\d+\.?\d*%\s*fat',
+      r',\s*\d+\.?\d*%\s*milk\s*fat',
+      r',\s*reduced fat',
+      r',\s*low fat',
+      r',\s*fat free',
+      r',\s*nonfat',
+      r',\s*no salt added',
+      r',\s*unsalted',
+      r',\s*salted',
+      r',\s*raw',
+      r',\s*fresh',
+      r',\s*frozen',
+      r',\s*canned',
+      r',\s*dried',
+      r',\s*cooked',
+      r',\s*boiled',
+      r',\s*baked',
+      r',\s*upc:.*',
+      r'\(.*usda.*\)',
+      r'\(.*ndb.*\)',
+    ];
+
+    for (final pattern in unnecessaryPatterns) {
+      cleaned = cleaned.replaceAll(RegExp(pattern, caseSensitive: false), '');
+    }
+
+    // Simplify specific food types
+    if (cleaned.contains('milk')) {
+      if (cleaned.contains('whole')) {
+        cleaned = 'milk, whole';
+      } else if (cleaned.contains('skim') || cleaned.contains('nonfat')) {
+        cleaned = 'milk, skim';
+      } else if (cleaned.contains('low')) {
+        cleaned = 'milk, low fat';
+      } else if (cleaned.contains('2%') || cleaned.contains('reduced')) {
+        cleaned = 'milk, 2% reduced fat';
+      }
+    }
+
+    // Remove extra whitespace and trim
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    // Capitalize first letter of each word
+    return cleaned.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1);
+    }).join(' ');
+  }
+
+  // Search for foods (now defaults to Foundation and SR Legacy only)
   static Future<FoodSearchResponse> searchFoods({
     required String query,
     int pageSize = 25,
     int pageNumber = 1,
-    List<String> dataType = const ['Foundation', 'SR Legacy', 'Branded'],
+    List<String> dataType = const ['Foundation', 'SR Legacy'],
   }) async {
     try {
       final Map<String, dynamic> requestBody = {
@@ -41,7 +104,38 @@ class USDAApiService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        return FoodSearchResponse.fromJson(data);
+        final searchResponse = FoodSearchResponse.fromJson(data);
+
+        // Clean food names and remove duplicates/branded items
+        final cleanedFoods = <String, FoodSearchResult>{};
+
+        for (final food in searchResponse.foods) {
+          // Skip foods with zero calories
+          if (food.calories <= 0) continue;
+
+          // Skip foods that are clearly branded (have brandOwner)
+          if (food.brandOwner != null && food.brandOwner!.isNotEmpty) continue;
+
+          // Clean the food name
+          final cleanedName = cleanFoodName(food.description);
+
+          // Use cleaned name as key to deduplicate
+          // Keep the first occurrence of each unique cleaned name
+          if (!cleanedFoods.containsKey(cleanedName.toLowerCase())) {
+            cleanedFoods[cleanedName.toLowerCase()] = FoodSearchResult(
+              fdcId: food.fdcId,
+              description: cleanedName,
+              calories: food.calories,
+              brandOwner: null,
+              ingredients: null,
+            );
+          }
+        }
+
+        return FoodSearchResponse(
+          foods: cleanedFoods.values.toList(),
+          totalHits: cleanedFoods.length,
+        );
       } else {
         throw Exception('Failed to search foods: ${response.statusCode}');
       }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/usda_api_service.dart';
+import 'package:capstone_project/services/food_cache_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -65,12 +66,10 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     });
 
     try {
-      final response = await USDAApiService.searchFoods(
-        query: query.trim(),
-        pageSize: 15,
-      );
+      // Use the new caching service which implements three-tier lookup
+      final results = await FoodCacheService.searchFoods(query.trim());
 
-      if (response.foods.isEmpty) {
+      if (results.isEmpty) {
         setState(() {
           _searchResults = [];
           _selectedFood = null;
@@ -79,7 +78,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         });
       } else {
         setState(() {
-          _searchResults = response.foods;
+          _searchResults = results;
           _selectedFood = null;
           _isLoading = false;
           _errorMessage = null;

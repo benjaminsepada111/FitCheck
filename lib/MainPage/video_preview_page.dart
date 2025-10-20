@@ -813,6 +813,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
   Widget _buildGooglePhotosTimeline() {
     final milestones = widget.milestones ?? [];
+    // Reverse the milestones to match video order (3.jpg → 2.jpg → 1.jpg)
+    final reversedMilestones = milestones.reversed.toList();
     final videoDuration = _isInitialized ? _videoController.value.duration : Duration.zero;
     final currentPosition = _isInitialized ? _videoController.value.position : Duration.zero;
     final slideshowDuration = widget.slideshowInterval ?? const Duration(seconds: 2);
@@ -828,7 +830,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         children: [
 
           Expanded(
-            child: milestones.isEmpty
+            child: reversedMilestones.isEmpty
                 ? Center(
               child: Text(
                 'No milestone photos',
@@ -841,9 +843,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                 ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: milestones.length,
+                  itemCount: reversedMilestones.length,
                   itemBuilder: (context, index) {
-                    final milestone = milestones[index];
+                    final milestone = reversedMilestones[index];
                     final thumbnailDuration = slideshowDuration * (index + 1);
                     final isActive = currentPosition >= slideshowDuration * index &&
                         currentPosition < thumbnailDuration;

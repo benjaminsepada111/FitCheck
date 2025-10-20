@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname) || '';
-    cb(null, `${Date.now()}-${Math.round(Math.random()*1e9)}${ext}`);
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
   }
 });
 
@@ -38,18 +38,17 @@ app.get('/', (req, res) => res.send('Milestone Video API is running'));
 
 /**
  * POST /api/generate-video
- * - Accepts multipart images files (field name = 'images')
+ * - Accepts multipart image files (field name = 'images')
  * - Accepts optional music file (field name = 'music')
  * - Optional fields:
- *   - notes: JSON array string (["note1","note2",...])
  *   - duration: seconds per image (number)
  *   - musicUrl: external music file URL (optional)
  *
- * NEW: Videos now play milestones in REVERSE order
+ * Videos now play milestones in REVERSE order
  * - Last milestone photo appears first
- * - First milestone photo appears last
  */
-app.post('/api/generate-video',
+app.post(
+  '/api/generate-video',
   upload.fields([
     { name: 'images', maxCount: 50 },
     { name: 'music', maxCount: 1 }
@@ -66,40 +65,25 @@ app.post('/api/generate-video',
         });
       }
 
-      // Parse fields
-      let notes = [];
-      if (req.body.notes) {
-        try {
-          notes = JSON.parse(req.body.notes);
-        } catch (e) {
-          notes = String(req.body.notes).split(',');
-        }
-      }
-
       const durationPerImage = parseInt(req.body.duration ?? '2', 10) || 2;
       let musicUrl = req.body.musicUrl || null;
 
-      console.log(`📋 Config: ${notes.length} notes, duration: ${durationPerImage}s`);
+      console.log(`📋 Duration per image: ${durationPerImage}s`);
 
-      // Build accessible URLs for uploaded files
       const baseUrl = PUBLIC_BASE_OVERRIDE || `${req.protocol}://${req.get('host')}`;
 
       // Handle uploaded images
       const imageFiles = req.files?.['images'] || [];
-      const uploadedUrls = imageFiles.map(f => {
-        const url = `${baseUrl}/uploads/${f.filename}`;
-        console.log(`✅ Uploaded image: ${url}`);
-        return url;
-      });
+      const uploadedUrls = imageFiles.map(f => `${baseUrl}/uploads/${f.filename}`);
 
-      // Handle uploaded music file (takes priority over musicUrl)
+      // Handle uploaded music file
       const musicFiles = req.files?.['music'] || [];
       if (musicFiles.length > 0) {
         const musicFile = musicFiles[0];
         musicUrl = `${baseUrl}/uploads/${musicFile.filename}`;
         console.log(`🎵 Uploaded music file: ${musicUrl}`);
       } else if (musicUrl) {
-        console.log(`🎵 Using music URL: ${musicUrl}`);
+        console.log(`🎵 Using provided music URL: ${musicUrl}`);
       } else {
         console.log(`🎵 No music provided`);
       }
@@ -115,76 +99,34 @@ app.post('/api/generate-video',
       console.log(`🖼️ Total images to process: ${uploadedUrls.length}`);
       console.log('🔄 Reversing milestone order for video generation...');
 
-      // ========================================
-      // REVERSE THE ORDER OF IMAGES AND NOTES
-      // Images come in order [0,1,2,3] (first to last)
-      // We need video to play [3,2,1,0] (last to first)
-      // ========================================
+      // Reverse order (last milestone first)
       const reversedUrls = [...uploadedUrls].reverse();
-      const reversedNotes = [...notes].reverse();
 
-      console.log('✅ Order reversed: Last milestone will appear first');
-      console.log(`📸 Original order: ${uploadedUrls.length} images`);
-      console.log(`📸 Video will show: Image ${uploadedUrls.length} → Image 1`);
-
-      // Build Shotstack timeline with REVERSED order
+      // Build image clips (no text)
       const imageClips = reversedUrls.map((src, i) => ({
-        asset: {
-          type: 'image',
-          src
-        },
+        asset: { type: 'image', src },
         start: i * durationPerImage,
         length: durationPerImage,
-        transition: {
-          in: 'fade',
-          out: 'fade'
-        },
+        transition: { in: 'fade', out: 'fade' },
         fit: 'contain',
         scale: 1.0
       }));
 
-      // Only add title clips for notes that exist (also reversed)
-      const titleClips = reversedUrls
-        .map((src, i) => {
-          const noteText = reversedNotes[i] || '';
-          if (!noteText || noteText.trim() === '') return null;
-
-          return {
-            asset: {
-              type: 'title',
-              text: noteText.trim(),
-              style: 'minimal',
-              position: 'bottom',
-              size: 'small',
-              color: '#ffffff',
-              background: "#000000B3"
-            },
-            start: i * durationPerImage,
-            length: durationPerImage
-          };
-        })
-        .filter(clip => clip !== null);
-
-      const tracks = [
-        { clips: imageClips }
-      ];
-
-      // Only add title track if there are titles
-      if (titleClips.length > 0) {
-        tracks.push({ clips: titleClips });
-      }
+      const tracks = [{ clips: imageClips }];
 
       const payload = {
         timeline: {
           background: '#000000',
           tracks,
-          ...(musicUrl ? {
-            soundtrack: {
-              src: musicUrl,
-              effect: 'fadeInFadeOut',
-              volume: 0.5
-            }
-          } : {})
+          ...(musicUrl
+            ? {
+                soundtrack: {
+                  src: musicUrl,
+                  effect: 'fadeInFadeOut',
+                  volume: 0.5
+                }
+              }
+            : {})
         },
         output: {
           format: 'mp4',
@@ -195,29 +137,22 @@ app.post('/api/generate-video',
       };
 
       console.log('📤 Sending request to Shotstack API...');
-      console.log('🎬 Video will play from LAST milestone to FIRST milestone');
 
-      // Send to Shotstack render endpoint
-      const response = await axios.post(
-        `${SHOTSTACK_BASE}/render`,
-        payload,
-        {
-          headers: {
-            'x-api-key': SHOTSTACK_KEY,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
+      const response = await axios.post(`${SHOTSTACK_BASE}/render`, payload, {
+        headers: {
+          'x-api-key': SHOTSTACK_KEY,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      });
 
       console.log('✅ Shotstack response:', JSON.stringify(response.data, null, 2));
 
       return res.json({
         success: true,
         data: response.data,
-        message: 'Video render started successfully (reversed milestone order)'
+        message: 'Video render started successfully (images only)'
       });
-
     } catch (err) {
       console.error('❌ Generate-video error:', err.message);
       if (err.response) {
@@ -249,13 +184,10 @@ app.get('/api/render-status/:id', async (req, res) => {
     const id = req.params.id;
     console.log(`🔍 Checking render status for: ${id}`);
 
-    const response = await axios.get(
-      `${SHOTSTACK_BASE}/render/${id}`,
-      {
-        headers: { 'x-api-key': SHOTSTACK_KEY },
-        timeout: 10000
-      }
-    );
+    const response = await axios.get(`${SHOTSTACK_BASE}/render/${id}`, {
+      headers: { 'x-api-key': SHOTSTACK_KEY },
+      timeout: 10000
+    });
 
     const status = response.data?.response?.status;
     const url = response.data?.response?.url;
@@ -266,7 +198,6 @@ app.get('/api/render-status/:id', async (req, res) => {
       success: true,
       data: response.data
     });
-
   } catch (err) {
     console.error('❌ Status check error:', err.message);
     if (err.response) {
@@ -298,6 +229,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔑 Shotstack API: ${SHOTSTACK_KEY ? 'Configured ✅' : 'Missing ❌'}`);
   console.log(`🌐 Endpoint: ${SHOTSTACK_BASE}`);
   console.log(`📁 Upload directory: ${UPLOAD_DIR}`);
-  console.log('🔄 Video Order: REVERSED (Last → First milestone)');
+  console.log('🎬 Video Mode: IMAGES ONLY (no text)');
+  console.log('🔄 Order: REVERSED (Last → First milestone)');
   console.log('---');
 });

@@ -377,32 +377,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             // Image or placeholder
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: workout.imageBase64 != null
-                  ? Image.memory(
-                      base64Decode(workout.imageBase64!),
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      height: 120,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.secondary.withOpacity(0.7),
-                            AppColors.secondary.withOpacity(0.4),
-                          ],
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.fitness_center,
-                        size: 40,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
+              child: _buildWorkoutImage(workout, height: 120),
             ),
             // Exercise details
             Padding(
@@ -466,38 +441,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Image
-                if (workout.imageBase64 != null)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: Image.memory(
-                      base64Decode(workout.imageBase64!),
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                else
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.secondary.withOpacity(0.7),
-                          AppColors.secondary.withOpacity(0.4),
-                        ],
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.fitness_center,
-                        size: 64,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: _buildWorkoutImage(workout, height: 250),
+                ),
                 // Details
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -663,15 +610,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: milestone.imagePath != null && milestone.imagePath!.isNotEmpty
-                  ? Image.file(
-                File(milestone.imagePath!),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildPlaceholderImage();
-                },
-              )
-                  : _buildPlaceholderImage(),
+              child: _buildMilestoneImage(milestone),
             ),
           ),
           const SizedBox(width: 16),
@@ -751,28 +690,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderImage() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.secondary.withOpacity(0.7),
-            AppColors.secondary.withOpacity(0.4),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.image,
-          size: 48,
-          color: Colors.white.withOpacity(0.7),
-        ),
       ),
     );
   }
@@ -1208,6 +1125,150 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           Icons.restaurant,
           size: height > 100 ? 64 : 24,
           color: Colors.white.withOpacity(0.8),
+        ),
+      ),
+    );
+  }
+
+  /// Helper method to build workout image from either imageUrl (Cloud Storage) or imageBase64 (legacy)
+  Widget _buildWorkoutImage(Workout workout, {required double height}) {
+    // Priority 1: Use imageUrl from Cloud Storage (new method)
+    if (workout.imageUrl != null && workout.imageUrl!.isNotEmpty) {
+      return Image.network(
+        workout.imageUrl!,
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: height,
+            width: double.infinity,
+            color: Colors.grey.shade200,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.secondary,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildWorkoutImagePlaceholder(height);
+        },
+      );
+    }
+
+    // Priority 2: Use imageBase64 (legacy/backward compatibility)
+    if (workout.imageBase64 != null && workout.imageBase64!.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(workout.imageBase64!),
+          height: height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildWorkoutImagePlaceholder(height);
+          },
+        );
+      } catch (e) {
+        return _buildWorkoutImagePlaceholder(height);
+      }
+    }
+
+    // No image available - show placeholder
+    return _buildWorkoutImagePlaceholder(height);
+  }
+
+  /// Build placeholder for workout images
+  Widget _buildWorkoutImagePlaceholder(double height) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary.withOpacity(0.7),
+            AppColors.secondary.withOpacity(0.4),
+          ],
+        ),
+      ),
+      child: Icon(
+        Icons.fitness_center,
+        size: height > 150 ? 64 : 40,
+        color: Colors.white.withOpacity(0.8),
+      ),
+    );
+  }
+
+  /// Helper method to build milestone image from either imageUrl (Cloud Storage) or imagePath (local file)
+  Widget _buildMilestoneImage(Milestone milestone) {
+    // Priority 1: Use imageUrl from Cloud Storage (new method)
+    if (milestone.imageUrl != null && milestone.imageUrl!.isNotEmpty) {
+      return Image.network(
+        milestone.imageUrl!,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey.shade200,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.secondary,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildMilestoneImagePlaceholder();
+        },
+      );
+    }
+
+    // Priority 2: Use imagePath (local file/legacy)
+    if (milestone.imagePath != null && milestone.imagePath!.isNotEmpty) {
+      try {
+        return Image.file(
+          File(milestone.imagePath!),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildMilestoneImagePlaceholder();
+          },
+        );
+      } catch (e) {
+        return _buildMilestoneImagePlaceholder();
+      }
+    }
+
+    // No image available - show placeholder
+    return _buildMilestoneImagePlaceholder();
+  }
+
+  /// Build placeholder for milestone images
+  Widget _buildMilestoneImagePlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary.withOpacity(0.7),
+            AppColors.secondary.withOpacity(0.4),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.image,
+          size: 48,
+          color: Colors.white.withOpacity(0.7),
         ),
       ),
     );

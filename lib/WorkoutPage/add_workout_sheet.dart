@@ -69,7 +69,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         final imageFile = File(pickedFile.path);
         setState(() {
           _selectedImage = imageFile;
-          _imageUrl = null; // Reset URL until uploaded
+          _imageUrl = null;
         });
       }
     } catch (e) {
@@ -90,7 +90,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         final imageFile = File(pickedFile.path);
         setState(() {
           _selectedImage = imageFile;
-          _imageUrl = null; // Reset URL until uploaded
+          _imageUrl = null;
         });
       }
     } catch (e) {
@@ -108,42 +108,174 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.secondary),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: AppColors.secondary),
-                title: const Text('Take a Photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _takePhoto();
-                },
-              ),
-              if (_selectedImage != null)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Remove Photo'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _removeImage();
-                  },
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Add Workout Photo",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
-            ],
-          ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Capture your workout progress!",
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 20),
+
+            // Camera and Gallery Buttons
+            Row(
+              children: [
+                // Take Photo
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _takePhoto();
+                    },
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.secondary.shade200,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 32,
+                              color: AppColors.secondary.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Take Photo",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Use camera",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.secondary.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // Upload from Gallery
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImage();
+                    },
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.secondary.shade200,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.photo_library,
+                              size: 32,
+                              color: AppColors.secondary.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Gallery",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Choose photo",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.secondary.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
+          ],
         ),
       ),
     );
@@ -517,40 +649,115 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
                     ),
                     const SizedBox(height: 10),
                     if (_selectedImage != null)
-                      Stack(
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.secondary, width: 2),
-                              image: DecorationImage(
-                                image: FileImage(_selectedImage!),
-                                fit: BoxFit.cover,
-                              ),
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        height: 220,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: _removeImage,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Stack(
+                            children: [
+                              // Selected Image
+                              Positioned.fill(
+                                child: Image.file(
+                                  _selectedImage!,
+                                  fit: BoxFit.cover,
                                 ),
                               ),
-                            ),
+
+                              // Gradient overlay
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        Colors.black.withOpacity(0.4),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Remove button top-right
+                              Positioned(
+                                top: 12,
+                                right: 12,
+                                child: GestureDetector(
+                                  onTap: _removeImage,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.9),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Change photo button bottom-right
+                              Positioned(
+                                bottom: 12,
+                                right: 12,
+                                child: GestureDetector(
+                                  onTap: _showImageSourceDialog,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          "Change",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       )
                     else
                       GestureDetector(
@@ -559,12 +766,11 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
                           width: double.infinity,
                           height: 150,
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.secondary.shade50,
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.grey.shade300,
-                              width: 1.5,
-                              style: BorderStyle.solid,
+                              color: AppColors.secondary.shade200,
+                              width: 2,
                             ),
                           ),
                           child: Column(
@@ -573,22 +779,30 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withOpacity(0.1),
+                                  color: AppColors.secondary.shade100,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   Icons.add_photo_alternate,
                                   size: 40,
-                                  color: AppColors.secondary,
+                                  color: AppColors.secondary.shade700,
                                 ),
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Tap to add photo',
+                                'Add Workout Photo',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.secondary.shade700,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap to capture your progress',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.secondary.shade600,
                                 ),
                               ),
                             ],
@@ -641,20 +855,20 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
                         : const Text(
-                            'Add Workout',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                      'Add Workout',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -188,7 +188,6 @@ app.get('/api/render-status/:id', async (req, res) => {
       headers: { 'x-api-key': SHOTSTACK_KEY },
       timeout: 10000
     });
-
     const status = response.data?.response?.status;
     const url = response.data?.response?.url;
 

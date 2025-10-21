@@ -8,6 +8,7 @@ import 'SignUpPages/signuppage.dart';
 import 'main_page.dart';
 import 'app_text_styles.dart';
 import 'splash_screen.dart'; // Add this import
+import 'package:capstone_project/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +16,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  await NotificationService().initialize();
   runApp(const MyApp());
 }
 

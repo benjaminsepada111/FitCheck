@@ -54,6 +54,8 @@ dependencies:
   chewie: ^1.7.4 # Optional: gives you nice playback controls (like YouTube-style)
   file_picker: ^8.1.2
   gal: ^2.3.0
+  local_auth: ^2.2.0
+  flutter_local_notifications: ^17.2.3
 
 
 

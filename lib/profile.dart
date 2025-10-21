@@ -6,6 +6,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/user_time_tracker.dart';
 import 'package:capstone_project/models/user_data.dart';
+import 'package:capstone_project/services/notification_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -73,6 +74,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout(BuildContext context) async {
     try {
+      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -91,15 +93,25 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       );
 
+      // Sign out from Firebase
       await FirebaseAuth.instance.signOut();
 
+      // SHOW LOGOUT NOTIFICATION (NEW CODE)
+      await NotificationService().showLogoutNotification();
+
       if (context.mounted) {
+        // Close loading dialog
         Navigator.pop(context);
+
+        // Navigate to auth page
         Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
       }
     } catch (e) {
       if (context.mounted) {
+        // Close loading dialog
         Navigator.pop(context);
+
+        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to sign out. Please try again.'),

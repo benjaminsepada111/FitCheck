@@ -15,11 +15,7 @@ class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
   final Challenge? challenge;
 
-  const DailyLogsPage({
-    super.key,
-    required this.selectedDate,
-    this.challenge,
-  });
+  const DailyLogsPage({super.key, required this.selectedDate, this.challenge});
 
   @override
   State<DailyLogsPage> createState() => _DailyLogsPageState();
@@ -50,7 +46,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     try {
       // Load food logs for the selected date
       final foodLogs = widget.challenge != null
-          ? await FoodLogService.getFoodLogsForDate(widget.selectedDate, challengeId: widget.challenge!.id)
+          ? await FoodLogService.getFoodLogsForDate(
+              widget.selectedDate,
+              challengeId: widget.challenge!.id,
+            )
           : <FoodLog>[];
 
       // Calculate total calories and organize by meal
@@ -62,7 +61,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         'Snack': [],
       };
 
-
       for (var log in foodLogs) {
         totalCalories += log.totalCalories.round();
 
@@ -70,25 +68,27 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           mealEntries[log.mealType] = log.entries;
 
           // Log each entry
-          for (var entry in log.entries) {
-          }
+          for (var entry in log.entries) {}
         }
       }
 
-
       // Load milestones for the selected date
       final allMilestones = widget.challenge != null
-          ? await MilestoneService.getAllMilestones(challengeId: widget.challenge!.id)
+          ? await MilestoneService.getAllMilestones(
+              challengeId: widget.challenge!.id,
+            )
           : <Milestone>[];
-      final dateMilestones = allMilestones.where((m) =>
-          _isSameDate(m.date, widget.selectedDate)
-      ).toList();
+      final dateMilestones = allMilestones
+          .where((m) => _isSameDate(m.date, widget.selectedDate))
+          .toList();
 
       // Load workouts for the selected date
       final workoutsForDate = widget.challenge != null
-          ? await WorkoutService.getWorkoutsForDate(widget.challenge!.id, widget.selectedDate)
+          ? await WorkoutService.getWorkoutsForDate(
+              widget.challenge!.id,
+              widget.selectedDate,
+            )
           : <Workout>[];
-
 
       setState(() {
         _loggedCalories = totalCalories;
@@ -106,7 +106,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             content: const Text('Failed to load daily data'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -115,13 +117,22 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
   String _formatDate(DateTime date) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
 
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -155,43 +166,44 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
           ],
         ),
-
       ),
       body: _isLoading
           ? const Center(child: FitCheckLoader())
           : RefreshIndicator(
-        onRefresh: _loadDailyData,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Daily Summary with circular progress
-              _buildDailySummary(),
+              onRefresh: _loadDailyData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Daily Summary with circular progress
+                    _buildDailySummary(),
 
-              const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-              // Progress Photo Section
-              if (_milestones.isNotEmpty) _buildProgressPhotos(),
+                    // Progress Photo Section
+                    if (_milestones.isNotEmpty) _buildProgressPhotos(),
 
-              // Workout Section
-              if (_workouts.isNotEmpty) _buildWorkoutSection(),
+                    // Workout Section
+                    if (_workouts.isNotEmpty) _buildWorkoutSection(),
 
-              // Food Logs Section
-              _buildFoodLogs(),
+                    // Food Logs Section
+                    _buildFoodLogs(),
 
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 
   Widget _buildDailySummary() {
     // Calculate total food entries logged (not meal types)
-    final mealsLogged = _foodEntriesByMeal.values
-        .fold<int>(0, (sum, entries) => sum + entries.length);
+    final mealsLogged = _foodEntriesByMeal.values.fold<int>(
+      0,
+      (sum, entries) => sum + entries.length,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -236,10 +248,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
-  Widget _buildStatCard({
-    required String label,
-    required String value,
-  }) {
+  Widget _buildStatCard({required String label, required String value}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
@@ -299,10 +308,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               ),
               Text(
                 '${_milestones.length} ${_milestones.length == 1 ? 'photo' : 'photos'}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -334,10 +340,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               ),
               Text(
                 '${_workouts.length} ${_workouts.length == 1 ? 'workout' : 'workouts'}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -346,7 +349,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: _workouts.map((workout) => _buildWorkoutCard(workout)).toList(),
+            children: _workouts
+                .map((workout) => _buildWorkoutCard(workout))
+                .toList(),
           ),
           const SizedBox(height: 24),
         ],
@@ -358,7 +363,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return GestureDetector(
       onTap: () => _showWorkoutDetail(workout),
       child: Container(
-        width: (MediaQuery.of(context).size.width - 44) / 2, // Half width minus padding
+        width:
+            (MediaQuery.of(context).size.width - 44) /
+            2, // Half width minus padding
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -376,33 +383,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           children: [
             // Image or placeholder
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: workout.imageBase64 != null
-                  ? Image.memory(
-                      base64Decode(workout.imageBase64!),
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      height: 120,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.secondary.withOpacity(0.7),
-                            AppColors.secondary.withOpacity(0.4),
-                          ],
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.fitness_center,
-                        size: 40,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              child: _buildWorkoutImage(workout, height: 120),
             ),
             // Exercise details
             Padding(
@@ -433,7 +417,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.numbers, size: 14, color: Colors.grey.shade600),
+                      Icon(
+                        Icons.numbers,
+                        size: 14,
+                        color: Colors.grey.shade600,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${workout.reps} reps',
@@ -466,38 +454,12 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Image
-                if (workout.imageBase64 != null)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: Image.memory(
-                      base64Decode(workout.imageBase64!),
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                else
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.secondary.withOpacity(0.7),
-                          AppColors.secondary.withOpacity(0.4),
-                        ],
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.fitness_center,
-                        size: 64,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
                   ),
+                  child: _buildWorkoutImage(workout, height: 250),
+                ),
                 // Details
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -532,13 +494,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           ),
                         ],
                       ),
-                      if (workout.notes != null && workout.notes!.isNotEmpty) ...[
+                      if (workout.notes != null &&
+                          workout.notes!.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         const Divider(),
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            Icon(Icons.note_outlined, size: 18, color: Colors.grey.shade600),
+                            Icon(
+                              Icons.note_outlined,
+                              size: 18,
+                              color: Colors.grey.shade600,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Notes',
@@ -563,7 +530,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Colors.grey.shade500,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             _formatTime(workout.timestamp),
@@ -630,10 +601,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -663,14 +631,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: milestone.imagePath != null && milestone.imagePath!.isNotEmpty
+              child:
+                  milestone.imagePath != null && milestone.imagePath!.isNotEmpty
                   ? Image.file(
-                File(milestone.imagePath!),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildPlaceholderImage();
-                },
-              )
+                      File(milestone.imagePath!),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildPlaceholderImage();
+                      },
+                    )
                   : _buildPlaceholderImage(),
             ),
           ),
@@ -785,8 +754,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   }
 
   Widget _buildFoodLogs() {
-    final totalEntries = _foodEntriesByMeal.values
-        .fold<int>(0, (sum, entries) => sum + entries.length);
+    final totalEntries = _foodEntriesByMeal.values.fold<int>(
+      0,
+      (sum, entries) => sum + entries.length,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -806,10 +777,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               ),
               Text(
                 '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -832,7 +800,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     final entries = _foodEntriesByMeal[mealType] ?? [];
     final totalCalories = entries.fold<int>(
       0,
-          (sum, entry) => sum + entry.totalCalories.round(),
+      (sum, entry) => sum + entry.totalCalories.round(),
     );
 
     return Column(
@@ -879,10 +847,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 const SizedBox(width: 8),
                 Text(
                   'No entries',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -938,7 +903,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                   Row(
                     children: [
                       if (entry.servingSize > 0) ...[
-                        Icon(Icons.scale, size: 12, color: Colors.grey.shade600),
+                        Icon(
+                          Icons.scale,
+                          size: 12,
+                          color: Colors.grey.shade600,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${entry.servingSize.toStringAsFixed(0)}g',
@@ -952,7 +921,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
                       ],
-                      Icon(Icons.local_fire_department, size: 12, color: Colors.grey.shade600),
+                      Icon(
+                        Icons.local_fire_department,
+                        size: 12,
+                        color: Colors.grey.shade600,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${entry.totalCalories.round()} cal',
@@ -1002,8 +975,14 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               children: [
                 // Image
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: _buildFoodImage(entry, width: double.infinity, height: 250),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: _buildFoodImage(
+                    entry,
+                    width: double.infinity,
+                    height: 250,
+                  ),
                 ),
                 // Details
                 Padding(
@@ -1126,10 +1105,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -1137,7 +1113,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   }
 
   /// Helper method to build food image from either imageUrl (Cloud Storage) or imageBase64 (legacy)
-  Widget _buildFoodImage(FoodEntry entry, {required double width, required double height}) {
+  Widget _buildFoodImage(
+    FoodEntry entry, {
+    required double width,
+    required double height,
+  }) {
     // Priority 1: Use imageUrl from Cloud Storage (new method)
     if (entry.imageUrl != null && entry.imageUrl!.isNotEmpty) {
       return Image.network(
@@ -1154,7 +1134,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             child: Center(
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
                     : null,
                 color: AppColors.secondary,
               ),
@@ -1208,6 +1189,152 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           Icons.restaurant,
           size: height > 100 ? 64 : 24,
           color: Colors.white.withOpacity(0.8),
+        ),
+      ),
+    );
+  }
+
+  /// Helper method to build workout image from either imageUrl (Cloud Storage) or imageBase64 (legacy)
+  Widget _buildWorkoutImage(Workout workout, {required double height}) {
+    // Priority 1: Use imageUrl from Cloud Storage (new method)
+    if (workout.imageUrl != null && workout.imageUrl!.isNotEmpty) {
+      return Image.network(
+        workout.imageUrl!,
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: height,
+            width: double.infinity,
+            color: Colors.grey.shade200,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.secondary,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildWorkoutImagePlaceholder(height);
+        },
+      );
+    }
+
+    // Priority 2: Use imageBase64 (legacy/backward compatibility)
+    if (workout.imageBase64 != null && workout.imageBase64!.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(workout.imageBase64!),
+          height: height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildWorkoutImagePlaceholder(height);
+          },
+        );
+      } catch (e) {
+        return _buildWorkoutImagePlaceholder(height);
+      }
+    }
+
+    // No image available - show placeholder
+    return _buildWorkoutImagePlaceholder(height);
+  }
+
+  /// Build placeholder for workout images
+  Widget _buildWorkoutImagePlaceholder(double height) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary.withOpacity(0.7),
+            AppColors.secondary.withOpacity(0.4),
+          ],
+        ),
+      ),
+      child: Icon(
+        Icons.fitness_center,
+        size: height > 150 ? 64 : 40,
+        color: Colors.white.withOpacity(0.8),
+      ),
+    );
+  }
+
+  /// Helper method to build milestone image from either imageUrl (Cloud Storage) or imagePath (local file)
+  Widget _buildMilestoneImage(Milestone milestone) {
+    // Priority 1: Use imageUrl from Cloud Storage (new method)
+    if (milestone.imageUrl != null && milestone.imageUrl!.isNotEmpty) {
+      return Image.network(
+        milestone.imageUrl!,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey.shade200,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.secondary,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildMilestoneImagePlaceholder();
+        },
+      );
+    }
+
+    // Priority 2: Use imagePath (local file/legacy)
+    if (milestone.imagePath != null && milestone.imagePath!.isNotEmpty) {
+      try {
+        return Image.file(
+          File(milestone.imagePath!),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildMilestoneImagePlaceholder();
+          },
+        );
+      } catch (e) {
+        return _buildMilestoneImagePlaceholder();
+      }
+    }
+
+    // No image available - show placeholder
+    return _buildMilestoneImagePlaceholder();
+  }
+
+  /// Build placeholder for milestone images
+  Widget _buildMilestoneImagePlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary.withOpacity(0.7),
+            AppColors.secondary.withOpacity(0.4),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.image,
+          size: 48,
+          color: Colors.white.withOpacity(0.7),
         ),
       ),
     );

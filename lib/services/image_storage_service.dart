@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 /// Service for handling image uploads to Firebase Cloud Storage
 /// Organizes images by user and category for optimal data management
@@ -13,7 +12,10 @@ class ImageStorageService {
   /// Returns the download URL if successful, null otherwise
   ///
   /// Images are stored in: users/{userId}/challenges/{challengeId}/food/{timestamp}_{filename}
-  static Future<String?> uploadFoodImage(File imageFile, {required String challengeId}) async {
+  static Future<String?> uploadFoodImage(
+    File imageFile, {
+    required String challengeId,
+  }) async {
     return _uploadImage(
       imageFile: imageFile,
       category: 'food',
@@ -25,7 +27,10 @@ class ImageStorageService {
   /// Returns the download URL if successful, null otherwise
   ///
   /// Images are stored in: users/{userId}/challenges/{challengeId}/workouts/{timestamp}_{filename}
-  static Future<String?> uploadWorkoutImage(File imageFile, {required String challengeId}) async {
+  static Future<String?> uploadWorkoutImage(
+    File imageFile, {
+    required String challengeId,
+  }) async {
     return _uploadImage(
       imageFile: imageFile,
       category: 'workouts',
@@ -37,7 +42,10 @@ class ImageStorageService {
   /// Returns the download URL if successful, null otherwise
   ///
   /// Images are stored in: users/{userId}/challenges/{challengeId}/milestones/{timestamp}_{filename}
-  static Future<String?> uploadMilestoneImage(File imageFile, {required String challengeId}) async {
+  static Future<String?> uploadMilestoneImage(
+    File imageFile, {
+    required String challengeId,
+  }) async {
     return _uploadImage(
       imageFile: imageFile,
       category: 'milestones',
@@ -65,20 +73,16 @@ class ImageStorageService {
     String? challengeId, // null for profile images
   }) async {
     try {
-
       final user = _auth.currentUser;
       if (user == null) {
         return null;
       }
-
 
       // Check if file exists
       final fileExists = await imageFile.exists();
       if (!fileExists) {
         return null;
       }
-
-      final fileSize = await imageFile.length();
 
       // Generate unique filename with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -88,7 +92,6 @@ class ImageStorageService {
       final storagePath = challengeId != null
           ? 'users/${user.uid}/challenges/$challengeId/$category/$fileName'
           : 'users/${user.uid}/$category/$fileName';
-
 
       // Create reference
       final storageRef = _storage.ref().child(storagePath);
@@ -114,8 +117,7 @@ class ImageStorageService {
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       return downloadUrl;
-
-    } catch (e, stackTrace) {
+    } catch (e) {
       return null;
     }
   }
@@ -132,12 +134,10 @@ class ImageStorageService {
       // Extract path from URL
       final ref = _storage.refFromURL(imageUrl);
 
-
       // Delete the file
       await ref.delete();
 
       return true;
-
     } catch (e) {
       return false;
     }
@@ -168,7 +168,6 @@ class ImageStorageService {
       }
 
       return totalSize;
-
     } catch (e) {
       return 0;
     }
@@ -198,7 +197,6 @@ class ImageStorageService {
       }
 
       return true;
-
     } catch (e) {
       return false;
     }
@@ -206,7 +204,10 @@ class ImageStorageService {
 
   /// Delete all images for a specific category within a challenge
   /// Useful for cleanup operations
-  static Future<bool> deleteAllImagesInCategory(String category, {String? challengeId}) async {
+  static Future<bool> deleteAllImagesInCategory(
+    String category, {
+    String? challengeId,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -219,13 +220,11 @@ class ImageStorageService {
 
       final listResult = await _storage.ref().child(categoryPath).listAll();
 
-
       for (final item in listResult.items) {
         await item.delete();
       }
 
       return true;
-
     } catch (e) {
       return false;
     }

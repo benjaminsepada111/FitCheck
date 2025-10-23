@@ -6,6 +6,7 @@ import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/services/notification_service.dart';
 
 class MealsSection extends StatefulWidget {
   final VoidCallback? onCaloriesUpdated; // Add callback for tracker updates
@@ -96,7 +97,7 @@ class MealsSectionState extends State<MealsSection> {
       // Create new food entry
       final foodEntry = FoodEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        fdcId: 0, // Set default fdcId since we're only tracking calories
+        fdcId: 0,
         foodName: foodName,
         servingSize: grams ?? 100.0,
         servingUnit: 'g',
@@ -119,7 +120,7 @@ class MealsSectionState extends State<MealsSection> {
       );
 
       if (success) {
-        // Show success feedback
+        // Show success feedback in app
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -130,6 +131,9 @@ class MealsSectionState extends State<MealsSection> {
             ),
           );
         }
+
+        // 🆕 Show notification for meal logged
+        await NotificationService().showMealLoggedNotification(mealType);
 
         // Reload the meal data to show the new entry
         await loadMealData();
@@ -142,7 +146,6 @@ class MealsSectionState extends State<MealsSection> {
         throw Exception('Failed to save to Firebase');
       }
     } catch (e) {
-      // Log error (replace with proper logging framework in production)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -333,6 +336,7 @@ class MealsSectionState extends State<MealsSection> {
             ),
           ],
         ),
+
         const SizedBox(height: 12),
         ...meals.map((meal) => _MealCard(
           name: meal["name"] as String,

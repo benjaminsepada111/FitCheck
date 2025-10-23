@@ -8,6 +8,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
+import 'package:capstone_project/services/notification_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import '../app_text_styles.dart';
 
@@ -28,6 +29,7 @@ class MilestoneJourney extends StatefulWidget {
 class _MilestoneJourneyState extends State<MilestoneJourney> {
   List<Milestone> _milestones = [];
   bool _isLoading = false;
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
@@ -62,6 +64,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
         setState(() {
           _milestones = milestones;
         });
+
+        // Check if notification should be scheduled or cancelled
+        _updateNotificationStatus();
       }
     } catch (e) {
       // Error loading milestones
@@ -71,6 +76,43 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _updateNotificationStatus() async {
+    // Only schedule notifications if there's an active challenge
+    if (widget.currentChallenge == null) {
+      await _notificationService.cancelMilestoneReminder();
+      return;
+    }
+
+    final hasToday = _hasTodayMilestone();
+
+    if (hasToday) {
+      // User has added milestone today - cancel all reminders
+      await _notificationService.cancelMilestoneReminder();
+      debugPrint('✅ Milestone exists for today - all reminders cancelled');
+    } else {
+      // User hasn't added milestone today - schedule 2 PM and 8 PM reminders
+      await _notificationService.scheduleDailyMilestoneReminders();
+      debugPrint('📅 No milestone today - reminders scheduled for 2 PM and 8 PM');
+    }
+  }
+
+
+  // NEW METHOD: Show immediate notification if user hasn't added photo today
+  Future<void> _showImmediateReminderIfNeeded() async {
+    final now = DateTime.now();
+
+    // Only show immediate notification if it's after 12 PM (noon)
+    // This prevents spamming user early in the morning
+    if (now.hour >= 12) {
+      await _notificationService.showInstantNotification(
+        title: '📸 Time to Add Your Milestone!',
+        body: "You haven't added your milestone photo today. Tap to add now!",
+        payload: 'add_milestone_now',
+      );
+      debugPrint('📢 Immediate milestone reminder shown (after 12 PM)');
     }
   }
 
@@ -92,12 +134,18 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
         await _loadMilestones();
 
         if (mounted) {
+          // Show milestone saved notification
+          await _notificationService.showMilestoneSavedNotification();
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Milestone saved successfully!'),
               backgroundColor: Colors.green,
             ),
           );
+
+          // Cancel today's reminder since milestone is now added
+          await _notificationService.cancelMilestoneReminder();
         }
       } else {
         if (mounted) {
@@ -346,9 +394,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                 }
               },
               style: TextButton.styleFrom(
-                foregroundColor: _milestones.isEmpty
-                    ? Colors.grey
-                    : Colors.white,
+                foregroundColor:
+                _milestones.isEmpty ? Colors.grey : Colors.white,
                 backgroundColor: _milestones.isEmpty
                     ? Colors.grey.shade200
                     : AppColors.secondary,
@@ -397,7 +444,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                     onTap: hasActiveChallenge
                         ? () async {
                       // Check if today's milestone already exists
-                      final todayMilestone = await MilestoneService.getMilestoneForDate(
+                      final todayMilestone =
+                      await MilestoneService.getMilestoneForDate(
                         DateTime.now(),
                         challengeId: widget.currentChallenge!.id,
                       );
@@ -405,7 +453,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                       if (todayMilestone != null && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('You have already uploaded a milestone photo for today!'),
+                            content: Text(
+                                'You have already uploaded a milestone photo for today!'),
                             backgroundColor: Colors.orange,
                           ),
                         );
@@ -423,10 +472,11 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                           ),
                         ),
                         builder: (context) => AddMilestoneSheet(
-                          onSave: (milestone, imageFile) => _addMilestone(
-                            milestone,
-                            imageFile: imageFile,
-                          ),
+                          onSave: (milestone, imageFile) =>
+                              _addMilestone(
+                                milestone,
+                                imageFile: imageFile,
+                              ),
                         ),
                       );
                     }
@@ -520,8 +570,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                       fit: BoxFit.cover,
                     )
                         : null,
-                    color:
-                    milestone.imageUrl == null && milestone.imagePath == null
+                    color: milestone.imageUrl == null &&
+                        milestone.imagePath == null
                         ? Colors.grey.shade200
                         : null,
                   ),

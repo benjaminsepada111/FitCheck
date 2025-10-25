@@ -27,8 +27,12 @@ class FoodPage extends StatefulWidget {
   State<FoodPage> createState() => _FoodPageState();
 }
 
-class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
+class _FoodPageState extends State<FoodPage>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool get hasChallenge => widget.currentChallenge != null;
+
+  @override
+  bool get wantKeepAlive => true; // Keep this page alive
 
   late AnimationController _bounceController;
   late AnimationController _fadeController;
@@ -830,6 +834,7 @@ class _FoodPageState extends State<FoodPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     if (!hasChallenge) {
       return _buildNoChallengeUI();
     }

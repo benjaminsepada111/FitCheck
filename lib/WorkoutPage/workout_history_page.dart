@@ -20,9 +20,13 @@ class WorkoutHistoryPage extends StatefulWidget {
   State<WorkoutHistoryPage> createState() => _WorkoutHistoryPageState();
 }
 
-class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
+class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
+    with AutomaticKeepAliveClientMixin {
   List<Workout> _workouts = [];
   bool _isLoading = true;
+
+  @override
+  bool get wantKeepAlive => true; // Keep this page alive
 
   @override
   void initState() {
@@ -269,6 +273,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(

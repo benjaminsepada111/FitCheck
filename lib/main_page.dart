@@ -531,9 +531,12 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _getBody() {
-    switch (_selectedIndex) {
-      case 0:
-        return SingleChildScrollView(
+    // Use IndexedStack to keep pages alive and prevent rebuilding
+    return IndexedStack(
+      index: _selectedIndex,
+      children: [
+        // Home page (index 0)
+        SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,22 +559,21 @@ class _MainPageState extends State<MainPage> {
               ),
             ],
           ),
-        );
-      case 1:
-        return FoodPage(
+        ),
+        // Food page (index 1)
+        FoodPage(
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
           onCaloriesUpdated: _refreshTrackers,
-        );
-      case 2:
-        return WorkoutHistoryPage(
+        ),
+        // Workout page (index 2)
+        WorkoutHistoryPage(
           currentChallenge: _currentChallenge,
-        );
-      case 3:
-        return const ProfilePage();
-      default:
-        return const Center(child: Text("Page not found"));
-    }
+        ),
+        // Profile page (index 3)
+        const ProfilePage(),
+      ],
+    );
   }
 
   @override

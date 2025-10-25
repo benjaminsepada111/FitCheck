@@ -1,0 +1,2024 @@
+{
+  "activities": [
+    {
+      "name": "Running, hilly terrain, ±100m change in elevation",
+      "MET": 0,
+      "code": "13001"
+    },
+    {
+      "name": "Bicycling, interactive virtual cycling, indoor cycle ergometer",
+      "MET": 8.8,
+      "code": "01001"
+    },
+    {
+      "name": "Bicycling, high intensity interval training",
+      "MET": 8.8,
+      "code": "01002"
+    },
+    {
+      "name": "Aerobic, general",
+      "MET": 7.3,
+      "code": "03001"
+    },
+    {
+      "name": "Aerobic, step, with 4-inch step",
+      "MET": 5.5,
+      "code": "03002"
+    },
+    {
+      "name": "Aerobic, step, with 6 - 8 inch step",
+      "MET": 7.3,
+      "code": "03003"
+    },
+    {
+      "name": "Aerobic, step, with 10 - 12 inch step",
+      "MET": 9,
+      "code": "03004"
+    },
+    {
+      "name": "Aerobic dance, low impact, moderate effort",
+      "MET": 4.8,
+      "code": "03005"
+    },
+    {
+      "name": "Aerobic dance, high impact, vigorous effort",
+      "MET": 8,
+      "code": "03006"
+    },
+    {
+      "name": "Aerobic dance wearing 10-15 lb weights",
+      "MET": 10,
+      "code": "03007"
+    },
+    {
+      "name": "Army type obstacle course exercise, boot camp training program",
+      "MET": 5,
+      "code": "03008"
+    },
+    {
+      "name": "Calisthenics (e.g., pushups, sit ups, pull-ups, jumping jacks, burpees, battling ropes), vigorous effort",
+      "MET": 7.5,
+      "code": "10001"
+    },
+    {
+      "name": "Calisthenics (e.g., pushups, sit ups, pull-ups, lunges), moderate effort",
+      "MET": 3.8,
+      "code": "10002"
+    },
+    {
+      "name": "Calisthenics (e.g., curl ups, abdominal crunches, plank), light effort",
+      "MET": 2.8,
+      "code": "13002"
+    },
+    {
+      "name": "Calisthenics, light or moderate effort, general (e.g., back exercises), going up & down from floor (Taylor Code 150)",
+      "MET": 3.5,
+      "code": "03009"
+    },
+    {
+      "name": "Circuit training, body weight exercises",
+      "MET": 6,
+      "code": "03010"
+    },
+    {
+      "name": "Circuit training, light effort",
+      "MET": 3.5,
+      "code": "03011"
+    },
+    {
+      "name": "Circuit training, moderate effort",
+      "MET": 5,
+      "code": "03012"
+    },
+    {
+      "name": "Circuit training, including kettlebells, some aerobic movement with minimal rest, general, vigorous intensity",
+      "MET": 7.5,
+      "code": "03013"
+    },
+    {
+      "name": "Resistance (weight) training, squats, deadlift, slow or explosive effort",
+      "MET": 5,
+      "code": "03014"
+    },
+    {
+      "name": "Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance",
+      "MET": 3.5,
+      "code": "03015"
+    },
+    {
+      "name": "Resistance Training , circuit, reciprocal supersets, peripheral hear action training",
+      "MET": 5.8,
+      "code": "03016"
+    },
+    {
+      "name": "Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), general",
+      "MET": 3,
+      "code": "03017"
+    },
+    {
+      "name": "Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), high intensity",
+      "MET": 6.5,
+      "code": "03018"
+    },
+    {
+      "name": "Health club exercise classes general, gym/weight training combined in one visit",
+      "MET": 5,
+      "code": "03019"
+    },
+    {
+      "name": "Rope skipping exercise, general",
+      "MET": 11,
+      "code": "03020"
+    },
+    {
+      "name": "Jumping rope, Digi-Jump Machin e, 120 jumps/minute",
+      "MET": 9,
+      "code": "10003"
+    },
+    {
+      "name": "Shuttle running, forward/backward/lateral",
+      "MET": 11,
+      "code": "13003"
+    },
+    {
+      "name": "Stretching, mild",
+      "MET": 2.3,
+      "code": "10004"
+    },
+    {
+      "name": "Pilates, traditional, mat",
+      "MET": 1.8,
+      "code": "03021"
+    },
+    {
+      "name": "Pilates, general",
+      "MET": 2.8,
+      "code": "03022"
+    },
+    {
+      "name": "Pound, combination of Pilates and body movements with drumming",
+      "MET": 8.5,
+      "code": "03023"
+    },
+    {
+      "name": "Teaching exercise classes (e.g., aerobic, water)",
+      "MET": 6.8,
+      "code": "03024"
+    },
+    {
+      "name": "Therapeutic exercise ball, Fitball exercise, high intensity",
+      "MET": 9.5,
+      "code": "03025"
+    },
+    {
+      "name": "Upper body exercise, stationary bicycle - Airdyne (arms only) 40 rpm, moderate intensity",
+      "MET": 4.3,
+      "code": "03026"
+    },
+    {
+      "name": "Water aerobics, water calisthenics, water exercise",
+      "MET": 5.3,
+      "code": "03027"
+    },
+    {
+      "name": "Whirlpool, sitting",
+      "MET": 1.3,
+      "code": "08001"
+    },
+    {
+      "name": "Video, exercise workouts, TV conditioning programs (e.g., yoga, stretching, seated), light effort",
+      "MET": 2.5,
+      "code": "03028"
+    },
+    {
+      "name": "Video, exercise workouts, TV conditioning programs (e.g., cardio-resistance training), moderate",
+      "MET": 4,
+      "code": "03029"
+    },
+    {
+      "name": "Video, exercise workouts, TV conditioning programs (e.g., cardio-resistance training), vigorous",
+      "MET": 6,
+      "code": "03030"
+    },
+    {
+      "name": "Yoga, Hatha",
+      "MET": 2.3,
+      "code": "03031"
+    },
+    {
+      "name": "Yoga, Hatha, high intensity",
+      "MET": 8,
+      "code": "03032"
+    },
+    {
+      "name": "Yoga, Hot",
+      "MET": 3,
+      "code": "03033"
+    },
+    {
+      "name": "Yoga, Power",
+      "MET": 4,
+      "code": "03034"
+    },
+    {
+      "name": "Yoga, Nadisodhana",
+      "MET": 2,
+      "code": "03035"
+    },
+    {
+      "name": "Yoga, General",
+      "MET": 2.3,
+      "code": "03036"
+    },
+    {
+      "name": "Yoga, Surya Namaskar",
+      "MET": 3.5,
+      "code": "03037"
+    },
+    {
+      "name": "Yoga, Vinyasa",
+      "MET": 2.7,
+      "code": "03038"
+    },
+    {
+      "name": "High intensity interval exercise, moderate effort",
+      "MET": 7,
+      "code": "03039"
+    },
+    {
+      "name": "High intensity interval exercise, burpees, mountain climbers, squat jumps, Tabata, vigorous effort",
+      "MET": 11,
+      "code": "03040"
+    },
+    {
+      "name": "Impulse Training System, Inertial Exercise Trainer",
+      "MET": 9,
+      "code": "03041"
+    },
+    {
+      "name": "Virtual Reality Fitness, Supernatural ™ “Flow”, “Boxing\" vigorous intensity",
+      "MET": 7.9,
+      "code": "16001"
+    },
+    {
+      "name": "Blackbox Immersive virtual reality exergaming system, vigorous intensity",
+      "MET": 13,
+      "code": "10005"
+    },
+    {
+      "name": "Sit to stand exercise, 6-12 times/min",
+      "MET": 2.8,
+      "code": "03042"
+    },
+    {
+      "name": "Sit to stand exercise, 18-24 times/min",
+      "MET": 4,
+      "code": "03043"
+    },
+    {
+      "name": "Chinese square dance, Ballet & Tibetan dance",
+      "MET": 5.5,
+      "code": "04001"
+    },
+    {
+      "name": "Chinese square dance, aerobic dance",
+      "MET": 7.3,
+      "code": "03044"
+    },
+    {
+      "name": "3.0 Ballroom, slow, examples: waltz, foxtrot, slow dancing, samba tango, rumba, 19th century dance, mambo, cha cha",
+      "MET": 3,
+      "code": "04002"
+    },
+    {
+      "name": "Ballroom Dance, Recreational (Waltz, Foxtrot, Cha-cha, Swing)",
+      "MET": 6,
+      "code": "04003"
+    },
+    {
+      "name": "Flamenco dance",
+      "MET": 8.5,
+      "code": "04004"
+    },
+    {
+      "name": "Polynesian dance, Hawaiian hula slow, Maori haka, Tongan",
+      "MET": 5.8,
+      "code": "04005"
+    },
+    {
+      "name": "Polynesian dance, Hawaiian hula fast, Samoan sasa, Fijian style fast, Filipino Tinikling",
+      "MET": 7,
+      "code": "04006"
+    },
+    {
+      "name": "Polynesian dance, Samoan slap, Tahitian",
+      "MET": 8.8,
+      "code": "04007"
+    },
+    {
+      "name": "4.0 4.0 Fishing from river bank and walking",
+      "MET": 5,
+      "code": "05001"
+    },
+    {
+      "name": "2.0 2.0 Fishing from boat or canoe, sitting",
+      "MET": 2.8,
+      "code": "05002"
+    },
+    {
+      "name": "2.0 2.0 Fishing, ice, sitting",
+      "MET": 2,
+      "code": "05003"
+    },
+    {
+      "name": "Hunting, large game from a hunting stand, limited walking",
+      "MET": 2.5,
+      "code": "05004"
+    },
+    {
+      "name": "Sitting in boat, passenger",
+      "MET": 1,
+      "code": "05005"
+    },
+    {
+      "name": "Activities in a boat, lifting, lowering",
+      "MET": 3.3,
+      "code": "05006"
+    },
+    {
+      "name": "Polishing floors, standing, walking slowly, using electric polishing machine",
+      "MET": 4.5,
+      "code": "18001"
+    },
+    {
+      "name": "Wash dishes, standing or in general (not broken into stand/walk components)",
+      "MET": 2,
+      "code": "06001"
+    },
+    {
+      "name": "Wash dishes, clearing dishes from table, walking, light effort",
+      "MET": 2,
+      "code": "06002"
+    },
+    {
+      "name": "Cooking or food preparation, walking",
+      "MET": 2.3,
+      "code": "06003"
+    },
+    {
+      "name": "Serving food, setting/cleaning table, implied walking or standing",
+      "MET": 2.3,
+      "code": "18002"
+    },
+    {
+      "name": "Carrying groceries, on level ground, walking",
+      "MET": 3.5,
+      "code": "18003"
+    },
+    {
+      "name": "Food shopping with or without a grocery cart; carrying a 10 lb bag; standing or walking",
+      "MET": 3.3,
+      "code": "06004"
+    },
+    {
+      "name": "Non-food shopping, with or without cart, standing or walking",
+      "MET": 2.3,
+      "code": "06005"
+    },
+    {
+      "name": "Knitting, sewing, light effort, wrapping presents, sitting",
+      "MET": 1.3,
+      "code": "08002"
+    },
+    {
+      "name": "Laundry, fold or hang clothes, sitting",
+      "MET": 2,
+      "code": "06006"
+    },
+    {
+      "name": "Laundry, putting away clothes, gathering clothes to pack, putting away laundry, implied walking",
+      "MET": 2,
+      "code": "06007"
+    },
+    {
+      "name": "Moving, lifting light loads",
+      "MET": 5,
+      "code": "10006"
+    },
+    {
+      "name": "Sweeping garage, sidewalk, or outside house",
+      "MET": 3,
+      "code": "18004"
+    },
+    {
+      "name": "Standing, packing/unpacking boxes, occasional lifting lightweight household items, loading or unloading items into",
+      "MET": 3.8,
+      "code": "10007"
+    },
+    {
+      "name": "Walking, moderate effort tasks, non-cleaning (readying to leave, shut/lock doors, close windows, etc",
+      "MET": 3.5,
+      "code": "08003"
+    },
+    {
+      "name": "Sitting, playing with child(ren), light effort, only active periods",
+      "MET": 2.3,
+      "code": "08004"
+    },
+    {
+      "name": "Walking/running, playing with child(ren), moderate effort, only active periods",
+      "MET": 3.5,
+      "code": "13004"
+    },
+    {
+      "name": "Walking/running, playing with child(ren), vigorous effort, only active periods",
+      "MET": 5.8,
+      "code": "13005"
+    },
+    {
+      "name": "Walking and carrying small child, child weighing 15 lbs or more",
+      "MET": 3,
+      "code": "18005"
+    },
+    {
+      "name": "Walking and carrying small child, child weighing less than 15 lbs",
+      "MET": 2.5,
+      "code": "18006"
+    },
+    {
+      "name": "Child care: sitting or kneeling, dressing, bathing, grooming, feeding, occasional lifting of child-light effort, general",
+      "MET": 2,
+      "code": "08005"
+    },
+    {
+      "name": "Child care: standing, dressing, bathing, grooming, feeding, occasional lifting of child- light effort",
+      "MET": 3.5,
+      "code": "14001"
+    },
+    {
+      "name": "Breastfeeding, sitting or reclining",
+      "MET": 2,
+      "code": "08006"
+    },
+    {
+      "name": "Sit, playing with animals, light, only active period",
+      "MET": 2.5,
+      "code": "10008"
+    },
+    {
+      "name": "Walk or run, playing with animals, general, light effort, only active periods",
+      "MET": 2.8,
+      "code": "13006"
+    },
+    {
+      "name": "Walk/run, playing with animals, moderate effort, only active periods",
+      "MET": 4,
+      "code": "13007"
+    },
+    {
+      "name": "Walk/run, playing with animals, vigorous effort, only active periods",
+      "MET": 5,
+      "code": "13008"
+    },
+    {
+      "name": "1.3 1.0 Sit, watch television",
+      "MET": 1,
+      "code": "08007"
+    },
+    {
+      "name": "Sitting quietly, general",
+      "MET": 1.3,
+      "code": "08008"
+    },
+    {
+      "name": "Sitting quietly, fidgeting, general, fidgeting hands",
+      "MET": 1.5,
+      "code": "08009"
+    },
+    {
+      "name": "Sitting, fidget feet",
+      "MET": 1.8,
+      "code": "08010"
+    },
+    {
+      "name": "Sitting smoking",
+      "MET": 1.3,
+      "code": "08011"
+    },
+    {
+      "name": "Sitting, listening to music (not talking or reading) or watching a movie in a theater",
+      "MET": 1.5,
+      "code": "08012"
+    },
+    {
+      "name": "Sitting at a desk, resting head in hands",
+      "MET": 1.3,
+      "code": "08013"
+    },
+    {
+      "name": "5.5 5.5 Mowing lawn, general, walking, moderate effort",
+      "MET": 5.5,
+      "code": "09001"
+    },
+    {
+      "name": "5.0 5.0 Mowing lawn, walk, power mower, moderate or vigorous effort",
+      "MET": 4.5,
+      "code": "09002"
+    },
+    {
+      "name": "2.5 2.5 Operating snow blower, walking",
+      "MET": 4.5,
+      "code": "18007"
+    },
+    {
+      "name": "Walking, applying fertilizer or seeding a lawn, push applicator",
+      "MET": 3,
+      "code": "09003"
+    },
+    {
+      "name": "Watering lawn or garden, standing or walking",
+      "MET": 4,
+      "code": "09004"
+    },
+    {
+      "name": "Implied walking/standing - picking up yard, light, picking flowers or vegetables",
+      "MET": 3,
+      "code": "18008"
+    },
+    {
+      "name": "Walking, gathering gardening tools",
+      "MET": 3,
+      "code": "09005"
+    },
+    {
+      "name": "Wheel barrow, pushing garden cart or wheelbarrow, general",
+      "MET": 4.8,
+      "code": "09006"
+    },
+    {
+      "name": "Wheel barrow, pushing large garden cart or heavy wheelbarrow up to 150kg",
+      "MET": 6,
+      "code": "09007"
+    },
+    {
+      "name": "Board game playing, sitting",
+      "MET": 1.3,
+      "code": "08014"
+    },
+    {
+      "name": "Card playing, sitting",
+      "MET": 1.5,
+      "code": "08015"
+    },
+    {
+      "name": "Chess game, sitting",
+      "MET": 1.5,
+      "code": "08016"
+    },
+    {
+      "name": "Laughter, sitting",
+      "MET": 1,
+      "code": "08017"
+    },
+    {
+      "name": "Sitting: reading, book, newspaper, magazine",
+      "MET": 1,
+      "code": "08018"
+    },
+    {
+      "name": "sitting, typing or reading on a balance chair/stability ball",
+      "MET": 1.8,
+      "code": "08019"
+    },
+    {
+      "name": "Sitting: writing, desk work, typing",
+      "MET": 1.3,
+      "code": "08020"
+    },
+    {
+      "name": "Sitting: talking in person, on the phone, computer, or text messaging, light effort",
+      "MET": 1.3,
+      "code": "08021"
+    },
+    {
+      "name": "Sitting - studying, general, including reading and/or writing, light effort",
+      "MET": 1.5,
+      "code": "08022"
+    },
+    {
+      "name": "1.5 09100 1.8 09100 1.5 Retreat/family reunion activities involving sitting, relaxing, talking, eating",
+      "MET": 9065,
+      "code": "08023"
+    },
+    {
+      "name": "Sitting - in class, general, including note-taking or class discussion",
+      "MET": 1.8,
+      "code": "08024"
+    },
+    {
+      "name": "Sitting: arts and crafts, carving wood, weaving, spinning wool, light effort",
+      "MET": 1.8,
+      "code": "08025"
+    },
+    {
+      "name": "Sitting: arts and crafts, carving wood, weaving, spinning wool, moderate effort",
+      "MET": 3,
+      "code": "08026"
+    },
+    {
+      "name": "Touring/traveling/vacation involving walking",
+      "MET": 3.5,
+      "code": "18009"
+    },
+    {
+      "name": "2.5 Camping involving standing, walking, sitting, light-to-moderate effort",
+      "MET": 2.5,
+      "code": "08027"
+    },
+    {
+      "name": "1.5 Sitting at a sporting event, spectator",
+      "MET": 1.5,
+      "code": "08028"
+    },
+    {
+      "name": "1.8 1.8 Accordion, sitting",
+      "MET": 1.8,
+      "code": "08029"
+    },
+    {
+      "name": "2.3 2.3 Cello, sitting",
+      "MET": 2,
+      "code": "08030"
+    },
+    {
+      "name": "3.8 3.8 Drums, sitting",
+      "MET": 4,
+      "code": "08031"
+    },
+    {
+      "name": "Drumming (e.g., bongo, conga, benbe), moderate, sitting",
+      "MET": 3,
+      "code": "08032"
+    },
+    {
+      "name": "2.0 2.0 Flute, sitting",
+      "MET": 2,
+      "code": "08033"
+    },
+    {
+      "name": "2.3 2.3 Piano, sitting",
+      "MET": 2.5,
+      "code": "08034"
+    },
+    {
+      "name": "Organ, sitting",
+      "MET": 2,
+      "code": "08035"
+    },
+    {
+      "name": "2.5 2.5 Violin, sitting",
+      "MET": 2.5,
+      "code": "08036"
+    },
+    {
+      "name": "1.8 1.8 Woodwind instruments, sitting",
+      "MET": 2,
+      "code": "08037"
+    },
+    {
+      "name": "Brass instruments, sitting",
+      "MET": 1.8,
+      "code": "08038"
+    },
+    {
+      "name": "2.0 2.0 Guitar, classical, folk, sitting",
+      "MET": 2,
+      "code": "08039"
+    },
+    {
+      "name": "4.0 4.0 Marching band, baton twirling, walking, moderate pace, general",
+      "MET": 4,
+      "code": "18010"
+    },
+    {
+      "name": "Marching band, playing an instrument, walking, brisk pace, general",
+      "MET": 5.5,
+      "code": "11001"
+    },
+    {
+      "name": "3.5 3.5 Marching band, drum major, walking",
+      "MET": 3.5,
+      "code": "11002"
+    },
+    {
+      "name": "Active workstation, treadmill desk, walking slowly 1.0 mph or less",
+      "MET": 2.3,
+      "code": "08040"
+    },
+    {
+      "name": "Active workstation, treadmill desk, walking 1.0 - 2.0 mph",
+      "MET": 2.8,
+      "code": "08041"
+    },
+    {
+      "name": "Chambermaid, hotel housekeeper, making bed, cleaning bathroom, pushing cart",
+      "MET": 4,
+      "code": "14002"
+    },
+    {
+      "name": "Garbage collector, walking, dumping bins into truck, street cleaning",
+      "MET": 3.8,
+      "code": "18011"
+    },
+    {
+      "name": "Horse, feeding, watering, cleaning stalls, implied walking and lifting loads",
+      "MET": 4.3,
+      "code": "18012"
+    },
+    {
+      "name": "Horse racing, Jockey, walking",
+      "MET": 2.3,
+      "code": "18013"
+    },
+    {
+      "name": "Manager, property",
+      "MET": 1.8,
+      "code": "10009"
+    },
+    {
+      "name": "Mail carrier, walking to deliver mail",
+      "MET": 2.3,
+      "code": "18014"
+    },
+    {
+      "name": "Mail delivery, Electronically Assisted Bicycle",
+      "MET": 3.5,
+      "code": "10010"
+    },
+    {
+      "name": "Moving, carrying or pushing heavy objects, 75 lbs or more, only active time (e.g., desks, moving van work)",
+      "MET": 7.5,
+      "code": "10011"
+    },
+    {
+      "name": "Police Officer, Walking",
+      "MET": 3.8,
+      "code": "12001"
+    },
+    {
+      "name": "Police, driving a squad car, sitting",
+      "MET": 2,
+      "code": "08042"
+    },
+    {
+      "name": "Police, riding in a squad car, sitting",
+      "MET": 1.3,
+      "code": "08043"
+    },
+    {
+      "name": "Sitting meetings, light effort, general, and/or with talking involved (e.g., eating at a business meeting)",
+      "MET": 1.3,
+      "code": "08044"
+    },
+    {
+      "name": "Sitting tasks, moderate effort (e.g. pushing heavy levers, riding mower/forklift, crane operation)",
+      "MET": 2.5,
+      "code": "08045"
+    },
+    {
+      "name": "Sitting, teaching stretching or yoga, or light effort exercise classes",
+      "MET": 2.8,
+      "code": "03045"
+    },
+    {
+      "name": "Standing, moderate effort, lifting items continuously, 10 - 20 lbs, with limited walking or resting",
+      "MET": 4.5,
+      "code": "18015"
+    },
+    {
+      "name": "Standing, moderate effort, intermittent lifting 50 lbs, hitch or twisting ropes",
+      "MET": 3.8,
+      "code": "10012"
+    },
+    {
+      "name": "Standing, moderate/heavy tasks (e.g., lifting more than 50 lbs, masonry, painting, paper hanging)",
+      "MET": 4.5,
+      "code": "10013"
+    },
+    {
+      "name": "Truck driving, loading and unloading truck, tying down load, standing, walking and carrying heavy loads",
+      "MET": 6.5,
+      "code": "18016"
+    },
+    {
+      "name": "Walking on job, less than 2.0 mph, very slow speed, in office or lab area",
+      "MET": 2,
+      "code": "12002"
+    },
+    {
+      "name": "Walking on job, 2.8 to 3.4 mph, in office, moderate speed, not carrying anything",
+      "MET": 3.8,
+      "code": "12003"
+    },
+    {
+      "name": "Walking on job, 3.5 to 3.9 mph, in office, brisk speed, not carrying anything",
+      "MET": 4.8,
+      "code": "12004"
+    },
+    {
+      "name": "Walking on job, 2.5 mph, slow speed, carrying light objects less than 25 lbs",
+      "MET": 3.5,
+      "code": "18017"
+    },
+    {
+      "name": "Walking, gathering things at work, ready to leave",
+      "MET": 3,
+      "code": "08046"
+    },
+    {
+      "name": "Walking, 2.5 mph, slow speed, carrying heavy objects more than 25 lbs",
+      "MET": 3.8,
+      "code": "18018"
+    },
+    {
+      "name": "Walking, 3.0 mph, moderately and carrying light objects less than 25 lbs",
+      "MET": 4.5,
+      "code": "18019"
+    },
+    {
+      "name": "Walking, pushing a wheelchair",
+      "MET": 3.8,
+      "code": "18020"
+    },
+    {
+      "name": "Walking, 3.5 mph, briskly and carrying objects less than 25 lbs",
+      "MET": 4.5,
+      "code": "18021"
+    },
+    {
+      "name": "Walking or walk downstairs or standing, carrying objects about 25 to 49 lbs",
+      "MET": 4,
+      "code": "18022"
+    },
+    {
+      "name": "Walking or walk downstairs or standing, carrying objects about 50 to 74 lbs",
+      "MET": 5.5,
+      "code": "18023"
+    },
+    {
+      "name": "Walking or walk downstairs or standing, carrying objects about 75 to 99 lbs",
+      "MET": 7,
+      "code": "18024"
+    },
+    {
+      "name": "Walking or walk downstairs or standing, carrying objects about 100 lbs or more",
+      "MET": 7.3,
+      "code": "18025"
+    },
+    {
+      "name": "Soldiers, walking, 2.8 mph, 5% grade, up to 21.5 kg load",
+      "MET": 6,
+      "code": "18026"
+    },
+    {
+      "name": "Soldiers, walking, 2.8 mph, 10% grade, up to 21.5 kg load",
+      "MET": 8.5,
+      "code": "18027"
+    },
+    {
+      "name": "Soldiers, walking, 2.8 mph, 15% grade, up to 21.5 kg load",
+      "MET": 11,
+      "code": "18028"
+    },
+    {
+      "name": "Military activities, arterial field preparation, digging defensive positions",
+      "MET": 6,
+      "code": "10014"
+    },
+    {
+      "name": "6.0 6.0 Jog/walk combination (jogging component of less than 10 minutes) (Taylor Code 180)",
+      "MET": 6,
+      "code": "13009"
+    },
+    {
+      "name": "Running, 4 to 4.2 mph (13 min/mile)",
+      "MET": 6.5,
+      "code": "13010"
+    },
+    {
+      "name": "Running 4.3 to 4.8 mph",
+      "MET": 6,
+      "code": "13011"
+    },
+    {
+      "name": "8.3 8.5 Running, 5.0 to 5.2 mph (12 min/mile)",
+      "MET": 8,
+      "code": "13012"
+    },
+    {
+      "name": "9.0 12045 9.0 Running, 5.5 -5.8 mph",
+      "MET": 9,
+      "code": "13013"
+    },
+    {
+      "name": "9.8 9.3 Running, 6-6.3 mph (10 min/mile)",
+      "MET": 10,
+      "code": "13014"
+    },
+    {
+      "name": "10.5 10.5 Running, 6.7 mph (9 min/mile)",
+      "MET": 11,
+      "code": "13015"
+    },
+    {
+      "name": "11.0 11.0 Running, 7 mph (8.5 min/mile)",
+      "MET": 11.5,
+      "code": "13016"
+    },
+    {
+      "name": "11.5 11.8 Running, 7.5 mph (8 min/mile)",
+      "MET": 12.5,
+      "code": "13017"
+    },
+    {
+      "name": "11.8 12.0 Running, 8 mph (7.5 min/mile)",
+      "MET": 13.5,
+      "code": "13018"
+    },
+    {
+      "name": "12.3 12.5 Running, 8.6 mph (7 min/mile)",
+      "MET": 14,
+      "code": "13019"
+    },
+    {
+      "name": "12.8 13.0 Running, 9 mph (6.5 min/mile)",
+      "MET": 15,
+      "code": "13020"
+    },
+    {
+      "name": "Running, 9.3 to 9.6 mph",
+      "MET": 14.8,
+      "code": "13021"
+    },
+    {
+      "name": "14.5 14.8 Running, 10 mph (6 min/mile)",
+      "MET": 16,
+      "code": "13022"
+    },
+    {
+      "name": "16.0 16.8 Running, 11 mph (5.5 min/mile)",
+      "MET": 18,
+      "code": "13023"
+    },
+    {
+      "name": "Running, 12 mph (5.0 min/mile)",
+      "MET": 19,
+      "code": "13024"
+    },
+    {
+      "name": "Running, 13 mph (4.6 min/mile)",
+      "MET": 19.8,
+      "code": "13025"
+    },
+    {
+      "name": "Running, 14 mph (4.3 min/mile)",
+      "MET": 23,
+      "code": "13026"
+    },
+    {
+      "name": "9.0 9.3 Running, cross country",
+      "MET": 9,
+      "code": "13027"
+    },
+    {
+      "name": "Running, self-selected pace",
+      "MET": 10.5,
+      "code": "13028"
+    },
+    {
+      "name": "8.0 8.0 Running (Taylor Code 200)",
+      "MET": 8,
+      "code": "13029"
+    },
+    {
+      "name": "15.0 15.0 Running, stairs, up",
+      "MET": 15,
+      "code": "13030"
+    },
+    {
+      "name": "10.0 10.0 Running, on a track, team practice",
+      "MET": 10,
+      "code": "13031"
+    },
+    {
+      "name": "Running, on track, 500-1500m, competitive",
+      "MET": 18,
+      "code": "13032"
+    },
+    {
+      "name": "Running, on track, 2000-3000m, competitive",
+      "MET": 19.3,
+      "code": "13033"
+    },
+    {
+      "name": "8.0 8.0 Running, training, pushing a wheelchair or baby carrier",
+      "MET": 8,
+      "code": "13034"
+    },
+    {
+      "name": "Running, marathon",
+      "MET": 13.3,
+      "code": "13035"
+    },
+    {
+      "name": "Running uphill, 4.5mph, 5% incline",
+      "MET": 10.3,
+      "code": "13036"
+    },
+    {
+      "name": "Running uphill, 6.0 mph, 5% incline",
+      "MET": 13.3,
+      "code": "13037"
+    },
+    {
+      "name": "Running uphill, 7.0 mph, 5% incline",
+      "MET": 15.5,
+      "code": "13038"
+    },
+    {
+      "name": "Running uphill, 5.0 to 5.9 mph, 15% incline",
+      "MET": 17.5,
+      "code": "13039"
+    },
+    {
+      "name": "Running uphill, 0.6 to 0.79 mph, 30% incline",
+      "MET": 8.8,
+      "code": "13040"
+    },
+    {
+      "name": "Running uphill, 0.8 to 0.99 mph, 30% incline",
+      "MET": 10.3,
+      "code": "13041"
+    },
+    {
+      "name": "Running uphill, 1.0 to 1.19 mph, 30% incline",
+      "MET": 11.8,
+      "code": "13042"
+    },
+    {
+      "name": "Running uphill, 1.2 to 1.39 mph, 30-40% incline",
+      "MET": 13.5,
+      "code": "13043"
+    },
+    {
+      "name": "Running uphill, 1.4 to 1.59 mph, 30% incline",
+      "MET": 14.8,
+      "code": "13044"
+    },
+    {
+      "name": "Running uphill, >1.6mph, 10-30% incline",
+      "MET": 16.3,
+      "code": "13045"
+    },
+    {
+      "name": "Running downhill, 5.0 to 5.9 mph, -10% to -15%",
+      "MET": 5.8,
+      "code": "13046"
+    },
+    {
+      "name": "Running downhill, 6.0 to 6.9 mph, -10% to -15%",
+      "MET": 7.5,
+      "code": "13047"
+    },
+    {
+      "name": "Running downhill, 7.0 to 8.9 mph, -10% to -15%",
+      "MET": 9,
+      "code": "13048"
+    },
+    {
+      "name": "Running downhill, 6.0 to 7.9 mph, -3% to -9%",
+      "MET": 9.3,
+      "code": "13049"
+    },
+    {
+      "name": "Running downhill, 8.0 to 10.5 mph, -3% to -9%",
+      "MET": 13.8,
+      "code": "13050"
+    },
+    {
+      "name": "Running/jogging, curved treadmill, 3.0 to 3.9 mph",
+      "MET": 5.3,
+      "code": "08047"
+    },
+    {
+      "name": "Running/jogging, curved treadmill, 4.0 to 4.9 mph",
+      "MET": 6.5,
+      "code": "08048"
+    },
+    {
+      "name": "Running curved treadmill, 5.0 to 5.9 mph",
+      "MET": 11,
+      "code": "08049"
+    },
+    {
+      "name": "Running curved treadmill, 7.0 to 7.9 mph",
+      "MET": 12,
+      "code": "08050"
+    },
+    {
+      "name": "Running curved treadmill, 8.0 to 8.9 mph",
+      "MET": 14,
+      "code": "08051"
+    },
+    {
+      "name": "Running curved treadmill, 9.0 to 9.9 mph",
+      "MET": 16.8,
+      "code": "08052"
+    },
+    {
+      "name": "Running, 5.0 - 5.9 mph, 1.0 to 3.0 kg backpack",
+      "MET": 8.5,
+      "code": "13051"
+    },
+    {
+      "name": "Running, 6.0 - 6.9 mph, 1.0 to 3.0 kg backpack",
+      "MET": 9.5,
+      "code": "13052"
+    },
+    {
+      "name": "Running, 7.0 - 7.9 mph, 1.0 to 3.0 kg backpack",
+      "MET": 9.8,
+      "code": "13053"
+    },
+    {
+      "name": "Running, 8.0 - 8.9 mph, 1.0 to 3.0 kg backpack",
+      "MET": 12,
+      "code": "13054"
+    },
+    {
+      "name": "Running, barefoot, 3.5-5.9 mph",
+      "MET": 7.8,
+      "code": "13055"
+    },
+    {
+      "name": "Running, barefoot, 6.0-7.9 mph",
+      "MET": 12,
+      "code": "13056"
+    },
+    {
+      "name": "Running, barefoot, 8.0-8.9 mph",
+      "MET": 13.5,
+      "code": "13057"
+    },
+    {
+      "name": "Running, jogging stroller, indoors, 5 mph",
+      "MET": 8,
+      "code": "13058"
+    },
+    {
+      "name": "Running, jogging stroller, indoors, 6 mph",
+      "MET": 9,
+      "code": "13059"
+    },
+    {
+      "name": "Running, jogging stroller, outdoors, 5 mph",
+      "MET": 10,
+      "code": "13060"
+    },
+    {
+      "name": "Running, jogging stroller, outdoors, 6 mph",
+      "MET": 11.5,
+      "code": "13061"
+    },
+    {
+      "name": "Skipping, 5.5-6.0 mph",
+      "MET": 11.5,
+      "code": "20001"
+    },
+    {
+      "name": "Triathlon, Running",
+      "MET": 13,
+      "code": "13062"
+    },
+    {
+      "name": "1.8 2.3 Sitting on toilet, eliminating while standing or squatting",
+      "MET": 1,
+      "code": "08053"
+    },
+    {
+      "name": "1.5 1.5 Bathing, sitting",
+      "MET": 2,
+      "code": "08054"
+    },
+    {
+      "name": "2.5 2.8 Dressing, undressing, standing or sitting",
+      "MET": 2.5,
+      "code": "08055"
+    },
+    {
+      "name": "1.5 1.5 Eating, sitting",
+      "MET": 1.5,
+      "code": "08056"
+    },
+    {
+      "name": "1.5 Taking medication, sitting or standing",
+      "MET": 1,
+      "code": "08057"
+    },
+    {
+      "name": "2.0 2.0 Grooming, washing hands, shaving, brushing teeth, putting on make-up, sitting or standing",
+      "MET": 2.5,
+      "code": "08058"
+    },
+    {
+      "name": "1.3 Having hair or nails done by someone else, sitting",
+      "MET": 1,
+      "code": "08059"
+    },
+    {
+      "name": "Boxing, in ring, general",
+      "MET": 12.3,
+      "code": "16002"
+    },
+    {
+      "name": "Boxing, punching bag",
+      "MET": 5.8,
+      "code": "16003"
+    },
+    {
+      "name": "Boxing, punching bag, 60 b/min",
+      "MET": 7,
+      "code": "16004"
+    },
+    {
+      "name": "Boxing, punching bag, 120 b/min",
+      "MET": 8.5,
+      "code": "16005"
+    },
+    {
+      "name": "Boxing, punching bag, 180 b/min",
+      "MET": 10.8,
+      "code": "16006"
+    },
+    {
+      "name": "Boxing, sparring",
+      "MET": 7.8,
+      "code": "16007"
+    },
+    {
+      "name": "Boxing, simulated boxing round, exercise",
+      "MET": 9.3,
+      "code": "03046"
+    },
+    {
+      "name": "Coaching, football, soccer, basketball, baseball, swimming, etc",
+      "MET": 4,
+      "code": "16008"
+    },
+    {
+      "name": "Drag racing, pushing or driving a car",
+      "MET": 6,
+      "code": "10015"
+    },
+    {
+      "name": "Golf, walking, carrying clubs",
+      "MET": 4.3,
+      "code": "16009"
+    },
+    {
+      "name": "Golf, walking, pulling clubs",
+      "MET": 4.5,
+      "code": "16010"
+    },
+    {
+      "name": "High ropes course, multiple elements",
+      "MET": 4,
+      "code": "10016"
+    },
+    {
+      "name": "Horseback riding, walking",
+      "MET": 3.8,
+      "code": "18029"
+    },
+    {
+      "name": "Horseback riding, jumping",
+      "MET": 9,
+      "code": "10017"
+    },
+    {
+      "name": "Horse cart, driving, standing or sitting",
+      "MET": 1.8,
+      "code": "08060"
+    },
+    {
+      "name": "Kend o, kihon-keiko style, moderate intensity",
+      "MET": 6.5,
+      "code": "10018"
+    },
+    {
+      "name": "Kend o, kirikaeshi style, high intensity",
+      "MET": 9.6,
+      "code": "10019"
+    },
+    {
+      "name": "Kend o, kakari keiko style, very high intensity",
+      "MET": 11.3,
+      "code": "10020"
+    },
+    {
+      "name": "Kickboxing",
+      "MET": 7.3,
+      "code": "16011"
+    },
+    {
+      "name": "Motorcycle racing, Supormoto racing",
+      "MET": 5.3,
+      "code": "10021"
+    },
+    {
+      "name": "Race Walking, 3.1 m/s (6.9 mph)",
+      "MET": 10.3,
+      "code": "16012"
+    },
+    {
+      "name": "Race Walking, 3.7 m/s (8.3 mph)",
+      "MET": 13.8,
+      "code": "16013"
+    },
+    {
+      "name": "Race Walking, racing speed, 4.0 m/s (8.95 mph)",
+      "MET": 15.5,
+      "code": "16014"
+    },
+    {
+      "name": "Rope jumping, fast pace, 120-160 skips/min",
+      "MET": 12.3,
+      "code": "16015"
+    },
+    {
+      "name": "Rope jumping, moderate pace, general, 100 to 120 skips/min, 2 foot skip, plain bounce",
+      "MET": 11.8,
+      "code": "16016"
+    },
+    {
+      "name": "Rope jumping, slow pace, < 100 skips/min, 2 foot skip, rhythm bounce",
+      "MET": 8.3,
+      "code": "16017"
+    },
+    {
+      "name": "Rope jumping, double under or more",
+      "MET": 10,
+      "code": "16018"
+    },
+    {
+      "name": "Roller blading, in-line skating, 17.7 km/h (11.0 mph), moderate pace, exercise training",
+      "MET": 9.8,
+      "code": "03047"
+    },
+    {
+      "name": "Roller blading, in-line skating, 21.0 to 21.7 km/h (13.0 to 13.6 mph), fast pace, exercise training",
+      "MET": 12.3,
+      "code": "03048"
+    },
+    {
+      "name": "Skydiving, base -jumping , bungee jumping",
+      "MET": 3.5,
+      "code": "10022"
+    },
+    {
+      "name": "walking football/soccer",
+      "MET": 3.5,
+      "code": "16019"
+    },
+    {
+      "name": "Tai chi, qi gong, sitting, light effort",
+      "MET": 1.5,
+      "code": "08061"
+    },
+    {
+      "name": "6.0 Track and field (e.g., high jump, long jump, triple jump, javelin, pole vault)",
+      "MET": 6,
+      "code": "10023"
+    },
+    {
+      "name": "3.5 2.8 Motor scooter, motorcycle",
+      "MET": 2.5,
+      "code": "10024"
+    },
+    {
+      "name": "Pulling rickshaw",
+      "MET": 6.3,
+      "code": "10025"
+    },
+    {
+      "name": "6.0 6.0 Pushing plane in and out of hangar",
+      "MET": 6,
+      "code": "10026"
+    },
+    {
+      "name": "Walking for transportation, 2.8-3.2 mph, level, moderate pace, firm surface",
+      "MET": 3.5,
+      "code": "18030"
+    },
+    {
+      "name": "Walking with a day pack, level ground, assumed in the city",
+      "MET": 3.5,
+      "code": "18031"
+    },
+    {
+      "name": "Backpacking, hiking with a daypack, organized walking with daypack",
+      "MET": 7.8,
+      "code": "18032"
+    },
+    {
+      "name": "Carrying ~10 lb child, slow walking",
+      "MET": 2.3,
+      "code": "18033"
+    },
+    {
+      "name": "Loading and/or unloading a car, implied walking",
+      "MET": 3.8,
+      "code": "18034"
+    },
+    {
+      "name": "Hauling water, head hauling, walking on flat surface",
+      "MET": 4.5,
+      "code": "18035"
+    },
+    {
+      "name": "Hiking or walking at a normal pace through fields and hillsides, no load",
+      "MET": 5.3,
+      "code": "18036"
+    },
+    {
+      "name": "Bird watching, walking and stopping",
+      "MET": 2.5,
+      "code": "08062"
+    },
+    {
+      "name": "Pushing or pulling stroller with child or walking with children, 2.5 to 3.1 mph",
+      "MET": 3.8,
+      "code": "18037"
+    },
+    {
+      "name": "Pushing a wheelchair, non-occupational",
+      "MET": 3.8,
+      "code": "10027"
+    },
+    {
+      "name": "Race walking",
+      "MET": 6.5,
+      "code": "16020"
+    },
+    {
+      "name": "Walking, household",
+      "MET": 2.3,
+      "code": "18038"
+    },
+    {
+      "name": "Walking, less than 2.0 mph, level, strolling, very slow",
+      "MET": 2.3,
+      "code": "18039"
+    },
+    {
+      "name": "Walking, 2.0 to 2.4 mph, level, slow pace, firm surface",
+      "MET": 2.8,
+      "code": "18040"
+    },
+    {
+      "name": "Walking for pleasure (Taylor Code 010)",
+      "MET": 3.5,
+      "code": "18041"
+    },
+    {
+      "name": "Walking to neighbor’s house or family’s house for social reasons",
+      "MET": 2.5,
+      "code": "18042"
+    },
+    {
+      "name": "Walking the dog",
+      "MET": 3,
+      "code": "18043"
+    },
+    {
+      "name": "Walking, 2.5 mph, firm, level surface",
+      "MET": 3,
+      "code": "18044"
+    },
+    {
+      "name": "Walking, 2.5 mph, downhill",
+      "MET": 3.3,
+      "code": "18045"
+    },
+    {
+      "name": "Walking, 2.8 to 3.4 mph, level, moderate pace, firm surface",
+      "MET": 3.8,
+      "code": "18046"
+    },
+    {
+      "name": "Walking, 3.5 to 3.9 mph, level, brisk, firm surface, walking for exercise",
+      "MET": 4.8,
+      "code": "03049"
+    },
+    {
+      "name": "Walking, 4.0 to 4.4 mph (6.4 to 7.0 km/h), level, firm surface, very brisk pace",
+      "MET": 5.5,
+      "code": "18047"
+    },
+    {
+      "name": "Walking, 4.5 to 4.9 mph, level, firm surface, very, very brisk",
+      "MET": 7,
+      "code": "18048"
+    },
+    {
+      "name": "Walking, 5.0 to 5.5 mph (8.8 to 8.9 km/h), level, firm surface",
+      "MET": 8.5,
+      "code": "18049"
+    },
+    {
+      "name": "Walking, for pleasure, work break (Taylor Code xxx)",
+      "MET": 3.5,
+      "code": "18050"
+    },
+    {
+      "name": "Walking, self-selected speed, indoor track or outdoors, firm surface",
+      "MET": 4,
+      "code": "18051"
+    },
+    {
+      "name": "Walking, grass track",
+      "MET": 4.8,
+      "code": "18052"
+    },
+    {
+      "name": "Walking, normal pace, plowed field or sand",
+      "MET": 4.5,
+      "code": "18053"
+    },
+    {
+      "name": "Walking, to work or class (Taylor Code 015)",
+      "MET": 4,
+      "code": "18054"
+    },
+    {
+      "name": "Walking, to and from an outhouse",
+      "MET": 2.5,
+      "code": "18055"
+    },
+    {
+      "name": "Walking, for exercise, 2.5 to 3.5 mph (4.0 to 5.6 km/h), with ski poles, Nordic walking, level, moderate pace",
+      "MET": 4.3,
+      "code": "03050"
+    },
+    {
+      "name": "Walking, for exercise, 3.6 to 4.4 mph (5.8 to 7.1 km/h), with ski poles, Nordic walking, level, moderate pace",
+      "MET": 5.3,
+      "code": "03051"
+    },
+    {
+      "name": "Walking, for exercise, 4.5 to 5.0 mph, with ski poles, Nordic walking, level, fast pace",
+      "MET": 8.5,
+      "code": "03052"
+    },
+    {
+      "name": "Walking, for exercise, with ski poles, Nordic walking, uphill, moderate pace",
+      "MET": 8.8,
+      "code": "03053"
+    },
+    {
+      "name": "Walking, for exercise, with ski poles, Nordic walking, level ground, carrying 20 to 30 lb load (9.0 to 15.0 kg)",
+      "MET": 10.8,
+      "code": "03054"
+    },
+    {
+      "name": "Walking, for exercise, with ski poles, Nordic walking, uphill, carrying 20 to 30 lb load (9.0 to 15.0 kg)",
+      "MET": 12.3,
+      "code": "03055"
+    },
+    {
+      "name": "Walking, backward, 3.5 mph, level",
+      "MET": 6,
+      "code": "18056"
+    },
+    {
+      "name": "2.5 Walking from house to car or bus, from car or bus to go places, from car or bus to and from the worksite",
+      "MET": 8,
+      "code": "18057"
+    },
+    {
+      "name": "Walking, backward, 3.5 mph, uphill, 5% grade",
+      "MET": 7.8,
+      "code": "18058"
+    },
+    {
+      "name": "Walking, Teabag walk, Monty Python Ministry of Silly Walks",
+      "MET": 8,
+      "code": "18059"
+    },
+    {
+      "name": "Walking, Putey walk, Monty Python Ministry of Silly Walks",
+      "MET": 3.5,
+      "code": "18060"
+    },
+    {
+      "name": "Walking, treadmill, less than 1.0 mph, 0% grade",
+      "MET": 2.1,
+      "code": "08063"
+    },
+    {
+      "name": "Walking, treadmill, 1.0 mph, 0% grade",
+      "MET": 2.3,
+      "code": "08064"
+    },
+    {
+      "name": "Walking, treadmill, 1.2 to 1.9 mph, 0% grade (1.9 to 3.0 km/h)",
+      "MET": 2.8,
+      "code": "08065"
+    },
+    {
+      "name": "Walking, treadmill, 2.0 to 2.4 mph (3.2 to 3.9 km/h), 0% grade",
+      "MET": 3,
+      "code": "08066"
+    },
+    {
+      "name": "Walking, treadmill, 2.5 to 2.9 mph (4.0 to 4.7 km/h), 0% grade",
+      "MET": 3.5,
+      "code": "08067"
+    },
+    {
+      "name": "Walking, treadmill, 3.0 to 3.4 mph (4.8 to 5.5 km/h), 0% grade",
+      "MET": 3.8,
+      "code": "08068"
+    },
+    {
+      "name": "Walking, treadmill, 3.5 to 3.9 mph (5.6 to 6.3 km/h), 0% grade",
+      "MET": 4.8,
+      "code": "08069"
+    },
+    {
+      "name": "Walking, treadmill, 4.0 to 4.4 mph (6.4 to 7.1 km/h), 0% grade",
+      "MET": 5.8,
+      "code": "08070"
+    },
+    {
+      "name": "Walking, treadmill, 4.5 to 4.9 mph (7.2 to 7.9 km/h), 0% grade",
+      "MET": 6.8,
+      "code": "08071"
+    },
+    {
+      "name": "Walking, treadmill, 5.0 to 5.5 mph (8.0 to 8.9 km/h), 0% grade",
+      "MET": 8.3,
+      "code": "08072"
+    },
+    {
+      "name": "Walking, treadmill, downhill (-3% to -12% grade), 2.8 to 3.1 mph",
+      "MET": 3.3,
+      "code": "08073"
+    },
+    {
+      "name": "Walking, treadmill, downhill (-5% to -25% grade), 2.8 mph, with Nordic Poles",
+      "MET": 3.3,
+      "code": "08074"
+    },
+    {
+      "name": "Walking, treadmill, 2.5 mph, 0% grade, 5 to 20 degrees C, 40 lb (18.2 kg) load",
+      "MET": 4.8,
+      "code": "08075"
+    },
+    {
+      "name": "Walking, treadmill, 2.5 mph, 0% grade, -10 to 0 degrees C, 40 lb (18.2 kg) load",
+      "MET": 5.8,
+      "code": "08076"
+    },
+    {
+      "name": "Walking, Curved treadmill, 3.0 to 5.0 mph, brisk pace",
+      "MET": 8.3,
+      "code": "08077"
+    },
+    {
+      "name": "Walking treadmill, backwards, 2.5 mph, +10% grade",
+      "MET": 7.8,
+      "code": "08078"
+    },
+    {
+      "name": "Walking, with a walker or step-to gait on treadmill, 0.7 mph (1.1 km/h), 0% grade",
+      "MET": 1.5,
+      "code": "08079"
+    },
+    {
+      "name": "Swimming laps, freestyle, fast, vigorous effort",
+      "MET": 9.8,
+      "code": "19001"
+    },
+    {
+      "name": "Swimming laps, freestyle, slow, recreational",
+      "MET": 5.8,
+      "code": "19002"
+    },
+    {
+      "name": "Swimming, backstroke, training or competition",
+      "MET": 9.5,
+      "code": "19003"
+    },
+    {
+      "name": "Swimming, backstroke, recreational",
+      "MET": 4.8,
+      "code": "19004"
+    },
+    {
+      "name": "Swimming, breaststroke, general, training or competition",
+      "MET": 10.3,
+      "code": "19005"
+    },
+    {
+      "name": "Swimming breaststroke, recreational",
+      "MET": 5.3,
+      "code": "19006"
+    },
+    {
+      "name": "Swimming, butterfly, general",
+      "MET": 13.8,
+      "code": "19007"
+    },
+    {
+      "name": "Swimming, crawl, fast speed, ~75 yards/minute, vigorous effort",
+      "MET": 10.5,
+      "code": "19008"
+    },
+    {
+      "name": "Swimming, open water, 5k",
+      "MET": 10.5,
+      "code": "19009"
+    },
+    {
+      "name": "Swimming, crawl, slow speed, 30-45 yards/minute, moderate effort",
+      "MET": 5.8,
+      "code": "19010"
+    },
+    {
+      "name": "Swimming, crawl, elite swimmers, competition, >90 yards/minute",
+      "MET": 14.5,
+      "code": "19011"
+    },
+    {
+      "name": "Swimming, lake, ocean, river (Taylor Codes 280, 295)",
+      "MET": 6,
+      "code": "19012"
+    },
+    {
+      "name": "Swimming, leisurely, not lap swimming, general",
+      "MET": 6,
+      "code": "19013"
+    },
+    {
+      "name": "Swimming, sidestroke, general",
+      "MET": 7,
+      "code": "19014"
+    },
+    {
+      "name": "Swimming, synchronized",
+      "MET": 8,
+      "code": "19015"
+    },
+    {
+      "name": "Swimming, treading water, fast, vigorous effort",
+      "MET": 9.8,
+      "code": "08080"
+    },
+    {
+      "name": "Swimming, treading water, moderate effort, general",
+      "MET": 3.5,
+      "code": "08081"
+    },
+    {
+      "name": "Water aerobics, water calisthenics, general",
+      "MET": 5.5,
+      "code": "03056"
+    },
+    {
+      "name": "Water aerobics, resistance exercises",
+      "MET": 3.8,
+      "code": "03057"
+    },
+    {
+      "name": "Water aerobics, high intensity",
+      "MET": 7.5,
+      "code": "03058"
+    },
+    {
+      "name": "Water walking, light effort, slow pace",
+      "MET": 2.5,
+      "code": "18061"
+    },
+    {
+      "name": "Water walking, moderate effort, moderate pace",
+      "MET": 4.8,
+      "code": "18062"
+    },
+    {
+      "name": "Water walking, vigorous effort, brisk pace",
+      "MET": 6.8,
+      "code": "18063"
+    },
+    {
+      "name": "Water running, 30 steps/min, slow",
+      "MET": 6.5,
+      "code": "13063"
+    },
+    {
+      "name": "Water running, 40 steps/min, moderate",
+      "MET": 7.5,
+      "code": "13064"
+    },
+    {
+      "name": "Water running, 50 steps/min, fast",
+      "MET": 8.5,
+      "code": "13065"
+    },
+    {
+      "name": "Water running, 60 steps/min, very fast",
+      "MET": 9.8,
+      "code": "13066"
+    },
+    {
+      "name": "7.0 7.0 Ski jumping, climb up carrying skis",
+      "MET": 7,
+      "code": "20002"
+    },
+    {
+      "name": "6.8 6.8 Skiing, cross country, 2.5 mph, slow or light effort, ski walking",
+      "MET": 7,
+      "code": "18064"
+    },
+    {
+      "name": "Skiing, cross-country skiing high-intensity training",
+      "MET": 9.5,
+      "code": "20003"
+    },
+    {
+      "name": "Biathlon training, 5 degree incline, 8 km/h (5 mph), with/without rifle",
+      "MET": 12.8,
+      "code": "10028"
+    },
+    {
+      "name": "Biathlon training, 5 degree incline, 10.7 km/h (5 mph), with/without rifle",
+      "MET": 12.8,
+      "code": "10029"
+    },
+    {
+      "name": "7.3 Skiing, Alpine skiing high-intensity training",
+      "MET": 12.5,
+      "code": "20004"
+    },
+    {
+      "name": "Snow blower, walking and pushing",
+      "MET": 2.5,
+      "code": "18065"
+    },
+    {
+      "name": "Mountaineering, downhill climbing, walking down with rope",
+      "MET": 9,
+      "code": "18066"
+    },
+    {
+      "name": "Sitting in church, in service, attending a ceremony, sitting quietly",
+      "MET": 1,
+      "code": "08082"
+    },
+    {
+      "name": "Sitting, playing an instrument at church",
+      "MET": 2,
+      "code": "08083"
+    },
+    {
+      "name": "Sitting in church, talking or singing, attending a ceremony, sitting, active participation",
+      "MET": 1.8,
+      "code": "08084"
+    },
+    {
+      "name": "Sitting, reading religious materials at home",
+      "MET": 1.5,
+      "code": "08085"
+    },
+    {
+      "name": "Walking in church",
+      "MET": 2,
+      "code": "18067"
+    },
+    {
+      "name": "Walking, less than 2.0 mph, very slow",
+      "MET": 2,
+      "code": "18068"
+    },
+    {
+      "name": "Walking, 2.8 to 3.4 mph, moderate speed, not carrying anything",
+      "MET": 3.8,
+      "code": "18069"
+    },
+    {
+      "name": "Walking, 3.5 to 3.9 mph, brisk speed, not carrying anything",
+      "MET": 4.8,
+      "code": "18070"
+    },
+    {
+      "name": "Walk/stand combination for religious purposes, usher",
+      "MET": 2,
+      "code": "18071"
+    },
+    {
+      "name": "Praise with dance or run, spiritual dancing in church",
+      "MET": 5,
+      "code": "04008"
+    },
+    {
+      "name": "Standing, moderate effort (e.g., lifting heavy objects, assembling at fast rate)",
+      "MET": 3.8,
+      "code": "10030"
+    },
+    {
+      "name": "Standing, moderate-to-heavy effort, manual labor, lifting≥ 50 lbs, heavy maintenance",
+      "MET": 4.5,
+      "code": "10031"
+    },
+    {
+      "name": "Sitting, meeting, general, and/or with talking involved",
+      "MET": 1.3,
+      "code": "08086"
+    },
+    {
+      "name": "Sitting, light office work, in general",
+      "MET": 1.5,
+      "code": "08087"
+    },
+    {
+      "name": "Sitting, moderate work",
+      "MET": 2.5,
+      "code": "08088"
+    },
+    {
+      "name": "Sitting, child care, only active periods",
+      "MET": 2,
+      "code": "08089"
+    },
+    {
+      "name": "Walk/run play with children, moderate, only active periods",
+      "MET": 3.5,
+      "code": "13067"
+    },
+    {
+      "name": "Walk/run play with children, vigorous, only active periods",
+      "MET": 5.8,
+      "code": "13068"
+    },
+    {
+      "name": "Standing, moderate (e.g., lifting 50 lbs., assembling at fast rate)",
+      "MET": 3.5,
+      "code": "10032"
+    },
+    {
+      "name": "2.3 Walking, less than 2.0 mph, very slow",
+      "MET": 2,
+      "code": "18072"
+    },
+    {
+      "name": "3.8 Walking, 2.8 to 3.4 mph, moderate speed, not carrying anything",
+      "MET": 3.3,
+      "code": "18073"
+    },
+    {
+      "name": "4.8 Walking, 3.5 to 3.9 mph, brisk speed, not carrying anything",
+      "MET": 3.8,
+      "code": "18074"
+    },
+    {
+      "name": "3.5 Walking, 2.5 mph slowly and carrying objects less than 25 pounds",
+      "MET": 3,
+      "code": "18075"
+    },
+    {
+      "name": "4.5 Walking, 3.0 mph moderately and carrying objects less than 25 pounds, pushing something",
+      "MET": 4,
+      "code": "18076"
+    },
+    {
+      "name": "4.5 Walking, 3.5 mph, briskly and carrying objects less than 25 pounds",
+      "MET": 4.5,
+      "code": "18077"
+    },
+    {
+      "name": "3.0 Walk/stand combination, for volunteer purposes",
+      "MET": 3,
+      "code": "18078"
+    },
+    {
+      "name": "Video game, light effort (Wii Fit, yoga, bowling, etc)",
+      "MET": 2.3,
+      "code": "03059"
+    },
+    {
+      "name": "Conditioning/exercise virtual reality fitness, vigorous intensity",
+      "MET": 9.8,
+      "code": "03060"
+    }
+  ]
+}

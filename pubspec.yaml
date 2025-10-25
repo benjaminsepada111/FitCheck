@@ -98,6 +98,7 @@ flutter:
   - assets/images/logot.png
   - assets/images/logot2.png
   - assets/animations/dumbell.json
+  - assets/data/compendium_2024_activities.json
   - assets/animations/runningcharacter.json
 
 

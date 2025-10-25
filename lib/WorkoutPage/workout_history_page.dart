@@ -427,37 +427,70 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
+                                // Workout Type Badge (Cardio or Strength)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: AppColors.secondary.withOpacity(0.1),
+                                    color: workout.isCardio
+                                      ? Colors.blue.withOpacity(0.15)
+                                      : Colors.orange.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Text(
-                                    '${workout.sets} sets',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.secondary,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        workout.isCardio ? Icons.directions_run : Icons.fitness_center,
+                                        size: 14,
+                                        color: workout.isCardio ? Colors.blue.shade700 : Colors.orange.shade700,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        workout.isCardio ? 'Cardio' : 'Strength',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: workout.isCardio ? Colors.blue.shade700 : Colors.orange.shade700,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.secondary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '${workout.reps} reps',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.secondary,
+                                // Show details based on type
+                                if (workout.isStrength && workout.sets != null && workout.reps != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${workout.sets} × ${workout.reps}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.secondary,
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ] else if (workout.isCardio && workout.durationMinutes != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${workout.durationMinutes} min',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                             if (workout.notes != null && workout.notes!.isNotEmpty) ...[

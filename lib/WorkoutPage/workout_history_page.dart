@@ -24,6 +24,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
     with AutomaticKeepAliveClientMixin {
   List<Workout> _workouts = [];
   bool _isLoading = true;
+  bool _hasLoadedOnce = false; // Track if data was loaded
+  String? _lastLoadedChallengeId; // Track which challenge was loaded
 
   @override
   bool get wantKeepAlive => true; // Keep this page alive
@@ -34,7 +36,24 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
     _loadWorkouts();
   }
 
-  Future<void> _loadWorkouts() async {
+  @override
+  void didUpdateWidget(WorkoutHistoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only reload if challenge ID actually changed
+    if (oldWidget.currentChallenge?.id != widget.currentChallenge?.id) {
+      _hasLoadedOnce = false; // Reset cache
+      _loadWorkouts();
+    }
+  }
+
+  Future<void> _loadWorkouts({bool forceRefresh = false}) async {
+    // Skip if already loaded for this challenge (unless force refresh)
+    if (!forceRefresh &&
+        _hasLoadedOnce &&
+        _lastLoadedChallengeId == widget.currentChallenge?.id) {
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -55,6 +74,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         setState(() {
           _workouts = workouts;
           _isLoading = false;
+          _hasLoadedOnce = true; // Mark as loaded
+          _lastLoadedChallengeId = widget.currentChallenge?.id; // Remember challenge
         });
       }
     } catch (e) {
@@ -86,7 +107,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       builder: (context) => AddWorkoutSheet(
         currentChallenge: widget.currentChallenge!,
         onWorkoutAdded: () {
-          _loadWorkouts();
+          _loadWorkouts(forceRefresh: true); // Force refresh when new workout added
         },
       ),
     );
@@ -164,7 +185,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
-        await _loadWorkouts(); // Reload the list
+        await _loadWorkouts(forceRefresh: true); // Force refresh after delete
       } else {
         throw Exception('Failed to delete workout');
       }

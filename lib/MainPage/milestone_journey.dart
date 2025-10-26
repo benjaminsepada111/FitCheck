@@ -26,10 +26,16 @@ class MilestoneJourney extends StatefulWidget {
   State<MilestoneJourney> createState() => _MilestoneJourneyState();
 }
 
-class _MilestoneJourneyState extends State<MilestoneJourney> {
+class _MilestoneJourneyState extends State<MilestoneJourney>
+    with AutomaticKeepAliveClientMixin {
   List<Milestone> _milestones = [];
   bool _isLoading = false;
+  bool _hasLoadedOnce = false; // Cache flag
+  String? _lastLoadedChallengeId; // Track which challenge we loaded
   final NotificationService _notificationService = NotificationService();
+
+  @override
+  bool get wantKeepAlive => true; // Keep state alive
 
   @override
   void initState() {
@@ -40,14 +46,22 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
   @override
   void didUpdateWidget(MilestoneJourney oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload milestones when challenge changes or when widget updates
+    // Only reload if challenge actually changed
     if (oldWidget.currentChallenge?.id != widget.currentChallenge?.id) {
+      _hasLoadedOnce = false; // Reset cache on challenge change
       _loadMilestones();
     }
   }
 
-  Future<void> _loadMilestones() async {
+  Future<void> _loadMilestones({bool forceRefresh = false}) async {
     if (!mounted) return;
+
+    // Skip loading if already loaded for this challenge (unless forced)
+    if (!forceRefresh &&
+        _hasLoadedOnce &&
+        _lastLoadedChallengeId == widget.currentChallenge?.id) {
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -63,6 +77,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
       if (mounted) {
         setState(() {
           _milestones = milestones;
+          _hasLoadedOnce = true; // Mark as loaded
+          _lastLoadedChallengeId = widget.currentChallenge?.id; // Remember challenge
         });
 
         // Check if notification should be scheduled or cancelled
@@ -131,7 +147,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
         challengeId: widget.currentChallenge!.id,
       );
       if (success) {
-        await _loadMilestones();
+        await _loadMilestones(forceRefresh: true); // Force refresh after adding milestone
 
         if (mounted) {
           // Show milestone saved notification
@@ -362,6 +378,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final hasToday = _hasTodayMilestone();
     final hasActiveChallenge = widget.currentChallenge != null;
 
@@ -561,7 +578,11 @@ class _MilestoneJourneyState extends State<MilestoneJourney> {
                     borderRadius: BorderRadius.circular(12),
                     image: milestone.imageUrl != null
                         ? DecorationImage(
-                      image: NetworkImage(milestone.imageUrl!),
+                      image: NetworkImage(
+                        milestone.imageUrl!,
+                        // Use same headers to enable caching
+                        headers: const {},
+                      ),
                       fit: BoxFit.cover,
                     )
                         : milestone.imagePath != null

@@ -576,51 +576,104 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                   width: 120,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    image: milestone.imageUrl != null
-                        ? DecorationImage(
-                      image: NetworkImage(
-                        milestone.imageUrl!,
-                        // Use same headers to enable caching
-                        headers: const {},
-                      ),
-                      fit: BoxFit.cover,
-                    )
-                        : milestone.imagePath != null
-                        ? DecorationImage(
-                      image: FileImage(File(milestone.imagePath!)),
-                      fit: BoxFit.cover,
-                    )
-                        : null,
-                    color: milestone.imageUrl == null &&
-                        milestone.imagePath == null
-                        ? Colors.grey.shade200
-                        : null,
+                    color: Colors.grey.shade200,
                   ),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(12),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Image layer with error handling
+                      if (milestone.imageUrl != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            milestone.imageUrl!,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: FitCheckLoader(),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              // Try to show local image if network fails
+                              if (milestone.imagePath != null) {
+                                return Image.file(
+                                  File(milestone.imagePath!),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Icon(
+                                        Icons.broken_image_outlined,
+                                        color: Colors.grey.shade400,
+                                        size: 40,
+                                      ),
+                                    );
+                                  },
+                                );
+                              }
+                              return Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Colors.grey.shade400,
+                                  size: 40,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      else if (milestone.imagePath != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(milestone.imagePath!),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Colors.grey.shade400,
+                                  size: 40,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      else
+                        Center(
+                          child: Icon(
+                            Icons.photo_outlined,
+                            color: Colors.grey.shade400,
+                            size: 40,
+                          ),
+                        ),
+                      // Date label overlay
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            _formatDate(milestone.date),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
-                      child: Text(
-                        _formatDate(milestone.date),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                    ],
                   ),
                 );
               },

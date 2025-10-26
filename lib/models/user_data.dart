@@ -10,6 +10,7 @@ class UserData {
   final String? goal;
   final double? goalAdjustment; // custom calorie adjustment
   final DateTime? startDate; // user's journey start date for time tracking
+  final String? profilePictureUrl; // Firebase Storage URL for profile picture
 
   UserData({
     this.name,
@@ -22,6 +23,7 @@ class UserData {
     this.goal,
     this.goalAdjustment,
     this.startDate,
+    this.profilePictureUrl,
   });
 
   // Calculate age from birth date
@@ -65,6 +67,7 @@ class UserData {
       'goal': goal,
       'goalAdjustment': goalAdjustment,
       'startDate': startDate?.toIso8601String(),
+      'profilePictureUrl': profilePictureUrl,
     };
   }
 
@@ -85,6 +88,7 @@ class UserData {
       startDate: json['startDate'] != null
           ? DateTime.parse(json['startDate'])
           : null,
+      profilePictureUrl: json['profilePictureUrl'],
     );
   }
 
@@ -100,6 +104,7 @@ class UserData {
     String? goal,
     double? goalAdjustment,
     DateTime? startDate,
+    String? profilePictureUrl,
   }) {
     return UserData(
       name: name ?? this.name,
@@ -112,6 +117,7 @@ class UserData {
       goal: goal ?? this.goal,
       goalAdjustment: goalAdjustment ?? this.goalAdjustment,
       startDate: startDate ?? this.startDate,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
     );
   }
 

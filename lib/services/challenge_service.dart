@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/challenge.dart';
+import 'image_storage_service.dart';
 
 class ChallengeService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -127,14 +128,66 @@ class ChallengeService {
 
   /// Delete a challenge and all its days permanently
   /// This should only be used from challenge history
+  /// Also deletes all associated images from Firebase Storage
   static Future<bool> deleteChallenge(String challengeId) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        print('Error deleting challenge: User not authenticated');
         return false;
       }
 
-      // Delete all days first
+      print('Starting deletion of challenge: $challengeId');
+
+      // Step 1: Delete all images from Firebase Storage
+      print('Step 1: Deleting all images for challenge...');
+      await ImageStorageService.deleteAllChallengeImages(challengeId);
+
+      // Step 2: Delete all milestone documents
+      print('Step 2: Deleting milestone documents...');
+      final milestonesSnapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection('milestones')
+          .get();
+
+      WriteBatch batch = _firestore.batch();
+      for (var doc in milestonesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Step 3: Delete all food log documents
+      print('Step 3: Deleting food log documents...');
+      final foodLogsSnapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection('food_logs')
+          .get();
+
+      for (var doc in foodLogsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Step 4: Delete all workout documents
+      print('Step 4: Deleting workout documents...');
+      final workoutsSnapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection('workouts')
+          .get();
+
+      for (var doc in workoutsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Step 5: Delete all day documents
+      print('Step 5: Deleting challenge days...');
       final daysSnapshot = await _firestore
           .collection(_usersCollection)
           .doc(user.uid)
@@ -143,12 +196,12 @@ class ChallengeService {
           .collection(_daysCollection)
           .get();
 
-      WriteBatch batch = _firestore.batch();
       for (var doc in daysSnapshot.docs) {
         batch.delete(doc.reference);
       }
 
-      // Delete the challenge document
+      // Step 6: Delete the challenge document itself
+      print('Step 6: Deleting challenge document...');
       batch.delete(
         _firestore
             .collection(_usersCollection)
@@ -157,9 +210,13 @@ class ChallengeService {
             .doc(challengeId),
       );
 
+      // Commit all deletions
       await batch.commit();
+
+      print('✅ Challenge $challengeId deleted successfully with all data and images');
       return true;
     } catch (e) {
+      print('Error deleting challenge: $e');
       return false;
     }
   }

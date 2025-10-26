@@ -3,6 +3,9 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/models/user_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:capstone_project/services/image_storage_service.dart';
+import 'dart:io';
 
 class PersonalInfoPage extends StatefulWidget {
   const PersonalInfoPage({super.key});
@@ -18,8 +21,10 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isUploadingImage = false;
   UserData? _userData;
   User? _currentUser;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -116,6 +121,149 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     );
   }
 
+  Future<void> _pickAndUploadImage() async {
+    try {
+      // Show bottom sheet to choose camera or gallery (NO delete option here)
+      final ImageSource? source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Choose Profile Picture',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera, color: AppColors.secondary),
+                    title: const Text('Take Photo'),
+                    onTap: () => Navigator.pop(context, ImageSource.camera),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library, color: AppColors.secondary),
+                    title: const Text('Choose from Gallery'),
+                    onTap: () => Navigator.pop(context, ImageSource.gallery),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      if (source == null) return; // User cancelled
+
+      // Pick image
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return; // User cancelled
+
+      setState(() => _isUploadingImage = true);
+
+      // Delete old profile picture if it exists
+      if (_userData?.profilePictureUrl != null && _userData!.profilePictureUrl!.isNotEmpty) {
+        print('Deleting old profile picture...');
+        await ImageStorageService.deleteImage(_userData!.profilePictureUrl!);
+      }
+
+      // Upload to Firebase Storage
+      final File imageFile = File(pickedFile.path);
+      final String? downloadUrl = await ImageStorageService.uploadProfileImage(imageFile);
+
+      if (downloadUrl != null) {
+        // Update user data with new profile picture URL
+        final success = await UserDataService.updateUserData(
+          profilePictureUrl: downloadUrl,
+        );
+
+        if (success) {
+          _showSuccess('Profile picture updated successfully!');
+          await _loadUserData();
+        } else {
+          _showError('Failed to save profile picture URL');
+        }
+      } else {
+        _showError('Failed to upload profile picture');
+      }
+    } catch (e) {
+      _showError('An error occurred while updating profile picture');
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  Future<void> _removeProfilePicture() async {
+    setState(() => _isUploadingImage = true);
+
+    try {
+      // Delete the image from Firebase Storage first
+      if (_userData?.profilePictureUrl != null && _userData!.profilePictureUrl!.isNotEmpty) {
+        print('Deleting profile picture from Storage: ${_userData!.profilePictureUrl}');
+        final deleted = await ImageStorageService.deleteImage(_userData!.profilePictureUrl!);
+        if (deleted) {
+          print('✅ Profile picture deleted from Storage');
+        } else {
+          print('⚠️ Failed to delete profile picture from Storage');
+        }
+      }
+
+      // Remove the URL from Firestore
+      final success = await UserDataService.updateUserData(
+        profilePictureUrl: '',
+      );
+
+      if (success) {
+        _showSuccess('Profile picture removed');
+        await _loadUserData();
+      } else {
+        _showError('Failed to remove profile picture');
+      }
+    } catch (e) {
+      print('Error removing profile picture: $e');
+      _showError('An error occurred');
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  void _viewProfilePicture() {
+    if (_userData?.profilePictureUrl == null || _userData!.profilePictureUrl!.isEmpty) {
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _ProfilePictureViewer(
+          imageUrl: _userData!.profilePictureUrl!,
+          onDelete: () async {
+            Navigator.pop(context); // Close viewer
+            await _removeProfilePicture();
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,29 +293,97 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: AppColors.secondary.shade200,
-                        radius: 60,
-                        child: Text(
-                          _getInitials(),
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                      GestureDetector(
+                        onTap: _viewProfilePicture,
+                        child: _isUploadingImage
+                            ? Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: AppColors.secondary.shade200,
+                                    radius: 60,
+                                    child: Text(
+                                      _getInitials(),
+                                      style: const TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const CircularProgressIndicator(),
+                                ],
+                              )
+                            : _userData?.profilePictureUrl != null &&
+                                    _userData!.profilePictureUrl!.isNotEmpty
+                                ? CircleAvatar(
+                                    backgroundColor: AppColors.secondary.shade200,
+                                    radius: 60,
+                                    child: ClipOval(
+                                      child: Image.network(
+                                        _userData!.profilePictureUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 120,
+                                        height: 120,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                              strokeWidth: 2,
+                                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Text(
+                                            _getInitials(),
+                                            style: const TextStyle(
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                : CircleAvatar(
+                                    backgroundColor: AppColors.secondary.shade200,
+                                    radius: 60,
+                                    child: Text(
+                                      _getInitials(),
+                                      style: const TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          size: 18,
-                          color: Colors.white,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _isUploadingImage ? null : _pickAndUploadImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -432,6 +648,98 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Full-screen profile picture viewer with delete option
+class _ProfilePictureViewer extends StatelessWidget {
+  final String imageUrl;
+  final VoidCallback onDelete;
+
+  const _ProfilePictureViewer({
+    required this.imageUrl,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+              // Show confirmation dialog
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Remove Profile Picture'),
+                  content: const Text('Are you sure you want to remove your profile picture?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Close dialog
+                        onDelete(); // Call delete function
+                      },
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+                  color: Colors.white,
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.broken_image, color: Colors.white, size: 80),
+                    SizedBox(height: 16),
+                    Text(
+                      'Failed to load image',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

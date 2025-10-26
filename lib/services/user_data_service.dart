@@ -82,6 +82,7 @@ class UserDataService {
     String? goal,
     double? goalAdjustment,
     DateTime? startDate,
+    String? profilePictureUrl,
   }) async {
     try {
       final currentData = await loadUserData() ?? UserData();
@@ -97,6 +98,7 @@ class UserDataService {
         goal: goal,
         goalAdjustment: goalAdjustment,
         startDate: startDate,
+        profilePictureUrl: profilePictureUrl,
       );
 
       return await saveUserData(updatedData);

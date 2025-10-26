@@ -136,10 +136,9 @@ class TrackersState extends State<Trackers> {
   }) {
     // Special handling for Badge - it's a button, not a tracker
     if (label == "Badge" || label == "Achievement") {
-      return Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: GestureDetector(
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
@@ -197,15 +196,13 @@ class TrackersState extends State<Trackers> {
               ],
             ),
           ),
-        ),
       );
     }
 
     // Regular tracker for Calories and Progress
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: GestureDetector(
           onTap: () {
             // Calories and Streak are auto-synced, so no manual input needed
           },
@@ -291,8 +288,7 @@ class TrackersState extends State<Trackers> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   String _getDisplayText(String label, int current, int goal) {
@@ -436,20 +432,24 @@ class TrackersState extends State<Trackers> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _buildTracker(
-                        "Calories",
-                        _currentCalories,
-                        _calorieGoal,
-                        calorieProgress,
-                        isClickable: false,
+                      Expanded(
+                        child: _buildTracker(
+                          "Calories",
+                          _currentCalories,
+                          _calorieGoal,
+                          calorieProgress,
+                          isClickable: false,
+                        ),
                       ),
                       Container(width: 1, color: AppColors.secondary.shade300),
-                      _buildTracker(
-                        "Progress",
-                        currentChallengeDay,
-                        challengeDaysGoal,
-                        challengeDayProgress,
-                        isClickable: false,
+                      Expanded(
+                        child: _buildTracker(
+                          "Progress",
+                          currentChallengeDay,
+                          challengeDaysGoal,
+                          challengeDayProgress,
+                          isClickable: false,
+                        ),
                       ),
                     ],
                   ),

@@ -340,18 +340,57 @@ class _ProfilePageState extends State<ProfilePage> {
                                 width: 2,
                               ),
                             ),
-                            child: CircleAvatar(
-                              radius: 30,
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              child: Text(
-                                _getInitials(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                            child: _userData?.profilePictureUrl != null &&
+                                    _userData!.profilePictureUrl!.isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor: Colors.white.withOpacity(0.2),
+                                    child: ClipOval(
+                                      child: Image.network(
+                                        _userData!.profilePictureUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 60,
+                                        height: 60,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                              strokeWidth: 2,
+                                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Text(
+                                            _getInitials(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                : CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor: Colors.white.withOpacity(0.2),
+                                    child: Text(
+                                      _getInitials(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(

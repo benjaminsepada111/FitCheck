@@ -81,12 +81,16 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
         }
       }
 
-      setState(() {
-        _dayCompletionStatus = completions;
-        _isLoadingCompletions = false;
-      });
+      if (mounted) {
+        setState(() {
+          _dayCompletionStatus = completions;
+          _isLoadingCompletions = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoadingCompletions = false);
+      if (mounted) {
+        setState(() => _isLoadingCompletions = false);
+      }
     }
   }
 

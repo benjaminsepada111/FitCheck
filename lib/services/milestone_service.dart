@@ -36,6 +36,8 @@ class MilestoneService {
         );
         if (imageUrl != null) {
           milestoneToSave = milestone.copyWith(imageUrl: imageUrl);
+        } else {
+          print('Warning: Image upload failed for milestone ${milestone.id}');
         }
       }
 
@@ -50,6 +52,7 @@ class MilestoneService {
 
       return true;
     } catch (e) {
+      print('Error saving milestone: $e');
       return false;
     }
   }
@@ -261,6 +264,7 @@ class MilestoneService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        print('Error deleting milestone: User not authenticated');
         return false;
       }
 
@@ -270,9 +274,15 @@ class MilestoneService {
         challengeId: challengeId,
       );
 
+      if (milestone == null) {
+        print('Error deleting milestone: Milestone not found');
+        return false;
+      }
+
       // Delete image if exists
-      if (milestone?.imageUrl != null) {
-        await _deleteImage(milestone!.imageUrl!);
+      if (milestone.imageUrl != null) {
+        print('Deleting milestone image: ${milestone.imageUrl}');
+        await _deleteImage(milestone.imageUrl!);
       }
 
       // Delete milestone document
@@ -285,8 +295,10 @@ class MilestoneService {
           .doc(milestoneId)
           .delete();
 
+      print('Milestone deleted successfully: $milestoneId');
       return true;
     } catch (e) {
+      print('Error deleting milestone: $e');
       return false;
     }
   }

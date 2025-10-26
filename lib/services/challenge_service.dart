@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import '../models/challenge.dart';
 
 class ChallengeService {
@@ -100,7 +99,34 @@ class ChallengeService {
     }
   }
 
-  /// Delete a challenge and all its days
+  /// Cancel a challenge (marks it as cancelled without deleting)
+  static Future<bool> cancelChallenge(String challengeId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return false;
+      }
+
+      // Update both lifecycleStatus and cancelledAt timestamp
+      await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .update({
+            'lifecycleStatus': 'cancelled',
+            'cancelledAt': DateTime.now().toIso8601String(),
+          });
+
+      return true;
+    } catch (e) {
+      print('Error cancelling challenge: $e');
+      return false;
+    }
+  }
+
+  /// Delete a challenge and all its days permanently
+  /// This should only be used from challenge history
   static Future<bool> deleteChallenge(String challengeId) async {
     try {
       final user = _auth.currentUser;
@@ -123,11 +149,13 @@ class ChallengeService {
       }
 
       // Delete the challenge document
-      batch.delete(_firestore
-          .collection(_usersCollection)
-          .doc(user.uid)
-          .collection(_challengesCollection)
-          .doc(challengeId));
+      batch.delete(
+        _firestore
+            .collection(_usersCollection)
+            .doc(user.uid)
+            .collection(_challengesCollection)
+            .doc(challengeId),
+      );
 
       await batch.commit();
       return true;
@@ -137,7 +165,10 @@ class ChallengeService {
   }
 
   /// Add or update a challenge day
-  static Future<bool> saveChallengeDay(String challengeId, ChallengeDay day) async {
+  static Future<bool> saveChallengeDay(
+    String challengeId,
+    ChallengeDay day,
+  ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -185,7 +216,10 @@ class ChallengeService {
   }
 
   /// Get a specific challenge day
-  static Future<ChallengeDay?> getChallengeDay(String challengeId, String dayId) async {
+  static Future<ChallengeDay?> getChallengeDay(
+    String challengeId,
+    String dayId,
+  ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -211,7 +245,10 @@ class ChallengeService {
   }
 
   /// Mark a challenge day as completed
-  static Future<bool> completeChallengeDay(String challengeId, String dayId) async {
+  static Future<bool> completeChallengeDay(
+    String challengeId,
+    String dayId,
+  ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -226,9 +263,9 @@ class ChallengeService {
           .collection(_daysCollection)
           .doc(dayId)
           .update({
-        'completed': true,
-        'completedAt': DateTime.now().toIso8601String(),
-      });
+            'completed': true,
+            'completedAt': DateTime.now().toIso8601String(),
+          });
 
       return true;
     } catch (e) {
@@ -236,17 +273,32 @@ class ChallengeService {
     }
   }
 
-  /// Get active challenges for the current user
+  /// Get active challenges for the current user (excludes cancelled and completed challenges)
   static Future<List<Challenge>> getActiveChallenges() async {
     try {
       final allChallenges = await getUserChallenges();
       final now = DateTime.now();
 
+      // Filter challenges that are:
+      // 1. Not explicitly cancelled
+      // 2. Not explicitly marked as completed
+      // 3. Within the active date range
       return allChallenges.where((challenge) {
-        return now.isAfter(challenge.startDate) &&
-               now.isBefore(challenge.endDate.add(const Duration(days: 1)));
+        // Exclude cancelled challenges
+        if (challenge.lifecycleStatus == 'cancelled') return false;
+
+        // Exclude explicitly completed challenges
+        if (challenge.lifecycleStatus == 'completed') return false;
+
+        // Check if within active date range
+        final isInDateRange =
+            now.isAfter(challenge.startDate) &&
+            now.isBefore(challenge.endDate.add(const Duration(days: 1)));
+
+        return isInDateRange;
       }).toList();
     } catch (e) {
+      print('Error getting active challenges: $e');
       return [];
     }
   }
@@ -265,10 +317,10 @@ class ChallengeService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Challenge.fromJson(doc.data()))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => Challenge.fromJson(doc.data()))
+              .toList();
+        });
   }
 
   /// Generate a unique challenge ID

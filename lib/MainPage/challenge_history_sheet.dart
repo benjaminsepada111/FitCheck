@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/services/challenge_service.dart';
 import 'challenge_summary_page.dart';
 
-class ChallengeHistorySheet extends StatelessWidget {
+class ChallengeHistorySheet extends StatefulWidget {
   final List<Challenge> challengeHistory;
   final Function(Challenge)? onChallengeCreated;
 
@@ -15,9 +15,22 @@ class ChallengeHistorySheet extends StatelessWidget {
   });
 
   @override
+  State<ChallengeHistorySheet> createState() => _ChallengeHistorySheetState();
+}
+
+class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
+  late List<Challenge> _challenges;
+
+  @override
+  void initState() {
+    super.initState();
+    _challenges = List.from(widget.challengeHistory);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bool isEmpty = challengeHistory.isEmpty;
+    final bool isEmpty = _challenges.isEmpty;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -39,10 +52,7 @@ class ChallengeHistorySheet extends StatelessWidget {
                 children: [
                   const Text(
                     "Challenge History",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -55,7 +65,7 @@ class ChallengeHistorySheet extends StatelessWidget {
               // Content based on whether challenges exist
               Expanded(
                 child: isEmpty
-                    ? _buildEmptyState(screenWidth, context)
+                    ? _buildEmptyState(screenWidth)
                     : _buildChallengeList(scrollController),
               ),
             ],
@@ -65,7 +75,7 @@ class ChallengeHistorySheet extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(double screenWidth, BuildContext context) {
+  Widget _buildEmptyState(double screenWidth) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -112,7 +122,7 @@ class ChallengeHistorySheet extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _triggerCreateChallenge(context);
+                _triggerCreateChallenge();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
@@ -129,10 +139,7 @@ class ChallengeHistorySheet extends StatelessWidget {
                   SizedBox(width: 8),
                   Text(
                     "Create Challenge",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -145,30 +152,32 @@ class ChallengeHistorySheet extends StatelessWidget {
 
   Widget _buildChallengeList(ScrollController scrollController) {
     // Calculate real statistics from challenge data
-    final totalChallenges = challengeHistory.length;
-    final now = DateTime.now();
-    final completedChallenges = challengeHistory
-        .where((c) => c.endDate.isBefore(now))
+    final totalChallenges = _challenges.length;
+    final completedChallenges = _challenges
+        .where((c) => c.lifecycleStatus == 'completed' || c.isCompleted)
+        .length;
+    final cancelledChallenges = _challenges
+        .where((c) => c.lifecycleStatus == 'cancelled')
         .length;
 
     return Column(
       children: [
         // Scrollable challenge list
         Expanded(
-          child: challengeHistory.isEmpty
+          child: _challenges.isEmpty
               ? const Center(
-            child: Text(
-              'No challenges found',
-              style: TextStyle(color: Colors.grey),
-            ),
-          )
+                  child: Text(
+                    'No challenges found',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
               : ListView.builder(
-            controller: scrollController,
-            itemCount: challengeHistory.length,
-            itemBuilder: (context, index) {
-              return _buildChallengeCard(challengeHistory[index], context);
-            },
-          ),
+                  controller: scrollController,
+                  itemCount: _challenges.length,
+                  itemBuilder: (context, index) {
+                    return _buildChallengeCard(_challenges[index]);
+                  },
+                ),
         ),
 
         // Fixed statistics at bottom
@@ -185,13 +194,18 @@ class ChallengeHistorySheet extends StatelessWidget {
             children: [
               _buildStatistic(
                 totalChallenges.toString(),
-                "Total Challenges",
+                "Total",
                 AppColors.secondary,
               ),
               _buildStatistic(
                 completedChallenges.toString(),
                 "Completed",
                 Colors.green.shade600,
+              ),
+              _buildStatistic(
+                cancelledChallenges.toString(),
+                "Cancelled",
+                Colors.orange.shade600,
               ),
             ],
           ),
@@ -200,154 +214,268 @@ class ChallengeHistorySheet extends StatelessWidget {
     );
   }
 
-  Widget _buildChallengeCard(Challenge challenge, BuildContext context) {
+  Widget _buildChallengeCard(Challenge challenge) {
     final now = DateTime.now();
-    final isCompleted = challenge.endDate.isBefore(now);
-    final isActive = challenge.startDate.isBefore(now) && challenge.endDate.isAfter(now);
     final progress = _calculateProgress(challenge);
-    final daysTotal = challenge.endDate.difference(challenge.startDate).inDays + 1;
+    final daysTotal =
+        challenge.endDate.difference(challenge.startDate).inDays + 1;
     final daysPassed = now.difference(challenge.startDate).inDays + 1;
 
-    String status;
+    // Use the challenge's status directly
+    String status = challenge.status;
     Color statusColor;
-    if (isCompleted) {
-      status = 'Completed';
+
+    if (challenge.lifecycleStatus == 'cancelled') {
+      statusColor = Colors.orange.shade600;
+    } else if (challenge.isCompleted) {
       statusColor = Colors.green.shade600;
-    } else if (isActive) {
-      status = 'Active';
+    } else if (challenge.isActive) {
       statusColor = AppColors.secondary;
     } else {
-      status = 'Upcoming';
       statusColor = Colors.orange.shade600;
     }
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChallengeSummaryPage(
-              challenge: _convertChallengeToMap(challenge, progress, status),
-            ),
-          ),
-        );
-      },
-      child: Container(
+    return Dismissible(
+      key: Key(challenge.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.red,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.secondary.shade200),
         ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title + Status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    challenge.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Date Range with month display
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
-                const SizedBox(width: 6),
-                Text(
-                  '${_formatDate(challenge.startDate)} - ${_formatDate(challenge.endDate)}',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Challenge Goals
-            Row(
-              children: [
-                Icon(Icons.track_changes, size: 16, color: Colors.grey.shade600),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Goal: ${challenge.dailyCalorieGoal} cal daily',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Progress Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isActive
-                      ? 'Progress (Day $daysPassed of $daysTotal)'
-                      : 'Progress ($daysPassed/$daysTotal days)',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  '$progress%',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Progress Bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: progress / 100,
-                backgroundColor: statusColor.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                minHeight: 6,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.delete_forever, color: Colors.white, size: 32),
+            SizedBox(height: 4),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
             ),
           ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Delete Challenge'),
+              content: Text(
+                'Are you sure you want to permanently delete "${challenge.title}"?\n\nThis action cannot be undone.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Delete'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      onDismissed: (direction) async {
+        final success = await ChallengeService.deleteChallenge(challenge.id);
+
+        if (success) {
+          setState(() {
+            _challenges.removeWhere((c) => c.id == challenge.id);
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Challenge "${challenge.title}" deleted permanently',
+                ),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          // Re-add the challenge if delete failed
+          setState(() {
+            _challenges.add(challenge);
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to delete challenge'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      },
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChallengeSummaryPage(
+                challenge: _convertChallengeToMap(challenge, progress, status),
+              ),
+            ),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.secondary.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title + Status
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      challenge.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Date Range with month display
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_formatDate(challenge.startDate)} - ${_formatDate(challenge.endDate)}',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Challenge Goals
+              Row(
+                children: [
+                  Icon(
+                    Icons.track_changes,
+                    size: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Goal: ${challenge.dailyCalorieGoal} cal daily',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Progress Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    challenge.isActive
+                        ? 'Progress (Day $daysPassed of $daysTotal)'
+                        : 'Progress ($daysPassed/$daysTotal days)',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    '$progress%',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Progress Bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progress / 100,
+                  backgroundColor: statusColor.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  minHeight: 6,
+                ),
+              ),
+
+              // Swipe hint for history items
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.swipe_left, size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Swipe left to delete permanently',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -380,15 +508,26 @@ class ChallengeHistorySheet extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   int _calculateProgress(Challenge challenge) {
     final now = DateTime.now();
-    final totalDays = challenge.endDate.difference(challenge.startDate).inDays + 1;
+    final totalDays =
+        challenge.endDate.difference(challenge.startDate).inDays + 1;
     final daysPassed = now.difference(challenge.startDate).inDays + 1;
 
     if (daysPassed <= 0) return 0;
@@ -397,11 +536,16 @@ class ChallengeHistorySheet extends StatelessWidget {
     return ((daysPassed / totalDays) * 100).round();
   }
 
-  Map<String, dynamic> _convertChallengeToMap(Challenge challenge, int progress, String status) {
+  Map<String, dynamic> _convertChallengeToMap(
+    Challenge challenge,
+    int progress,
+    String status,
+  ) {
     return {
       'challengeId': challenge.id,
       'title': challenge.title,
-      'dateRange': '${_formatDate(challenge.startDate)} - ${_formatDate(challenge.endDate)}',
+      'dateRange':
+          '${_formatDate(challenge.startDate)} - ${_formatDate(challenge.endDate)}',
       'progress': progress,
       'status': status,
       'dailyCalorieGoal': challenge.dailyCalorieGoal,
@@ -411,7 +555,7 @@ class ChallengeHistorySheet extends StatelessWidget {
     };
   }
 
-  void _triggerCreateChallenge(BuildContext context) {
+  void _triggerCreateChallenge() {
     // Show a simple message - you can integrate this with your create challenge flow
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

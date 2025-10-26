@@ -38,14 +38,13 @@ class _MainPageState extends State<MainPage> {
   String _selectedChallenge = "No Challenge";
 
   Challenge? _currentChallenge;
-  int _currentCalories = 0;
   List<Challenge> _challengeHistory = [];
-  bool _isInitialized = false;
 
   // GlobalKeys to maintain widget identity across rebuilds
   final GlobalKey _milestoneKey = GlobalKey();
   final GlobalKey _foodPageKey = GlobalKey();
   final GlobalKey _workoutPageKey = GlobalKey();
+  final GlobalKey<TrackersState> _trackersKey = GlobalKey<TrackersState>();
 
   @override
   void initState() {
@@ -65,17 +64,11 @@ class _MainPageState extends State<MainPage> {
             _challengeHistory = widget.initialChallengeHistory ?? [];
             _selectedChallenge =
                 widget.initialChallenge?.title ?? "No Challenge";
-            _isInitialized = true;
           });
         }
       } else {
         // Fallback: load data synchronously if no preload
         await _loadChallengeData();
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-        }
       }
 
       // Start background tasks (don't wait for these)
@@ -85,11 +78,7 @@ class _MainPageState extends State<MainPage> {
       // Refresh challenge data in background to ensure latest state
       _refreshChallengeDataInBackground();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
+      // Error handled, no action needed
     }
   }
 
@@ -245,29 +234,29 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  void _showDeleteChallengeDialog() {
+  void _showCancelChallengeDialog() {
     if (_currentChallenge == null) return;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Challenge'),
+          title: const Text('Cancel Challenge'),
           content: Text(
-            'Are you sure you want to delete "${_currentChallenge!.title}"?\n\nThis action cannot be undone.',
+            'Are you sure you want to cancel "${_currentChallenge!.title}"?\n\nYou can still view it in Challenge History, and delete it permanently from there if needed.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: const Text('Keep Active'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _deleteCurrentChallenge();
+                _cancelCurrentChallenge();
               },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              child: const Text('Cancel Challenge'),
             ),
           ],
         );
@@ -275,37 +264,45 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  void _deleteCurrentChallenge() async {
+  void _cancelCurrentChallenge() async {
     if (_currentChallenge == null) return;
 
     try {
-      final success = await ChallengeService.deleteChallenge(
+      final success = await ChallengeService.cancelChallenge(
         _currentChallenge!.id,
       );
 
       if (success) {
         await _loadChallengeData();
       } else {
-        throw Exception('Failed to delete from database');
+        throw Exception('Failed to cancel challenge');
       }
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Challenge deleted successfully'),
-          backgroundColor: Colors.green,
+          content: const Text(
+            'Challenge cancelled. View it in Challenge History.',
+          ),
+          backgroundColor: Colors.orange,
           action: SnackBarAction(
-            label: 'OK',
+            label: 'View History',
             textColor: Colors.white,
-            onPressed: () {},
+            onPressed: () {
+              _showChallengeHistory();
+            },
           ),
         ),
       );
 
       _refreshTrackers();
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to delete challenge'),
+          content: Text('Failed to cancel challenge'),
           backgroundColor: Colors.red,
         ),
       );
@@ -363,13 +360,13 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _onCaloriesChanged(int calories) {
-    setState(() {
-      _currentCalories = calories;
-    });
+    // Callback for when calories change in Trackers widget
+    // Currently just used for notification, no state update needed
   }
 
   void _refreshTrackers() {
-    setState(() {});
+    // Refresh the Trackers widget to reload calorie data
+    _trackersKey.currentState?.refreshData();
   }
 
   void _onChallengeSelected(String challengeTitle) {
@@ -378,8 +375,8 @@ class _MainPageState extends State<MainPage> {
       return;
     }
 
-    if (challengeTitle == "Delete Challenge") {
-      _showDeleteChallengeDialog();
+    if (challengeTitle == "Cancel Challenge") {
+      _showCancelChallengeDialog();
       return;
     }
 
@@ -500,17 +497,17 @@ class _MainPageState extends State<MainPage> {
     } else {
       items.add(
         const PopupMenuItem(
-          value: "Delete Challenge",
+          value: "Cancel Challenge",
           child: Row(
             children: [
-              Icon(Icons.delete_outline, color: Colors.red, size: 20),
+              Icon(Icons.cancel_outlined, color: Colors.orange, size: 20),
               SizedBox(width: 10),
               Text(
-                "Delete Challenge",
+                "Cancel Challenge",
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.red,
+                  color: Colors.orange,
                 ),
               ),
             ],
@@ -561,6 +558,7 @@ class _MainPageState extends State<MainPage> {
               ),
               const SizedBox(height: 12),
               Trackers(
+                key: _trackersKey,
                 currentChallenge: _currentChallenge,
                 onCaloriesChanged: _onCaloriesChanged,
               ),
@@ -604,7 +602,7 @@ class _MainPageState extends State<MainPage> {
               surfaceTintColor: Colors.white,
               pinned: true,
               elevation: 4,
-              shadowColor: Colors.black.withOpacity(0.1),
+              shadowColor: Colors.black.withValues(alpha: 0.1),
               toolbarHeight: 60,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

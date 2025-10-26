@@ -9,10 +9,7 @@ import 'package:capstone_project/models/user_data.dart';
 class CreateChallengeSheet extends StatefulWidget {
   final dynamic Function(Challenge) onChallengeCreated;
 
-  const CreateChallengeSheet({
-    super.key,
-    required this.onChallengeCreated,
-  });
+  const CreateChallengeSheet({super.key, required this.onChallengeCreated});
 
   @override
   State<CreateChallengeSheet> createState() => _CreateChallengeSheetState();
@@ -31,7 +28,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   DateTime? _endDate;
 
   // Activity Level & Goal
-  String? _selectedActivityLevel;
+  String? _selectedLifestyleLevel;
   String? _selectedGoal;
   double _goalAdjustment = 500;
   bool _showAdjustment = false;
@@ -43,63 +40,70 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   bool _isCalculating = false;
   UserData? _userData;
 
-  final List<Map<String, dynamic>> activityLevels = [
+  final List<Map<String, dynamic>> lifestyleLevels = [
     {
-      "value": "sedentary",
-      "label": "Sedentary",
-      "desc": "Little or no exercise",
+      "value": "lightly_active",
+      "label": "Lightly Active",
+      "desc":
+          "Desk job, student, or light daily activity. Example: Office worker who walks occasionally",
       "icon": Icons.chair_outlined,
-    },
-    {
-      "value": "light",
-      "label": "Light",
-      "desc": "Light exercise 1-3 days/week",
-      "icon": Icons.directions_walk_outlined,
-    },
-    {
-      "value": "moderate",
-      "label": "Moderate",
-      "desc": "Moderate exercise 3-5 days/week",
-      "icon": Icons.directions_run_outlined,
+      "multiplier": 1.375,
     },
     {
       "value": "active",
       "label": "Active",
-      "desc": "Hard exercise 6-7 days/week",
-      "icon": Icons.fitness_center_outlined,
+      "desc":
+          "On your feet regularly. Example: Teacher, retail worker, or parent with young kids",
+      "icon": Icons.directions_walk_outlined,
+      "multiplier": 1.55,
     },
     {
-      "value": "very active",
+      "value": "very_active",
       "label": "Very Active",
-      "desc": "Hard daily exercise or physical job",
+      "desc":
+          "Physically demanding work or very active lifestyle. Example: Nurse, construction worker",
+      "icon": Icons.fitness_center_outlined,
+      "multiplier": 1.725,
+    },
+    {
+      "value": "extra_active",
+      "label": "Extra Active",
+      "desc":
+          "Highly physical job or training multiple times daily. Example: Athlete, fitness trainer",
       "icon": Icons.sports_outlined,
+      "multiplier": 1.9,
     },
   ];
 
   final List<Map<String, dynamic>> goals = [
     {
-      "value": "maintain",
-      "label": "Maintain",
-      "desc": "Keep your current weight",
-      "icon": Icons.balance,
-    },
-    {
-      "value": "fat loss",
-      "label": "Fat Loss",
-      "desc": "Create a caloric deficit",
+      "value": "lose_fat",
+      "label": "Lose Fat",
+      "desc":
+          "Eat fewer calories than you burn to reduce fat while maintaining muscle",
       "icon": Icons.trending_down,
+      "adjustment": -500,
     },
     {
-      "value": "muscle gain",
-      "label": "Muscle Gain",
-      "desc": "Create a caloric surplus",
+      "value": "maintain_weight",
+      "label": "Maintain Weight",
+      "desc": "Keep your current weight steady with balanced eating",
+      "icon": Icons.balance,
+      "adjustment": 0,
+    },
+    {
+      "value": "gain_muscle",
+      "label": "Gain Muscle",
+      "desc": "Eat slightly more than you burn to support muscle growth",
       "icon": Icons.trending_up,
+      "adjustment": 500,
     },
   ];
 
   @override
   void initState() {
     super.initState();
+    _selectedLifestyleLevel = "lightly_active"; // Set default
     _loadUserData();
   }
 
@@ -118,7 +122,10 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     super.dispose();
   }
 
-  Future<void> _selectDate(TextEditingController controller, bool isStartDate) async {
+  Future<void> _selectDate(
+    TextEditingController controller,
+    bool isStartDate,
+  ) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -154,12 +161,15 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           _endDate = picked;
         }
       });
-      controller.text = '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+      controller.text =
+          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
     }
   }
 
   void _calculateGoals() async {
-    if (_userData == null || _selectedActivityLevel == null || _selectedGoal == null) {
+    if (_userData == null ||
+        _selectedLifestyleLevel == null ||
+        _selectedGoal == null) {
       return;
     }
 
@@ -168,13 +178,15 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     try {
       // Create temporary user data with challenge-specific activity and goal
       final tempUserData = _userData!.copyWith(
-        activityLevel: _selectedActivityLevel,
+        activityLevel: _selectedLifestyleLevel,
         goal: _selectedGoal,
         goalAdjustment: _showAdjustment ? _goalAdjustment : null,
       );
 
       if (CalorieCalculator.isValidUserData(tempUserData)) {
-        _calculatedCalorieGoal = CalorieCalculator.calculateDailyCalorieGoal(tempUserData);
+        _calculatedCalorieGoal = CalorieCalculator.calculateDailyCalorieGoal(
+          tempUserData,
+        );
       } else {
         _calculatedCalorieGoal = 2000;
       }
@@ -202,8 +214,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   }
 
   bool _validatePage2() {
-    if (_selectedActivityLevel == null) {
-      _showError('Please select an activity level');
+    if (_selectedLifestyleLevel == null) {
+      _showError('Please select how active you are outside of workouts');
       return false;
     }
     if (_selectedGoal == null) {
@@ -487,17 +499,42 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           ),
           const SizedBox(height: 16),
 
-          // Activity Level
+          // Lifestyle Level
           Text(
-            "Activity Level *",
+            "How active are you outside of workouts? *",
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.primary,
             ),
           ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 20, color: AppColors.secondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "This is your baseline daily activity before workouts. Exercise calories will be added separately.",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 12),
-          ...activityLevels.map((level) => _buildActivityLevelOption(level)),
+          ...lifestyleLevels.map((level) => _buildLifestyleLevelOption(level)),
 
           const SizedBox(height: 24),
 
@@ -514,7 +551,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           ...goals.map((goal) => _buildGoalOption(goal)),
 
           // Adjustment slider (if not maintain)
-          if (_selectedGoal != null && _selectedGoal != "maintain") ...[
+          if (_selectedGoal != null && _selectedGoal != "maintain_weight") ...[
             const SizedBox(height: 20),
             _buildAdjustmentSection(),
           ],
@@ -540,11 +577,28 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
 
           // Summary
           _buildSummaryItem("Title", _titleController.text),
-          _buildSummaryItem("Duration", _startDate != null && _endDate != null
-              ? "${_startDate!.month}/${_startDate!.day} - ${_endDate!.month}/${_endDate!.day}"
-              : ""),
-          _buildSummaryItem("Activity Level", _selectedActivityLevel ?? ""),
-          _buildSummaryItem("Goal", _selectedGoal ?? ""),
+          _buildSummaryItem(
+            "Duration",
+            _startDate != null && _endDate != null
+                ? "${_startDate!.month}/${_startDate!.day} - ${_endDate!.month}/${_endDate!.day}"
+                : "",
+          ),
+          _buildSummaryItem(
+            "Lifestyle",
+            lifestyleLevels.firstWhere(
+                  (l) => l["value"] == _selectedLifestyleLevel,
+                  orElse: () => {"label": ""},
+                )["label"] ??
+                "",
+          ),
+          _buildSummaryItem(
+            "Goal",
+            goals.firstWhere(
+                  (g) => g["value"] == _selectedGoal,
+                  orElse: () => {"label": ""},
+                )["label"] ??
+                "",
+          ),
 
           const SizedBox(height: 24),
 
@@ -564,20 +618,56 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
             child: Column(
               children: [
                 Text(
-                  "Your Daily Goals",
+                  "Your Daily Calorie Goal",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  "Baseline before exercise calories",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Center(
                   child: _buildGoalCard(
                     "$_calculatedCalorieGoal",
-                    "Calories",
+                    "Calories per day",
                     Icons.local_fire_department,
                     AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppColors.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Exercise calories will be added when you log workouts",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -599,10 +689,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -636,10 +723,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -665,17 +749,19 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     );
   }
 
-  Widget _buildActivityLevelOption(Map<String, dynamic> level) {
-    final isSelected = _selectedActivityLevel == level["value"];
+  Widget _buildLifestyleLevelOption(Map<String, dynamic> level) {
+    final isSelected = _selectedLifestyleLevel == level["value"];
     return GestureDetector(
       onTap: () {
-        setState(() => _selectedActivityLevel = level["value"]);
+        setState(() => _selectedLifestyleLevel = level["value"]);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.secondary.withOpacity(0.1) : Colors.white,
+          color: isSelected
+              ? AppColors.secondary.withOpacity(0.1)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.secondary : Colors.grey.shade300,
@@ -702,10 +788,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                   Text(
                     level["desc"],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -731,7 +814,9 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.secondary.withOpacity(0.1) : Colors.white,
+          color: isSelected
+              ? AppColors.secondary.withOpacity(0.1)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.secondary : Colors.grey.shade300,
@@ -758,10 +843,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   ),
                   Text(
                     goal["desc"],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -788,7 +870,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
             children: [
               Expanded(
                 child: Text(
-                  "Customize ${_selectedGoal == 'fat loss' ? 'deficit' : 'surplus'}",
+                  "Customize ${_selectedGoal == 'lose_fat' ? 'deficit' : 'surplus'}",
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -818,7 +900,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
               activeColor: AppColors.secondary,
             ),
             Text(
-              "${_selectedGoal == 'fat loss' ? '-' : '+'}${_goalAdjustment.round()} kcal/day",
+              "${_selectedGoal == 'lose_fat' ? '-' : '+'}${_goalAdjustment.round()} kcal/day",
               style: TextStyle(
                 color: AppColors.secondary,
                 fontWeight: FontWeight.w600,
@@ -843,18 +925,18 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  Widget _buildGoalCard(String value, String label, IconData icon, Color color) {
+  Widget _buildGoalCard(
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -875,10 +957,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           ),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
         ],
       ),

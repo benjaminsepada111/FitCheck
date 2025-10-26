@@ -18,14 +18,14 @@ class Trackers extends StatefulWidget {
   });
 
   @override
-  State<Trackers> createState() => _TrackersState();
+  State<Trackers> createState() => TrackersState();
 }
 
-class _TrackersState extends State<Trackers> {
+class TrackersState extends State<Trackers> {
   int _currentCalories = 0;
   int _calorieGoal = 2000;
-  int _currentBadges = 0;
-  int _badgeGoal = 10;
+  final int _currentBadges = 0;
+  final int _badgeGoal = 10;
   bool _isLoading = true;
 
   @override
@@ -64,9 +64,11 @@ class _TrackersState extends State<Trackers> {
 
       // Get calories from FoodLogService (same as FoodLogger)
       final totalCalories = widget.currentChallenge != null
-          ? (await FoodLogService.getDailyCalories(today, challengeId: widget.currentChallenge!.id)).round()
+          ? (await FoodLogService.getDailyCalories(
+              today,
+              challengeId: widget.currentChallenge!.id,
+            )).round()
           : 0;
-
 
       if (mounted) {
         setState(() {
@@ -74,7 +76,6 @@ class _TrackersState extends State<Trackers> {
           _currentCalories = totalCalories;
           _isLoading = false;
         });
-
 
         // Notify parent components
         widget.onCaloriesChanged(_currentCalories);
@@ -112,9 +113,11 @@ class _TrackersState extends State<Trackers> {
   int _getChallengeDaysGoal() {
     if (widget.currentChallenge == null) return 30;
 
-    final totalDays = widget.currentChallenge!.endDate
-        .difference(widget.currentChallenge!.startDate)
-        .inDays + 1;
+    final totalDays =
+        widget.currentChallenge!.endDate
+            .difference(widget.currentChallenge!.startDate)
+            .inDays +
+        1;
 
     return totalDays;
   }
@@ -124,7 +127,13 @@ class _TrackersState extends State<Trackers> {
     return (current / goal).clamp(0.0, 1.0);
   }
 
-  Widget _buildTracker(String label, int current, int goal, double progress, {bool isClickable = true}) {
+  Widget _buildTracker(
+    String label,
+    int current,
+    int goal,
+    double progress, {
+    bool isClickable = true,
+  }) {
     // Special handling for Badge - it's a button, not a tracker
     if (label == "Badge" || label == "Achievement") {
       return Expanded(
@@ -157,7 +166,9 @@ class _TrackersState extends State<Trackers> {
                             color: Colors.amber.shade600,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.amber.shade300.withOpacity(0.5),
+                                color: Colors.amber.shade300.withValues(
+                                  alpha: 0.5,
+                                ),
                                 blurRadius: 4,
                                 spreadRadius: 1,
                               ),
@@ -190,7 +201,7 @@ class _TrackersState extends State<Trackers> {
       );
     }
 
-    // Regular tracker for Calories and Streak
+    // Regular tracker for Calories and Progress
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -209,7 +220,7 @@ class _TrackersState extends State<Trackers> {
                     builder: (context, constraints) {
                       // Use the minimum dimension to ensure perfect circle
                       final size = constraints.maxWidth.clamp(60.0, 80.0);
-                      return Container(
+                      return SizedBox(
                         width: size,
                         height: size,
                         child: Stack(
@@ -221,7 +232,9 @@ class _TrackersState extends State<Trackers> {
                               child: CircularProgressIndicator(
                                 value: progress,
                                 strokeWidth: (size * 0.125).clamp(6.0, 10.0),
-                                backgroundColor: AppColors.secondary.withOpacity(0.2),
+                                backgroundColor: AppColors.secondary.withValues(
+                                  alpha: 0.2,
+                                ),
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   _getProgressColor(progress),
                                 ),
@@ -315,10 +328,7 @@ class _TrackersState extends State<Trackers> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Today's Progress",
-            style: AppTextStyles.heading2,
-          ),
+          const Text("Today's Progress", style: AppTextStyles.heading2),
           const SizedBox(height: 20),
           Container(
             height: 180,
@@ -328,15 +338,13 @@ class _TrackersState extends State<Trackers> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: const Center(
-              child: FitCheckLoader(),
-            ),
+            child: const Center(child: FitCheckLoader()),
           ),
         ],
       );
@@ -383,10 +391,7 @@ class _TrackersState extends State<Trackers> {
                 Text(
                   "Create a challenge to start tracking your progress",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade500,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                 ),
               ],
             ),
@@ -400,16 +405,16 @@ class _TrackersState extends State<Trackers> {
     final currentChallengeDay = _calculateChallengeDay();
 
     final calorieProgress = _calculateProgress(_currentCalories, _calorieGoal);
-    final challengeDayProgress = _calculateProgress(currentChallengeDay, challengeDaysGoal);
+    final challengeDayProgress = _calculateProgress(
+      currentChallengeDay,
+      challengeDaysGoal,
+    );
     final badgeProgress = _calculateProgress(_currentBadges, _badgeGoal);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Today's Progress",
-          style: AppTextStyles.heading2,
-        ),
+        const Text("Today's Progress", style: AppTextStyles.heading2),
         const SizedBox(height: 8),
         IntrinsicHeight(
           child: Row(
@@ -423,17 +428,29 @@ class _TrackersState extends State<Trackers> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.secondary.shade200, width: 1),
+                    border: Border.all(
+                      color: AppColors.secondary.shade200,
+                      width: 1,
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _buildTracker("Calories", _currentCalories, _calorieGoal, calorieProgress, isClickable: false),
-                      Container(
-                        width: 1,
-                        color: AppColors.secondary.shade300,
+                      _buildTracker(
+                        "Calories",
+                        _currentCalories,
+                        _calorieGoal,
+                        calorieProgress,
+                        isClickable: false,
                       ),
-                      _buildTracker("Progress", currentChallengeDay, challengeDaysGoal, challengeDayProgress, isClickable: false),
+                      Container(width: 1, color: AppColors.secondary.shade300),
+                      _buildTracker(
+                        "Progress",
+                        currentChallengeDay,
+                        challengeDaysGoal,
+                        challengeDayProgress,
+                        isClickable: false,
+                      ),
                     ],
                   ),
                 ),
@@ -447,9 +464,18 @@ class _TrackersState extends State<Trackers> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.secondary.shade200, width: 1),
+                    border: Border.all(
+                      color: AppColors.secondary.shade200,
+                      width: 1,
+                    ),
                   ),
-                  child: _buildTracker("Badge", _currentBadges, _badgeGoal, badgeProgress, isClickable: false),
+                  child: _buildTracker(
+                    "Badge",
+                    _currentBadges,
+                    _badgeGoal,
+                    badgeProgress,
+                    isClickable: false,
+                  ),
                 ),
               ),
             ],

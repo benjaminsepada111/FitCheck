@@ -1,7 +1,6 @@
 // models/challenge.dart
 import '../services/user_data_service.dart';
 
-
 class Challenge {
   final String id;
   final String title;
@@ -10,6 +9,8 @@ class Challenge {
   final int dailyCalorieGoal;
   final String notes;
   final DateTime createdAt;
+  final String lifecycleStatus; // 'active', 'completed', 'cancelled'
+  final DateTime? cancelledAt; // When the challenge was cancelled
 
   Challenge({
     required this.id,
@@ -19,6 +20,8 @@ class Challenge {
     required this.dailyCalorieGoal,
     required this.createdAt,
     this.notes = '',
+    this.lifecycleStatus = 'active',
+    this.cancelledAt,
   });
 
   /// Create a challenge with automatically calculated goals
@@ -30,7 +33,8 @@ class Challenge {
     String notes = '',
     int? customCalorieGoal, // Override calculated goal if needed
   }) async {
-    int calorieGoal = customCalorieGoal ?? await UserDataService.getDailyCalorieGoal();
+    int calorieGoal =
+        customCalorieGoal ?? await UserDataService.getDailyCalorieGoal();
 
     return Challenge(
       id: id,
@@ -48,24 +52,34 @@ class Challenge {
     return endDate.difference(startDate).inDays + 1;
   }
 
-  /// Check if challenge is currently active
+  /// Check if challenge is currently active (time-based and not cancelled)
   bool get isActive {
+    if (lifecycleStatus == 'cancelled') return false;
     final now = DateTime.now();
-    return now.isAfter(startDate) && now.isBefore(endDate.add(const Duration(days: 1)));
+    return now.isAfter(startDate) &&
+        now.isBefore(endDate.add(const Duration(days: 1)));
   }
 
-  /// Check if challenge is completed
+  /// Check if challenge is completed (time-based)
   bool get isCompleted {
+    if (lifecycleStatus == 'cancelled') return false;
     return DateTime.now().isAfter(endDate.add(const Duration(days: 1)));
+  }
+
+  /// Check if challenge is cancelled
+  bool get isCancelled {
+    return lifecycleStatus == 'cancelled';
   }
 
   /// Check if challenge is upcoming
   bool get isUpcoming {
+    if (lifecycleStatus == 'cancelled') return false;
     return DateTime.now().isBefore(startDate);
   }
 
   /// Get challenge status
   String get status {
+    if (lifecycleStatus == 'cancelled') return 'Cancelled';
     if (isCompleted) return 'Completed';
     if (isActive) return 'Active';
     return 'Upcoming';
@@ -138,7 +152,8 @@ class Challenge {
 
   /// Get a formatted date range string
   String get dateRangeString {
-    final startFormatted = '${startDate.month}/${startDate.day}/${startDate.year}';
+    final startFormatted =
+        '${startDate.month}/${startDate.day}/${startDate.year}';
     final endFormatted = '${endDate.month}/${endDate.day}/${endDate.year}';
     return '$startFormatted - $endFormatted';
   }
@@ -153,6 +168,8 @@ class Challenge {
       'dailyCalorieGoal': dailyCalorieGoal,
       'createdAt': createdAt.toIso8601String(),
       'notes': notes,
+      'lifecycleStatus': lifecycleStatus,
+      'cancelledAt': cancelledAt?.toIso8601String(),
     };
   }
 
@@ -166,6 +183,12 @@ class Challenge {
       dailyCalorieGoal: json['dailyCalorieGoal'],
       createdAt: DateTime.parse(json['createdAt']),
       notes: json['notes'] ?? '',
+      lifecycleStatus:
+          json['lifecycleStatus'] ??
+          'active', // Default to 'active' for backward compatibility
+      cancelledAt: json['cancelledAt'] != null
+          ? DateTime.parse(json['cancelledAt'])
+          : null,
     );
   }
 
@@ -178,6 +201,8 @@ class Challenge {
     int? dailyCalorieGoal,
     DateTime? createdAt,
     String? notes,
+    String? lifecycleStatus,
+    DateTime? cancelledAt,
   }) {
     return Challenge(
       id: id ?? this.id,
@@ -187,6 +212,8 @@ class Challenge {
       dailyCalorieGoal: dailyCalorieGoal ?? this.dailyCalorieGoal,
       createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
+      lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
     );
   }
 
@@ -205,7 +232,9 @@ class Challenge {
         other.endDate == endDate &&
         other.dailyCalorieGoal == dailyCalorieGoal &&
         other.createdAt == createdAt &&
-        other.notes == notes;
+        other.notes == notes &&
+        other.lifecycleStatus == lifecycleStatus &&
+        other.cancelledAt == cancelledAt;
   }
 
   @override
@@ -218,6 +247,8 @@ class Challenge {
       dailyCalorieGoal,
       createdAt,
       notes,
+      lifecycleStatus,
+      cancelledAt,
     );
   }
 }

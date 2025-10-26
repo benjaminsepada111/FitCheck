@@ -2,20 +2,35 @@
 import '../models/user_data.dart';
 
 class CalorieCalculator {
-  // Activity level multipliers for TDEE calculation
+  // Activity level multipliers for TDEE calculation (baseline before workouts)
   static const Map<String, double> activityMultipliers = {
-    'sedentary': 1.2,     // Little or no exercise
-    'light': 1.375,       // Light exercise 1-3 days/week
-    'moderate': 1.55,     // Moderate exercise 3-5 days/week
-    'active': 1.725,      // Hard exercise 6-7 days/week
-    'very active': 1.9,   // Hard daily exercise or physical job
+    'lightly_active': 1.375, // Desk job, student, light daily activity
+    'lightly active': 1.375, // Alternative format
+    'active': 1.55, // On feet regularly (teacher, retail, parent)
+    'very_active': 1.725, // Physically demanding work (nurse, construction)
+    'very active': 1.725, // Alternative format
+    'extra_active': 1.9, // Highly physical (athlete, fitness trainer)
+    'extra active': 1.9, // Alternative format
+    // Legacy support for backward compatibility
+    'sedentary': 1.2,
+    'light': 1.375,
+    'moderate': 1.55,
+    'not_active': 1.375,
   };
 
   // Default calorie adjustments for goals
   static const Map<String, int> defaultGoalAdjustments = {
-    'maintain': 0,
-    'fat loss': -500,     // 1 lb per week loss
-    'muscle gain': 500,   // Moderate surplus for muscle gain
+    'maintain_weight': 0,
+    'maintain weight': 0,
+    'maintain': 0, // Legacy
+    'lose_fat': -500, // 1 lb per week loss
+    'lose fat': -500, // Alternative format
+    'fat loss': -500, // Legacy
+    'gain_muscle': 500, // Moderate surplus for muscle gain
+    'gain muscle': 500, // Alternative format
+    'muscle gain': 500, // Legacy
+    'deficit': -500, // Legacy
+    'surplus': 500, // Legacy
   };
 
   /// Calculate BMR using Mifflin-St Jeor Equation
@@ -61,9 +76,8 @@ class CalorieCalculator {
     final goal = userData.goal!.toLowerCase();
 
     // Use custom adjustment if provided, otherwise use default
-    final adjustment = userData.goalAdjustment?.toInt() ??
-        defaultGoalAdjustments[goal] ??
-        0;
+    final adjustment =
+        userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
 
     final dailyGoal = (tdee + adjustment).round();
 
@@ -111,9 +125,8 @@ class CalorieCalculator {
     final bmr = calculateBMR(userData).round();
     final tdee = calculateTDEE(userData).round();
     final goal = userData.goal!.toLowerCase();
-    final adjustment = userData.goalAdjustment?.toInt() ??
-        defaultGoalAdjustments[goal] ??
-        0;
+    final adjustment =
+        userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
     final dailyGoal = calculateDailyCalorieGoal(userData);
 
     return {
@@ -124,7 +137,7 @@ class CalorieCalculator {
       'dailyGoal': dailyGoal,
       'activityLevel': userData.activityLevel,
       'activityMultiplier':
-      activityMultipliers[userData.activityLevel!.toLowerCase()] ?? 1.2,
+          activityMultipliers[userData.activityLevel!.toLowerCase()] ?? 1.2,
     };
   }
 
@@ -134,8 +147,8 @@ class CalorieCalculator {
 
     // Default macro distribution
     double proteinPercentage = 0.25; // 25%
-    double fatPercentage = 0.30;     // 30%
-    double carbPercentage = 0.45;    // 45%
+    double fatPercentage = 0.30; // 30%
+    double carbPercentage = 0.45; // 45%
 
     final goal = userData.goal!.toLowerCase();
 
@@ -220,9 +233,8 @@ class CalorieCalculator {
     if (!isValidUserData(userData)) return 0.0;
 
     final goal = userData.goal!.toLowerCase();
-    final adjustment = userData.goalAdjustment?.toInt() ??
-        defaultGoalAdjustments[goal] ??
-        0;
+    final adjustment =
+        userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
 
     return (adjustment * 7) / 3500.0; // pounds per week
   }

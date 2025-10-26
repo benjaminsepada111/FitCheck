@@ -68,8 +68,7 @@ class _ProfilePageState extends State<ProfilePage> {
           });
         }
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -79,7 +78,9 @@ class _ProfilePageState extends State<ProfilePage> {
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           content: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -117,7 +118,9 @@ class _ProfilePageState extends State<ProfilePage> {
             content: const Text('Failed to sign out. Please try again.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -129,7 +132,9 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -150,10 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 20),
                 const Text(
                   'Sign Out',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -241,8 +243,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _formatDate(DateTime date) {
     final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -260,7 +272,9 @@ class _ProfilePageState extends State<ProfilePage> {
       if (months == 1) {
         return remainingDays > 0 ? '1 month, $remainingDays days' : '1 month';
       }
-      return remainingDays > 0 ? '$months months, $remainingDays days' : '$months months';
+      return remainingDays > 0
+          ? '$months months, $remainingDays days'
+          : '$months months';
     } else {
       final years = (days / 365).floor();
       final months = ((days % 365) / 30).floor();
@@ -277,19 +291,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          "Account",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -300,7 +301,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   onTap: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
+                      MaterialPageRoute(
+                        builder: (_) => const PersonalInfoPage(),
+                      ),
                     );
                     // Reload user data after returning from PersonalInfoPage
                     _loadUserData();
@@ -356,7 +359,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _userData?.name ?? user?.displayName ?? 'User',
+                                  _userData?.name ??
+                                      user?.displayName ??
+                                      'User',
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -416,7 +421,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     "Update your password",
                     () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordPage(),
+                      ),
                     ),
                   ),
                   const Divider(height: 1, indent: 60),
@@ -573,7 +580,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   child: ListTile(
                     onTap: () => _showLogoutDialog(context),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -622,11 +632,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: AppColors.secondary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: AppColors.secondary,
-          size: 22,
-        ),
+        child: Icon(icon, color: AppColors.secondary, size: 22),
       ),
       title: Text(
         title,
@@ -638,10 +644,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey.shade600,
-        ),
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
       ),
       trailing: Icon(
         Icons.arrow_forward_ios,
@@ -672,10 +675,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey.shade600,
-        ),
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
       ),
       secondary: Container(
         padding: const EdgeInsets.all(10),
@@ -683,11 +683,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: AppColors.secondary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: AppColors.secondary,
-          size: 22,
-        ),
+        child: Icon(icon, color: AppColors.secondary, size: 22),
       ),
       activeColor: AppColors.secondary,
       activeTrackColor: AppColors.secondary.withOpacity(0.3),
@@ -695,11 +691,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  static Widget _buildInfoTile(
-    IconData icon,
-    String title,
-    String value,
-  ) {
+  static Widget _buildInfoTile(IconData icon, String title, String value) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
@@ -708,11 +700,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: AppColors.secondary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: AppColors.secondary,
-          size: 22,
-        ),
+        child: Icon(icon, color: AppColors.secondary, size: 22),
       ),
       title: Text(
         title,

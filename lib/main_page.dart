@@ -19,7 +19,6 @@ import 'services/user_achievement_service.dart';
 import 'UserInputFile/genderselection.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
-
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
   final List<Challenge>? initialChallengeHistory;
@@ -58,12 +57,14 @@ class _MainPageState extends State<MainPage> {
   Future<void> _initializeWithPreloadedData() async {
     try {
       // Use preloaded data if provided
-      if (widget.initialChallenge != null || widget.initialChallengeHistory != null) {
+      if (widget.initialChallenge != null ||
+          widget.initialChallengeHistory != null) {
         if (mounted) {
           setState(() {
             _currentChallenge = widget.initialChallenge;
             _challengeHistory = widget.initialChallengeHistory ?? [];
-            _selectedChallenge = widget.initialChallenge?.title ?? "No Challenge";
+            _selectedChallenge =
+                widget.initialChallenge?.title ?? "No Challenge";
             _isInitialized = true;
           });
         }
@@ -110,11 +111,14 @@ class _MainPageState extends State<MainPage> {
       await LoginTrackerService.recordDailyLogin();
       await UserAchievementService.trackDailyLogin();
 
-      final newlyUnlocked = await UserAchievementService.checkAndUnlockAchievements();
+      final newlyUnlocked =
+          await UserAchievementService.checkAndUnlockAchievements();
 
       if (newlyUnlocked.isNotEmpty && mounted) {
         for (final id in newlyUnlocked) {
-          final achievement = UserAchievementService.getAchievementWithMetadata(id);
+          final achievement = UserAchievementService.getAchievementWithMetadata(
+            id,
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -144,7 +148,9 @@ class _MainPageState extends State<MainPage> {
               ),
               backgroundColor: Colors.green.shade600,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               duration: const Duration(seconds: 4),
             ),
           );
@@ -234,9 +240,8 @@ class _MainPageState extends State<MainPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => CreateChallengeSheet(
-        onChallengeCreated: _onChallengeCreated,
-      ),
+      builder: (context) =>
+          CreateChallengeSheet(onChallengeCreated: _onChallengeCreated),
     );
   }
 
@@ -274,7 +279,9 @@ class _MainPageState extends State<MainPage> {
     if (_currentChallenge == null) return;
 
     try {
-      final success = await ChallengeService.deleteChallenge(_currentChallenge!.id);
+      final success = await ChallengeService.deleteChallenge(
+        _currentChallenge!.id,
+      );
 
       if (success) {
         await _loadChallengeData();
@@ -331,9 +338,7 @@ class _MainPageState extends State<MainPage> {
         ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 4),
         action: SnackBarAction(
           label: 'View',
@@ -385,7 +390,8 @@ class _MainPageState extends State<MainPage> {
       } else {
         try {
           _currentChallenge = _challengeHistory.firstWhere(
-                  (challenge) => challenge.title == challengeTitle);
+            (challenge) => challenge.title == challengeTitle,
+          );
         } catch (e) {
           _currentChallenge = null;
         }
@@ -473,7 +479,11 @@ class _MainPageState extends State<MainPage> {
           value: "Create New Challenge",
           child: Row(
             children: [
-              Icon(Icons.add_circle_outline, color: AppColors.secondary, size: 20),
+              Icon(
+                Icons.add_circle_outline,
+                color: AppColors.secondary,
+                size: 20,
+              ),
               SizedBox(width: 10),
               Text(
                 "Create New Challenge",
@@ -534,7 +544,6 @@ class _MainPageState extends State<MainPage> {
 
   Widget _getBody() {
     // Use IndexedStack to keep pages alive and prevent rebuilding
-    // Note: ProfilePage (index 3) is handled separately in build() to avoid NestedScrollView
     return IndexedStack(
       index: _selectedIndex,
       children: [
@@ -545,7 +554,8 @@ class _MainPageState extends State<MainPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MilestoneJourney(
-                key: _milestoneKey, // GlobalKey maintains identity across rebuilds
+                key:
+                    _milestoneKey, // GlobalKey maintains identity across rebuilds
                 currentChallenge: _currentChallenge,
                 onCreateChallenge: _showCreateChallenge,
               ),
@@ -575,6 +585,8 @@ class _MainPageState extends State<MainPage> {
           key: _workoutPageKey, // GlobalKey maintains identity across rebuilds
           currentChallenge: _currentChallenge,
         ),
+        // Profile page (index 3)
+        const ProfilePage(),
       ],
     );
   }
@@ -583,94 +595,89 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: _selectedIndex == 3
-          ? const ProfilePage() // Profile page without header (direct widget, not IndexedStack)
-          : NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) {
-                return [
-                  SliverAppBar(
-                    automaticallyImplyLeading: false,
-                    backgroundColor: Colors.white,
-                    surfaceTintColor: Colors.white,
-                    pinned: true,
-                    elevation: 4,
-                    shadowColor: Colors.black.withOpacity(0.1),
-                    toolbarHeight: 60,
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "FitCheck",
-                          style: AppTextStyles.appTitle,
-                        ),
-                        PopupMenuButton<String>(
-                          offset: const Offset(0, 20),
-                          onSelected: (value) {
-                            if (value == "View Challenge History") {
-                              _showChallengeHistory();
-                            } else {
-                              _onChallengeSelected(value);
-                            }
-                          },
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          color: Colors.white,
-                          elevation: 6,
-                          itemBuilder: (context) => _buildPopupMenuItems(),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              pinned: true,
+              elevation: 4,
+              shadowColor: Colors.black.withOpacity(0.1),
+              toolbarHeight: 60,
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("FitCheck", style: AppTextStyles.appTitle),
+                  PopupMenuButton<String>(
+                    offset: const Offset(0, 20),
+                    onSelected: (value) {
+                      if (value == "View Challenge History") {
+                        _showChallengeHistory();
+                      } else {
+                        _onChallengeSelected(value);
+                      }
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    color: Colors.white,
+                    elevation: 6,
+                    itemBuilder: (context) => _buildPopupMenuItems(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: _currentChallenge != null
-                                        ? Colors.green
-                                        : Colors.grey,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 150),
-                                  child: Text(
-                                    _selectedChallenge,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.black,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: Colors.black54,
-                                  size: 20,
-                                ),
-                              ],
+                              color: _currentChallenge != null
+                                  ? Colors.green
+                                  : Colors.grey,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        )
-                      ],
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 150),
+                            child: Text(
+                              _selectedChallenge,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.black54,
+                            size: 20,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ];
-              },
-              body: _getBody(),
+                ],
+              ),
             ),
+          ];
+        },
+        body: _getBody(),
+      ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -746,8 +753,9 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
       if (mounted) {
         setState(() {
           _preloadedChallengeHistory = allChallenges;
-          _preloadedChallenge =
-          activeChallenges.isNotEmpty ? activeChallenges.first : null;
+          _preloadedChallenge = activeChallenges.isNotEmpty
+              ? activeChallenges.first
+              : null;
         });
       }
     } catch (e) {

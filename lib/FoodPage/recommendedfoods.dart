@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/spoonacular_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import '../app_text_styles.dart';
 
 class RecommendedFoods extends StatefulWidget {
   final Function(String foodName, int calories)? onFoodTapped;
 
-  const RecommendedFoods({
-    super.key,
-    this.onFoodTapped,
-  });
+  const RecommendedFoods({super.key, this.onFoodTapped});
 
   @override
   State<RecommendedFoods> createState() => _RecommendedFoodsState();
@@ -18,7 +16,6 @@ class RecommendedFoods extends StatefulWidget {
 class _RecommendedFoodsState extends State<RecommendedFoods> {
   List<RecommendedFood> _recommendedFoods = [];
   bool _isLoading = true;
-  String _errorMessage = '';
   String _currentMealType = '';
 
   @override
@@ -30,7 +27,6 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
   Future<void> _loadRecommendedFoods() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = '';
       _currentMealType = SpoonacularService.getCurrentMealType();
     });
 
@@ -61,7 +57,6 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
           setState(() {
             _recommendedFoods = recipeFoods;
             _isLoading = false;
-            _errorMessage = '';
           });
           return;
         }
@@ -73,7 +68,6 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
       setState(() {
         _recommendedFoods = _getFallbackFoods();
         _isLoading = false;
-        _errorMessage = 'Showing popular ${SpoonacularService.getMealTypeDisplayName(_currentMealType).toLowerCase()} foods';
       });
     }
   }
@@ -86,52 +80,100 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
       // Breakfast foods
       return [
         RecommendedFood(
-          id: 1, name: 'Oatmeal', image: '', calories: 389, source: 'fallback',
+          id: 1,
+          name: 'Oatmeal',
+          image: '',
+          calories: 389,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 2, name: 'Banana', image: '', calories: 89, source: 'fallback',
+          id: 2,
+          name: 'Banana',
+          image: '',
+          calories: 89,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 3, name: 'Eggs', image: '', calories: 155, source: 'fallback',
+          id: 3,
+          name: 'Eggs',
+          image: '',
+          calories: 155,
+          source: 'fallback',
         ),
       ];
     } else if (hour >= 11 && hour < 15) {
       // Lunch foods
       return [
         RecommendedFood(
-          id: 4, name: 'Chicken Breast', image: '', calories: 165, source: 'fallback',
+          id: 4,
+          name: 'Chicken Breast',
+          image: '',
+          calories: 165,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 5, name: 'Quinoa', image: '', calories: 120, source: 'fallback',
+          id: 5,
+          name: 'Quinoa',
+          image: '',
+          calories: 120,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 6, name: 'Broccoli', image: '', calories: 25, source: 'fallback',
+          id: 6,
+          name: 'Broccoli',
+          image: '',
+          calories: 25,
+          source: 'fallback',
         ),
       ];
     } else if (hour >= 15 && hour < 18) {
       // Snack foods
       return [
         RecommendedFood(
-          id: 7, name: 'Apple', image: '', calories: 52, source: 'fallback',
+          id: 7,
+          name: 'Apple',
+          image: '',
+          calories: 52,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 8, name: 'Almonds', image: '', calories: 579, source: 'fallback',
+          id: 8,
+          name: 'Almonds',
+          image: '',
+          calories: 579,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 9, name: 'Greek Yogurt', image: '', calories: 100, source: 'fallback',
+          id: 9,
+          name: 'Greek Yogurt',
+          image: '',
+          calories: 100,
+          source: 'fallback',
         ),
       ];
     } else {
       // Dinner foods
       return [
         RecommendedFood(
-          id: 10, name: 'Salmon', image: '', calories: 142, source: 'fallback',
+          id: 10,
+          name: 'Salmon',
+          image: '',
+          calories: 142,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 11, name: 'Sweet Potato', image: '', calories: 76, source: 'fallback',
+          id: 11,
+          name: 'Sweet Potato',
+          image: '',
+          calories: 76,
+          source: 'fallback',
         ),
         RecommendedFood(
-          id: 12, name: 'Brown Rice', image: '', calories: 123, source: 'fallback',
+          id: 12,
+          name: 'Brown Rice',
+          image: '',
+          calories: 123,
+          source: 'fallback',
         ),
       ];
     }
@@ -145,49 +187,23 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
     // to avoid duplicate dialogs and overlay issues
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Recommended for ${SpoonacularService.getMealTypeDisplayName(_currentMealType)}",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                if (_errorMessage.isNotEmpty)
-                  Text(
-                    _errorMessage,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                  ),
-              ],
-            ),
-            IconButton(
-              onPressed: _loadRecommendedFoods,
-              icon: Icon(
-                Icons.refresh,
-                color: AppColors.secondary,
-                size: 20,
-              ),
-              tooltip: 'Refresh recommendations',
-            ),
-          ],
+        // Header
+        const Padding(
+          padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: Text("Recommended Foods", style: AppTextStyles.heading2),
         ),
-        const SizedBox(height: 12),
 
+        // Food List
         SizedBox(
           height: 160,
-          child: _isLoading
-              ? _buildLoadingState()
-              : _buildFoodList(),
+          child: _isLoading ? _buildLoadingState() : _buildFoodList(),
         ),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -203,9 +219,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                 color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Center(
-                child: FitCheckLoader(),
-              ),
+              child: const Center(child: FitCheckLoader()),
             ),
           ),
         ],
@@ -247,9 +261,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
       children: [
         for (int index = 0; index < displayFoods.length; index++) ...[
           if (index > 0) const SizedBox(width: 6),
-          Expanded(
-            child: _buildFoodCard(displayFoods[index]),
-          ),
+          Expanded(child: _buildFoodCard(displayFoods[index])),
         ],
       ],
     );
@@ -264,7 +276,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
           color: Colors.grey.shade100,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -294,9 +306,9 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withValues(alpha:0.7),
-                    Colors.black.withValues(alpha:0.3),
-                    Colors.transparent
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.black.withValues(alpha: 0.3),
+                    Colors.transparent,
                   ],
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
@@ -338,27 +350,6 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
                 ),
               ),
             ),
-
-            // Time-based indicator
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _getMealTypeColor().withValues(alpha:0.9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _currentMealType.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -371,8 +362,8 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
           colors: [
-            AppColors.secondary.withValues(alpha:0.7),
-            AppColors.secondary.withValues(alpha:0.5),
+            AppColors.secondary.withValues(alpha: 0.7),
+            AppColors.secondary.withValues(alpha: 0.5),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -382,11 +373,7 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              _getFoodIcon(foodName),
-              color: Colors.white,
-              size: 32,
-            ),
+            Icon(_getFoodIcon(foodName), color: Colors.white, size: 32),
             const SizedBox(height: 4),
             Text(
               foodName,
@@ -405,23 +392,19 @@ class _RecommendedFoodsState extends State<RecommendedFoods> {
 
   IconData _getFoodIcon(String foodName) {
     final name = foodName.toLowerCase();
-    if (name.contains('chicken') || name.contains('meat')) return Icons.set_meal;
+    if (name.contains('chicken') || name.contains('meat'))
+      return Icons.set_meal;
     if (name.contains('fish') || name.contains('salmon')) return Icons.set_meal;
-    if (name.contains('apple') || name.contains('banana') || name.contains('fruit')) return Icons.apple;
+    if (name.contains('apple') ||
+        name.contains('banana') ||
+        name.contains('fruit'))
+      return Icons.apple;
     if (name.contains('rice') || name.contains('grain')) return Icons.grain;
     if (name.contains('egg')) return Icons.egg_alt;
-    if (name.contains('milk') || name.contains('yogurt')) return Icons.local_drink;
-    if (name.contains('vegetable') || name.contains('broccoli')) return Icons.grass;
+    if (name.contains('milk') || name.contains('yogurt'))
+      return Icons.local_drink;
+    if (name.contains('vegetable') || name.contains('broccoli'))
+      return Icons.grass;
     return Icons.restaurant_menu;
-  }
-
-  Color _getMealTypeColor() {
-    switch (_currentMealType) {
-      case 'breakfast': return Colors.orange;
-      case 'lunch': return Colors.green;
-      case 'snack': return Colors.purple;
-      case 'dinner': return Colors.blue;
-      default: return AppColors.secondary;
-    }
   }
 }

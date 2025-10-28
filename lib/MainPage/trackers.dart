@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
@@ -8,6 +7,7 @@ import 'package:capstone_project/achievements_page.dart';
 import '../app_text_styles.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'dart:async';
+import 'dart:math' as math;
 
 class Trackers extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -23,7 +23,8 @@ class Trackers extends StatefulWidget {
   State<Trackers> createState() => TrackersState();
 }
 
-class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin {
+class TrackersState extends State<Trackers>
+    with SingleTickerProviderStateMixin {
   int _currentCalories = 0;
   int _calorieGoal = 2000;
   int _caloriesBurned = 0;
@@ -66,7 +67,13 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
     super.didUpdateWidget(oldWidget);
     // Reload data when widget updates (e.g., challenge changes)
     if (oldWidget.currentChallenge != widget.currentChallenge) {
+      // Cancel old subscriptions
+      _foodLogSubscription?.cancel();
+      _workoutSubscription?.cancel();
+
+      // Reload data and setup new listeners
       _loadTodaysData();
+      _setupRealtimeListeners();
     }
   }
 
@@ -146,9 +153,35 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
   void _setupRealtimeListeners() {
     if (widget.currentChallenge == null) return;
 
-    // Note: FoodLogService has getFoodLogsStreamForDate but WorkoutService
-    // doesn't have a date-specific stream. For now, we'll rely on manual refresh
-    // via the refreshData() method called from parent widgets.
+    final today = DateTime.now();
+
+    // Listen to food log changes
+    _foodLogSubscription =
+        FoodLogService.getFoodLogsStreamForDate(
+          today,
+          challengeId: widget.currentChallenge!.id,
+        ).listen((foodLogs) {
+          if (!mounted) return;
+
+          // Calculate total calories from food logs
+          double totalCalories = 0;
+          for (final log in foodLogs) {
+            totalCalories += log.totalCalories;
+          }
+
+          setState(() {
+            _currentCalories = totalCalories.round();
+          });
+
+          // Trigger animation
+          _animationController.forward(from: 0);
+
+          // Notify parent
+          widget.onCaloriesChanged(_currentCalories);
+        });
+
+    // Note: WorkoutService doesn't have a real-time stream yet
+    // We'll refresh manually when workouts are added
   }
 
   // Public method to refresh data (can be called from parent)
@@ -156,301 +189,245 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
     _loadTodaysData();
   }
 
-  // Calculate net calories (goal - consumed + burned)
-  int _calculateNetCalories() {
-    return _calorieGoal - _currentCalories + _caloriesBurned;
-  }
-
   double _calculateProgress(int current, int goal) {
     if (goal <= 0) return 0.0;
     return (current / goal).clamp(0.0, 1.0);
   }
 
-  Color _getProgressColor(double progress) {
-    if (progress >= 0.9) {
-      return AppColors.secondary;
-    } else if (progress >= 0.7) {
-      return AppColors.secondary.shade600;
-    } else if (progress >= 0.4) {
-      return AppColors.secondary.shade500;
-    } else {
-      return AppColors.secondary.shade400;
-    }
-  }
+  // Build the main calorie overview card with enhanced design
+  Widget _buildCalorieOverviewCard() {
+    // Net calories = consumed - burned (minimum 0)
+    final netCalories = (_currentCalories - _caloriesBurned)
+        .clamp(0, double.infinity)
+        .toInt();
+    final progress = _calculateProgress(netCalories, _calorieGoal);
+    final isOverGoal = netCalories > _calorieGoal;
 
-  // Build Calories Consumed Card (with white gradient and floating shadow)
-  Widget _buildCaloriesConsumedCard() {
-    final progress = _calculateProgress(_currentCalories, _calorieGoal);
-    final progressColor = _getProgressColor(progress);
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              progressColor.withValues(alpha: 0.05),
-              progressColor.withValues(alpha: 0.12),
-            ],
-            stops: const [0.0, 0.6, 1.0],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Background icon with opacity
-            Positioned(
-              right: -10,
-              bottom: -10,
-              child: Icon(
-                Icons.restaurant,
-                size: 70,
-                color: progressColor.withValues(alpha: 0.06),
-              ),
-            ),
-            // Content
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Consumed",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      "$_currentCalories",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: progressColor,
-                        height: 1,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "kcal",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
-    );
-  }
-
-  // Build Net Calories Card (with white gradient and floating shadow)
-  Widget _buildNetCaloriesCard() {
-    final netCalories = _calculateNetCalories();
-    final isPositive = netCalories >= 0;
-    final displayColor = isPositive ? Colors.green.shade600 : Colors.red.shade600;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              displayColor.withValues(alpha: 0.05),
-              displayColor.withValues(alpha: 0.12),
-            ],
-            stops: const [0.0, 0.6, 1.0],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Background icon with opacity
-            Positioned(
-              right: -10,
-              bottom: -10,
-              child: Icon(
-                isPositive ? Icons.trending_down : Icons.trending_up,
-                size: 70,
-                color: displayColor.withValues(alpha: 0.06),
-              ),
-            ),
-            // Content
-            Column(
-              mainAxisSize: MainAxisSize.min,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isPositive ? "Remaining" : "Over Limit",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade700,
-                    letterSpacing: 0.3,
-                  ),
+                // Circular Progress Indicator
+                AnimatedBuilder(
+                  animation: _progressAnimation,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      size: const Size(140, 140),
+                      painter: _CircularProgressPainter(
+                        progress: progress * _progressAnimation.value,
+                        isOverGoal: isOverGoal,
+                        backgroundColor: Colors.red.shade50,
+                        progressColor: Colors.red.shade600,
+                      ),
+                      child: SizedBox(
+                        width: 140,
+                        height: 140,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                netCalories.toString(),
+                                style: TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.red.shade700,
+                                  height: 1.0,
+                                  letterSpacing: -1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '/$_calorieGoal cal',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red.shade400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      netCalories.abs().toString(),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: displayColor,
-                        height: 1,
-                        letterSpacing: -0.5,
+                const SizedBox(width: 20),
+
+                // Stats Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Consumed Calories
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white,
+                              Colors.red.shade50.withOpacity(0.3),
+                              Colors.red.shade50.withOpacity(0.5),
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.red.shade100,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.red.shade50,
+                                    Colors.red.shade100.withOpacity(0.4),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.restaurant_rounded,
+                                color: Colors.red.shade400,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Consumed',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red.shade400,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$_currentCalories cal',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.red.shade500,
+                                      height: 1.1,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "kcal",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                        letterSpacing: 0.2,
+                      const SizedBox(height: 10),
+
+                      // Burned Calories
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white,
+                              Colors.red.shade50.withOpacity(0.3),
+                              Colors.red.shade50.withOpacity(0.5),
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.red.shade100,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.red.shade50,
+                                    Colors.red.shade100.withOpacity(0.4),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.local_fire_department_rounded,
+                                color: Colors.red.shade400,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Burned',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red.shade400,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$_caloriesBurned cal',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.red.shade500,
+                                      height: 1.1,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Build Calories Burned Card (with white gradient and floating shadow)
-  Widget _buildCaloriesBurnedCard() {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Colors.orange.shade300.withValues(alpha: 0.05),
-              Colors.orange.shade300.withValues(alpha: 0.12),
-            ],
-            stops: const [0.0, 0.6, 1.0],
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Background fire icon with opacity
-            Positioned(
-              right: -10,
-              bottom: -10,
-              child: Icon(
-                Icons.local_fire_department,
-                size: 70,
-                color: Colors.orange.shade500.withValues(alpha: 0.06),
-              ),
-            ),
-            // Content
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Burned",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      "$_caloriesBurned",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange.shade800,
-                        height: 1,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "kcal",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -461,9 +438,7 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const AchievementsPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const AchievementsPage()),
         );
       },
       child: Container(
@@ -481,10 +456,7 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
             stops: const [0.0, 0.6, 1.0],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey.shade200, width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -504,10 +476,7 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.amber.shade400,
-                    Colors.amber.shade600,
-                  ],
+                  colors: [Colors.amber.shade400, Colors.amber.shade600],
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -577,11 +546,7 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
                 ),
               )
             else
-              Icon(
-                Icons.chevron_right,
-                color: Colors.amber.shade700,
-                size: 24,
-              ),
+              Icon(Icons.chevron_right, color: Colors.amber.shade700, size: 24),
           ],
         ),
       ),
@@ -671,50 +636,85 @@ class TrackersState extends State<Trackers> with SingleTickerProviderStateMixin 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title with daily goal
-        Padding(
-          padding: const EdgeInsets.only(left: 4.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                "Calorie Overview",
-                style: AppTextStyles.heading2.copyWith(
-                  fontSize: 19,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "• $_calorieGoal kcal goal",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
-                  letterSpacing: 0.1,
-                ),
-              ),
-            ],
-          ),
+        // Title
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Text("Calorie Overview", style: AppTextStyles.heading2),
         ),
-        const SizedBox(height: 12),
 
-        // Three square cards: Consumed | Net | Burned
-        Row(
-          children: [
-            _buildCaloriesConsumedCard(),
-            const SizedBox(width: 10),
-            _buildNetCaloriesCard(),
-            const SizedBox(width: 10),
-            _buildCaloriesBurnedCard(),
-          ],
-        ),
+        // Main calorie overview card with circular progress
+        _buildCalorieOverviewCard(),
 
         // Achievement Rectangle (Full Width)
         _buildAchievementRectangle(),
       ],
     );
+  }
+}
+
+// Custom painter for circular progress indicator
+class _CircularProgressPainter extends CustomPainter {
+  final double progress;
+  final bool isOverGoal;
+  final Color backgroundColor;
+  final Color progressColor;
+
+  _CircularProgressPainter({
+    required this.progress,
+    required this.isOverGoal,
+    required this.backgroundColor,
+    required this.progressColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2 - 8;
+    const strokeWidth = 12.0;
+
+    // Background circle
+    final backgroundPaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, backgroundPaint);
+
+    // Progress arc
+    if (progress > 0) {
+      final progressPaint = Paint()
+        ..color = progressColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      final sweepAngle = 2 * math.pi * progress;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2,
+        sweepAngle,
+        false,
+        progressPaint,
+      );
+
+      // Add subtle dot at the end
+      final endAngle = -math.pi / 2 + sweepAngle;
+      final endX = center.dx + radius * math.cos(endAngle);
+      final endY = center.dy + radius * math.sin(endAngle);
+      final endPoint = Offset(endX, endY);
+
+      final dotPaint = Paint()
+        ..color = progressColor
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(endPoint, strokeWidth / 2.2, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CircularProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.isOverGoal != isOverGoal;
   }
 }

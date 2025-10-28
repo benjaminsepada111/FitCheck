@@ -7,16 +7,13 @@ import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:capstone_project/services/notification_service.dart';
+import '../app_text_styles.dart';
 
 class MealsSection extends StatefulWidget {
   final VoidCallback? onCaloriesUpdated; // Add callback for tracker updates
   final String? challengeId;
 
-  const MealsSection({
-    super.key,
-    this.onCaloriesUpdated,
-    this.challengeId,
-  });
+  const MealsSection({super.key, this.onCaloriesUpdated, this.challengeId});
 
   @override
   State<MealsSection> createState() => MealsSectionState();
@@ -53,7 +50,10 @@ class MealsSectionState extends State<MealsSection> {
       }
 
       // Load from Firebase
-      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate, challengeId: widget.challengeId!);
+      final foodLogs = await FoodLogService.getFoodLogsForDate(
+        _currentDate,
+        challengeId: widget.challengeId!,
+      );
 
       final meals = ['Snack', 'Breakfast', 'Lunch', 'Dinner'];
       Map<String, List<FoodEntry>> entries = {};
@@ -81,18 +81,27 @@ class MealsSectionState extends State<MealsSection> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to load meal data. Please check your connection.'),
+            content: const Text(
+              'Failed to load meal data. Please check your connection.',
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
     }
   }
 
-
-  void _onFoodAdded(String foodName, int calories, String mealType, {double? grams, String? imageUrl}) async {
+  void _onFoodAdded(
+    String foodName,
+    int calories,
+    String mealType, {
+    double? grams,
+    String? imageUrl,
+  }) async {
     try {
       // Create new food entry
       final foodEntry = FoodEntry(
@@ -127,7 +136,9 @@ class MealsSectionState extends State<MealsSection> {
               content: Text('Successfully added to $mealType!'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           );
         }
@@ -152,7 +163,9 @@ class MealsSectionState extends State<MealsSection> {
             content: Text('Failed to save $foodName. Please try again.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -171,7 +184,10 @@ class MealsSectionState extends State<MealsSection> {
       }
 
       // Find the meal log containing this entry and remove it
-      final foodLogs = await FoodLogService.getFoodLogsForDate(_currentDate, challengeId: widget.challengeId!);
+      final foodLogs = await FoodLogService.getFoodLogsForDate(
+        _currentDate,
+        challengeId: widget.challengeId!,
+      );
 
       // Find which meal contains this entry
       FoodLog? targetMeal;
@@ -184,19 +200,27 @@ class MealsSectionState extends State<MealsSection> {
 
       if (targetMeal != null) {
         // Remove the entry from the meal
-        final updatedEntries = targetMeal.entries.where((e) => e.id != entry.id).toList();
+        final updatedEntries = targetMeal.entries
+            .where((e) => e.id != entry.id)
+            .toList();
 
         bool success;
         if (updatedEntries.isEmpty) {
           // Delete the entire meal if no entries left
-          success = await FoodLogService.deleteFoodLog(targetMeal.id, challengeId: widget.challengeId!);
+          success = await FoodLogService.deleteFoodLog(
+            targetMeal.id,
+            challengeId: widget.challengeId!,
+          );
         } else {
           // Update the meal with remaining entries
           final updatedMeal = targetMeal.copyWith(
             entries: updatedEntries,
             updatedAt: DateTime.now(),
           );
-          success = await FoodLogService.updateFoodLog(updatedMeal, challengeId: widget.challengeId!);
+          success = await FoodLogService.updateFoodLog(
+            updatedMeal,
+            challengeId: widget.challengeId!,
+          );
         }
 
         if (success) {
@@ -207,7 +231,9 @@ class MealsSectionState extends State<MealsSection> {
                 content: Text('${entry.foodName} removed successfully'),
                 backgroundColor: AppColors.secondary,
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             );
           }
@@ -227,10 +253,14 @@ class MealsSectionState extends State<MealsSection> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to remove ${entry.foodName}. Please try again.'),
+            content: Text(
+              'Failed to remove ${entry.foodName}. Please try again.',
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -292,11 +322,10 @@ class MealsSectionState extends State<MealsSection> {
       }
       // If same priority, maintain time order
       const timeOrder = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
-      return timeOrder.indexOf(a['name'] as String).compareTo(
-        timeOrder.indexOf(b['name'] as String),
-      );
+      return timeOrder
+          .indexOf(a['name'] as String)
+          .compareTo(timeOrder.indexOf(b['name'] as String));
     });
-
 
     return allMeals;
   }
@@ -315,10 +344,7 @@ class MealsSectionState extends State<MealsSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Meals",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text("Meals", style: AppTextStyles.heading2),
             Row(
               children: [
                 Text(
@@ -338,30 +364,43 @@ class MealsSectionState extends State<MealsSection> {
         ),
 
         const SizedBox(height: 12),
-        ...meals.map((meal) => _MealCard(
-          name: meal["name"] as String,
-          calories: meal["calories"] as String,
-          iconPath: meal["icon"] as String,
-          isRecommended: meal["isRecommended"] as bool,
-          foodEntries: _mealEntries[meal["name"]] ?? [],
-          challengeId: widget.challengeId,
-          onFoodAdded: (foodName, calories, {grams, imageUrl}) => _onFoodAdded(
-            foodName,
-            calories,
-            meal["name"] as String,
-            grams: grams,
-            imageUrl: imageUrl,
+        ...meals.map(
+          (meal) => _MealCard(
+            name: meal["name"] as String,
+            calories: meal["calories"] as String,
+            iconPath: meal["icon"] as String,
+            isRecommended: meal["isRecommended"] as bool,
+            foodEntries: _mealEntries[meal["name"]] ?? [],
+            challengeId: widget.challengeId,
+            onFoodAdded: (foodName, calories, {grams, imageUrl}) =>
+                _onFoodAdded(
+                  foodName,
+                  calories,
+                  meal["name"] as String,
+                  grams: grams,
+                  imageUrl: imageUrl,
+                ),
+            onFoodRemoved: _removeFoodEntry,
           ),
-          onFoodRemoved: _removeFoodEntry,
-        )),
+        ),
       ],
     );
   }
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}';
   }
@@ -373,7 +412,13 @@ class _MealCard extends StatefulWidget {
   final String iconPath;
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
-  final Function(String foodName, int calories, {double? grams, String? imageUrl}) onFoodAdded;
+  final Function(
+    String foodName,
+    int calories, {
+    double? grams,
+    String? imageUrl,
+  })
+  onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
   final String? challengeId;
 
@@ -427,11 +472,13 @@ class _MealCardState extends State<_MealCard> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         border: Border.all(
-          color: widget.isRecommended ? AppColors.secondary.withValues(alpha:0.5) : Colors.black12,
+          color: widget.isRecommended
+              ? AppColors.secondary.withValues(alpha: 0.5)
+              : Colors.black12,
           width: widget.isRecommended ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: widget.isRecommended ? AppColors.secondary.withValues(alpha:0.05) : null,
+        color: Colors.white,
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -443,7 +490,10 @@ class _MealCardState extends State<_MealCard> {
                 widget.iconPath,
                 width: 28,
                 height: 28,
-                colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Colors.black87,
+                  BlendMode.srcIn,
+                ),
               ),
               if (widget.isRecommended)
                 Positioned(
@@ -465,12 +515,18 @@ class _MealCardState extends State<_MealCard> {
             children: [
               Text(
                 widget.name,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               if (widget.isRecommended) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary,
                     borderRadius: BorderRadius.circular(8),
@@ -495,11 +551,7 @@ class _MealCardState extends State<_MealCard> {
           children: [
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Divider(
-                thickness: 1,
-                height: 1,
-                color: Colors.black26,
-              ),
+              child: Divider(thickness: 1, height: 1, color: Colors.black26),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -516,7 +568,12 @@ class _MealCardState extends State<_MealCard> {
                           mealName: widget.name,
                           challengeId: widget.challengeId,
                           onFoodAdded: (foodName, calories, {grams, imageUrl}) {
-                            widget.onFoodAdded(foodName, calories, grams: grams, imageUrl: imageUrl);
+                            widget.onFoodAdded(
+                              foodName,
+                              calories,
+                              grams: grams,
+                              imageUrl: imageUrl,
+                            );
                           },
                         ),
                       );
@@ -544,119 +601,140 @@ class _MealCardState extends State<_MealCard> {
                   // Display logged foods or empty state
                   if (widget.foodEntries.isNotEmpty) ...[
                     Column(
-                      children: widget.foodEntries.map((entry) =>
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                // Show image thumbnail or default icon
-                                if (entry.imageUrl != null && entry.imageUrl!.isNotEmpty)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Image.network(
-                                      entry.imageUrl!,
+                      children: widget.foodEntries
+                          .map(
+                            (entry) => Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Show image thumbnail or default icon
+                                  if (entry.imageUrl != null &&
+                                      entry.imageUrl!.isNotEmpty)
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.network(
+                                        entry.imageUrl!,
+                                        width: 60,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Container(
+                                                width: 60,
+                                                height: 80,
+                                                color: Colors.grey.shade300,
+                                                child: Icon(
+                                                  Icons.broken_image,
+                                                  color: Colors.grey.shade500,
+                                                ),
+                                              );
+                                            },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return Container(
+                                            width: 60,
+                                            height: 80,
+                                            color: Colors.grey.shade200,
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                value:
+                                                    loadingProgress
+                                                            .expectedTotalBytes !=
+                                                        null
+                                                    ? loadingProgress
+                                                              .cumulativeBytesLoaded /
+                                                          loadingProgress
+                                                              .expectedTotalBytes!
+                                                    : null,
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    )
+                                  else
+                                    Container(
                                       width: 60,
                                       height: 80,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          width: 60,
-                                          height: 80,
-                                          color: Colors.grey.shade300,
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            color: Colors.grey.shade500,
-                                          ),
-                                        );
-                                      },
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Container(
-                                          width: 60,
-                                          height: 80,
-                                          color: Colors.grey.shade200,
-                                          child: Center(
-                                            child: CircularProgressIndicator(
-                                              value: loadingProgress.expectedTotalBytes != null
-                                                  ? loadingProgress.cumulativeBytesLoaded /
-                                                      loadingProgress.expectedTotalBytes!
-                                                  : null,
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 60,
-                                    height: 80,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.secondary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(
-                                      Icons.restaurant,
-                                      color: AppColors.secondary,
-                                      size: 24,
-                                    ),
-                                  ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        entry.foodName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.secondary.withOpacity(
+                                          0.1,
                                         ),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            '${entry.totalCalories.round()} cal',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade600,
-                                            ),
+                                      child: Icon(
+                                        Icons.restaurant,
+                                        color: AppColors.secondary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          entry.foodName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
                                           ),
-                                          if (entry.servingSize > 0) ...[
-                                            const Text(' • ', style: TextStyle(color: Colors.grey)),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
                                             Text(
-                                              '${entry.servingSize.toStringAsFixed(0)}g',
+                                              '${entry.totalCalories.round()} cal',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.grey.shade600,
                                               ),
                                             ),
+                                            if (entry.servingSize > 0) ...[
+                                              const Text(
+                                                ' • ',
+                                                style: TextStyle(
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              Text(
+                                                '${entry.servingSize.toStringAsFixed(0)}g',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
                                           ],
-                                        ],
-                                      ),
-                                    ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed: () => _confirmRemoveFood(context, entry),
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  color: Colors.red.shade400,
-                                  iconSize: 20,
-                                  tooltip: 'Remove food',
-                                ),
-                              ],
+                                  IconButton(
+                                    onPressed: () =>
+                                        _confirmRemoveFood(context, entry),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                    ),
+                                    color: Colors.red.shade400,
+                                    iconSize: 20,
+                                    tooltip: 'Remove food',
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                      ).toList(),
+                          )
+                          .toList(),
                     ),
                   ] else ...[
                     Container(

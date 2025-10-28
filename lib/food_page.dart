@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:capstone_project/FoodPage/foodlogger.dart';
+import 'package:capstone_project/FoodPage/calorie_tracker_header.dart';
 import 'package:capstone_project/FoodPage/mealsection.dart';
 import 'package:capstone_project/FoodPage/recommendedfoods.dart';
 import 'package:capstone_project/color/colors.dart';
@@ -47,8 +47,10 @@ class _FoodPageState extends State<FoodPage>
   late Animation<double> _scaleAnimation;
 
   // Keys to access child widget states
-  final GlobalKey<MealsSectionState> _mealsSectionKey = GlobalKey<MealsSectionState>();
-  final GlobalKey<FoodLoggerState> _foodLoggerKey = GlobalKey<FoodLoggerState>();
+  final GlobalKey<MealsSectionState> _mealsSectionKey =
+      GlobalKey<MealsSectionState>();
+  final GlobalKey<CalorieTrackerHeaderState> _calorieTrackerKey =
+      GlobalKey<CalorieTrackerHeaderState>();
 
   @override
   void initState() {
@@ -85,12 +87,10 @@ class _FoodPageState extends State<FoodPage>
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -160,7 +160,9 @@ class _FoodPageState extends State<FoodPage>
           ),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -185,7 +187,11 @@ class _FoodPageState extends State<FoodPage>
     _showAddRecommendedFoodDialog(foodName, calories, mealType);
   }
 
-  void _showAddRecommendedFoodDialog(String foodName, int caloriesPer100g, String mealType) {
+  void _showAddRecommendedFoodDialog(
+    String foodName,
+    int caloriesPer100g,
+    String mealType,
+  ) {
     final TextEditingController gramsController = TextEditingController();
     final ImagePicker picker = ImagePicker();
     File? selectedImage;
@@ -216,7 +222,9 @@ class _FoodPageState extends State<FoodPage>
                   content: const Text('Failed to pick image'),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
             }
@@ -239,7 +247,9 @@ class _FoodPageState extends State<FoodPage>
                   content: const Text('Please enter the amount in grams'),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
               return;
@@ -249,10 +259,14 @@ class _FoodPageState extends State<FoodPage>
             if (grams == null || grams <= 0) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Please enter a valid amount greater than 0'),
+                  content: const Text(
+                    'Please enter a valid amount greater than 0',
+                  ),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
               return;
@@ -261,10 +275,14 @@ class _FoodPageState extends State<FoodPage>
             if (grams > 5000) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Amount seems too large. Please enter a reasonable amount.'),
+                  content: const Text(
+                    'Amount seems too large. Please enter a reasonable amount.',
+                  ),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
               return;
@@ -291,10 +309,14 @@ class _FoodPageState extends State<FoodPage>
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('Failed to upload image. Food will be saved without photo.'),
+                        content: const Text(
+                          'Failed to upload image. Food will be saved without photo.',
+                        ),
                         backgroundColor: Colors.orange.shade600,
                         behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     );
                   }
@@ -303,7 +325,13 @@ class _FoodPageState extends State<FoodPage>
 
               if (context.mounted) {
                 Navigator.pop(context);
-                _confirmAddFood(foodName, actualCalories, mealType, grams: grams, imageUrl: uploadedImageUrl);
+                _confirmAddFood(
+                  foodName,
+                  actualCalories,
+                  mealType,
+                  grams: grams,
+                  imageUrl: uploadedImageUrl,
+                );
               }
             } catch (e) {
               setModalState(() {
@@ -313,10 +341,14 @@ class _FoodPageState extends State<FoodPage>
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text('Failed to add food. Please try again.'),
+                    content: const Text(
+                      'Failed to add food. Please try again.',
+                    ),
                     backgroundColor: Colors.red.shade600,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 );
               }
@@ -346,155 +378,70 @@ class _FoodPageState extends State<FoodPage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
+                        // Header
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.restaurant_menu,
-                                color: AppColors.secondary,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    foodName,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1A1A1A),
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                    child: Icon(
+                                      Icons.restaurant_menu,
+                                      color: AppColors.secondary,
+                                      size: 24,
+                                    ),
                                   ),
-                                  Text(
-                                    'Add to $mealType',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          foodName,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1A1A1A),
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'Add to $mealType',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Color(0xFF666666),
+                                size: 24,
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Color(0xFF666666), size: 24),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                  // Calories info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.secondary.withValues(alpha: 0.1),
-                          AppColors.secondary.withValues(alpha: 0.05),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.secondary.withValues(alpha: 0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
+                        // Calories info
                         Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.local_fire_department,
-                            color: AppColors.secondary,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          '$caloriesPer100g cal per 100g',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Grams input
-                  Text(
-                    'Enter Amount',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: gramsController,
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) => setModalState(() {}),
-                    decoration: InputDecoration(
-                      hintText: "Enter amount in grams",
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                      suffixText: 'grams',
-                      suffixStyle: TextStyle(
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppColors.secondary, width: 2),
-                      ),
-                    ),
-                  ),
-
-                  // Calorie preview
-                  if (gramsController.text.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Builder(
-                      builder: (context) {
-                        final grams = double.tryParse(gramsController.text);
-                        if (grams == null || grams <= 0) return const SizedBox.shrink();
-
-                        final totalCalories = ((caloriesPer100g / 100) * grams).round();
-
-                        return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -512,147 +459,285 @@ class _FoodPageState extends State<FoodPage>
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: AppColors.secondary.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
                                   Icons.local_fire_department,
                                   color: AppColors.secondary,
-                                  size: 24,
+                                  size: 20,
                                 ),
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(width: 12),
+                              Text(
+                                '$caloriesPer100g cal per 100g',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Grams input
+                        Text(
+                          'Enter Amount',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: gramsController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) => setModalState(() {}),
+                          decoration: InputDecoration(
+                            hintText: "Enter amount in grams",
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            suffixText: 'grams',
+                            suffixStyle: TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: AppColors.secondary,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Calorie preview
+                        if (gramsController.text.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Builder(
+                            builder: (context) {
+                              final grams = double.tryParse(
+                                gramsController.text,
+                              );
+                              if (grams == null || grams <= 0)
+                                return const SizedBox.shrink();
+
+                              final totalCalories =
+                                  ((caloriesPer100g / 100) * grams).round();
+
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.secondary.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      AppColors.secondary.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.secondary.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      'Total Calories',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey.shade600,
-                                        fontWeight: FontWeight.w500,
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.secondary.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        Icons.local_fire_department,
+                                        color: AppColors.secondary,
+                                        size: 24,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '$totalCalories cal',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.secondary,
-                                        fontSize: 24,
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Total Calories',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey.shade600,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '$totalCalories cal',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.secondary,
+                                              fontSize: 24,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.secondary.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${grams.toStringAsFixed(0)}g',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.secondary,
+                                          fontSize: 14,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
+                              );
+                            },
+                          ),
+                        ],
+
+                        const SizedBox(height: 24),
+
+                        // Image upload section
+                        Text(
+                          'Food Photo (Optional)',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        if (selectedImage == null) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      pickImage(ImageSource.camera),
+                                  icon: const Icon(Icons.camera_alt, size: 20),
+                                  label: const Text('Camera'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.secondary,
+                                    side: BorderSide(
+                                      color: AppColors.secondary.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
                                 ),
-                                child: Text(
-                                  '${grams.toStringAsFixed(0)}g',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.secondary,
-                                    fontSize: 14,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      pickImage(ImageSource.gallery),
+                                  icon: const Icon(
+                                    Icons.photo_library,
+                                    size: 20,
+                                  ),
+                                  label: const Text('Gallery'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.secondary,
+                                    side: BorderSide(
+                                      color: AppColors.secondary.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        );
-                      },
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
-
-                  // Image upload section
-                  Text(
-                    'Food Photo (Optional)',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  if (selectedImage == null) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => pickImage(ImageSource.camera),
-                            icon: const Icon(Icons.camera_alt, size: 20),
-                            label: const Text('Camera'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.secondary,
-                              side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.5)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
+                        ] else ...[
+                          Stack(
+                            children: [
+                              ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
+                                child: Image.file(
+                                  selectedImage!,
+                                  height: 150,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => pickImage(ImageSource.gallery),
-                            icon: const Icon(Icons.photo_library, size: 20),
-                            label: const Text('Gallery'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.secondary,
-                              side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.5)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: GestureDetector(
+                                  onTap: removeImage,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            selectedImage!,
-                            height: 150,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: GestureDetector(
-                            onTap: removeImage,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.6),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
                       ],
                     ),
                   ),
@@ -671,7 +756,10 @@ class _FoodPageState extends State<FoodPage>
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                            side: BorderSide(
+                              color: Colors.grey.shade300,
+                              width: 1.5,
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -700,8 +788,11 @@ class _FoodPageState extends State<FoodPage>
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            disabledBackgroundColor: AppColors.secondary.withValues(alpha: 0.6),
-                            disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
+                            disabledBackgroundColor: AppColors.secondary
+                                .withValues(alpha: 0.6),
+                            disabledForegroundColor: Colors.white.withValues(
+                              alpha: 0.7,
+                            ),
                           ),
                           child: isLoading
                               ? const SizedBox(
@@ -709,7 +800,9 @@ class _FoodPageState extends State<FoodPage>
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Text(
@@ -732,19 +825,13 @@ class _FoodPageState extends State<FoodPage>
     );
   }
 
-  IconData _getFoodIcon(String foodName) {
-    final name = foodName.toLowerCase();
-    if (name.contains('chicken') || name.contains('meat')) return Icons.set_meal;
-    if (name.contains('fish') || name.contains('salmon')) return Icons.set_meal;
-    if (name.contains('apple') || name.contains('banana') || name.contains('fruit')) return Icons.apple;
-    if (name.contains('rice') || name.contains('grain')) return Icons.grain;
-    if (name.contains('egg')) return Icons.egg_alt;
-    if (name.contains('milk') || name.contains('yogurt')) return Icons.local_drink;
-    if (name.contains('vegetable') || name.contains('broccoli')) return Icons.grass;
-    return Icons.restaurant_menu;
-  }
-
-  void _confirmAddFood(String foodName, int calories, String mealType, {double? grams, String? imageUrl}) async {
+  void _confirmAddFood(
+    String foodName,
+    int calories,
+    String mealType, {
+    double? grams,
+    String? imageUrl,
+  }) async {
     if (!mounted) return;
 
     try {
@@ -772,10 +859,11 @@ class _FoodPageState extends State<FoodPage>
       );
 
       if (success && mounted) {
-        // Refresh both the meal section and food logger to show updates
+        // Refresh the meal section to show updates
         await _mealsSectionKey.currentState?.loadMealData();
 
-        await _foodLoggerKey.currentState?.refreshData();
+        // Refresh the calorie tracker header
+        _calorieTrackerKey.currentState?.loadCalorieData();
 
         if (widget.onCaloriesUpdated != null) {
           widget.onCaloriesUpdated!();
@@ -793,7 +881,11 @@ class _FoodPageState extends State<FoodPage>
                       color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check, color: Colors.white, size: 16),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text('Successfully added!'),
@@ -801,7 +893,9 @@ class _FoodPageState extends State<FoodPage>
               ),
               backgroundColor: Colors.green.shade600,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -813,7 +907,9 @@ class _FoodPageState extends State<FoodPage>
               content: Text('Failed to add $foodName. Please try again.'),
               backgroundColor: Colors.red.shade600,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
@@ -825,7 +921,9 @@ class _FoodPageState extends State<FoodPage>
             content: Text('Error adding $foodName. Please try again.'),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -1060,34 +1158,46 @@ class _FoodPageState extends State<FoodPage>
   }
 
   Widget _buildMainFoodPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FoodLogger(
-            key: _foodLoggerKey,
-            currentChallenge: widget.currentChallenge,
-            onCaloriesUpdated: widget.onCaloriesUpdated,
-          ),
-          const SizedBox(height: 20),
-          RecommendedFoods(
-            onFoodTapped: (foodName, calories) {
-              _addRecommendedFoodToMeal(foodName, calories);
-            },
-          ),
-          const SizedBox(height: 20),
-          MealsSection(
-            key: _mealsSectionKey,
-            onCaloriesUpdated: () async {
-              // Refresh Food Logger when food is added from Meals section
-              await _foodLoggerKey.currentState?.refreshData();
-              // Also update home page trackers
-              widget.onCaloriesUpdated?.call();
-            },
-            challengeId: widget.currentChallenge?.id,
-          ),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.red.shade50.withOpacity(0.3), Colors.white],
+          stops: const [0.0, 0.3],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Calorie Tracker Header
+            CalorieTrackerHeader(
+              key: _calorieTrackerKey,
+              currentChallenge: widget.currentChallenge,
+            ),
+
+            // Recommended Foods
+            RecommendedFoods(
+              onFoodTapped: (foodName, calories) {
+                _addRecommendedFoodToMeal(foodName, calories);
+              },
+            ),
+
+            // Meals Section
+            MealsSection(
+              key: _mealsSectionKey,
+              onCaloriesUpdated: () async {
+                // Refresh the calorie tracker header
+                _calorieTrackerKey.currentState?.loadCalorieData();
+                // Also update home page trackers
+                widget.onCaloriesUpdated?.call();
+              },
+              challengeId: widget.currentChallenge?.id,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1097,9 +1207,8 @@ class _FoodPageState extends State<FoodPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CreateChallengeSheet(
-        onChallengeCreated: _onChallengeCreated,
-      ),
+      builder: (context) =>
+          CreateChallengeSheet(onChallengeCreated: _onChallengeCreated),
     );
   }
 
@@ -1177,7 +1286,7 @@ class _FoodPageState extends State<FoodPage>
               Icons.self_improvement_rounded,
               'Mindful Eating',
               'Practice conscious eating habits',
-             AppColors.secondary.shade600,
+              AppColors.secondary.shade600,
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -1198,10 +1307,7 @@ class _FoodPageState extends State<FoodPage>
                 ),
                 child: const Text(
                   'Create My Challenge',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -1213,17 +1319,18 @@ class _FoodPageState extends State<FoodPage>
   }
 
   Widget _buildChallengeExample(
-      IconData icon, String title, String description, Color color) {
+    IconData icon,
+    String title,
+    String description,
+    Color color,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1.5,
-        ),
+        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
       ),
       child: Row(
         children: [
@@ -1232,10 +1339,7 @@ class _FoodPageState extends State<FoodPage>
             height: 48,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  color.withOpacity(0.2),
-                  color.withOpacity(0.15),
-                ],
+                colors: [color.withOpacity(0.2), color.withOpacity(0.15)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),

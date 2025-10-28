@@ -24,11 +24,15 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
     with AutomaticKeepAliveClientMixin {
   List<Workout> _workouts = [];
   bool _isLoading = true;
-  bool _hasLoadedOnce = false; // Track if data was loaded
-  String? _lastLoadedChallengeId; // Track which challenge was loaded
+  bool _hasLoadedOnce = false;
+  String? _lastLoadedChallengeId;
+
+  // Page controllers for each day group
+  final Map<String, PageController> _pageControllers = {};
+  final Map<String, int> _currentPages = {};
 
   @override
-  bool get wantKeepAlive => true; // Keep this page alive
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -37,17 +41,24 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
   }
 
   @override
+  void dispose() {
+    // Dispose all page controllers
+    for (var controller in _pageControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(WorkoutHistoryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only reload if challenge ID actually changed
     if (oldWidget.currentChallenge?.id != widget.currentChallenge?.id) {
-      _hasLoadedOnce = false; // Reset cache
+      _hasLoadedOnce = false;
       _loadWorkouts();
     }
   }
 
   Future<void> _loadWorkouts({bool forceRefresh = false}) async {
-    // Skip if already loaded for this challenge (unless force refresh)
     if (!forceRefresh &&
         _hasLoadedOnce &&
         _lastLoadedChallengeId == widget.currentChallenge?.id) {
@@ -69,13 +80,14 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         return;
       }
 
-      final workouts = await WorkoutService.getChallengeWorkouts(widget.currentChallenge!.id);
+      final workouts = await WorkoutService.getChallengeWorkouts(
+          widget.currentChallenge!.id);
       if (mounted) {
         setState(() {
           _workouts = workouts;
           _isLoading = false;
-          _hasLoadedOnce = true; // Mark as loaded
-          _lastLoadedChallengeId = widget.currentChallenge?.id; // Remember challenge
+          _hasLoadedOnce = true;
+          _lastLoadedChallengeId = widget.currentChallenge?.id;
         });
       }
     } catch (e) {
@@ -91,10 +103,12 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
     if (widget.currentChallenge == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please create a challenge first to add workouts'),
+          content:
+          const Text('Please create a challenge first to add workouts'),
           backgroundColor: Colors.orange.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -107,7 +121,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       builder: (context) => AddWorkoutSheet(
         currentChallenge: widget.currentChallenge!,
         onWorkoutAdded: () {
-          _loadWorkouts(forceRefresh: true); // Force refresh when new workout added
+          _loadWorkouts(forceRefresh: true);
         },
       ),
     );
@@ -147,12 +161,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         throw Exception('No active challenge');
       }
 
-      // Delete image from Cloud Storage if it exists
       if (workout.imageUrl != null) {
         await ImageStorageService.deleteImage(workout.imageUrl!);
       }
 
-      // Create the workout document name to match what's in Firestore
       final sanitized = workout.exerciseName
           .toLowerCase()
           .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
@@ -160,7 +172,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
           .trim();
       final timeStamp = workout.timestamp.millisecondsSinceEpoch.toString();
       final workoutDocName = '${sanitized}_$timeStamp';
-
 
       final success = await WorkoutService.deleteWorkout(
         workoutDocName,
@@ -182,10 +193,11 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
             ),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
-        await _loadWorkouts(forceRefresh: true); // Force refresh after delete
+        await _loadWorkouts(forceRefresh: true);
       } else {
         throw Exception('Failed to delete workout');
       }
@@ -196,7 +208,8 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
           content: const Text('Failed to delete workout'),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -225,105 +238,29 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
     }
   }
 
-  Widget _buildWorkoutImage(Workout workout) {
-    // Prefer Cloud Storage URL over legacy base64
-    if (workout.imageUrl != null && workout.imageUrl!.isNotEmpty) {
-      return SizedBox(
-        width: 70,
-        height: 100,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            workout.imageUrl!,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                width: 70,
-                height: 100,
-                color: Colors.grey.shade200,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
-                        : null,
-                    strokeWidth: 2,
-                    color: AppColors.secondary,
-                  ),
-                ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                width: 70,
-                height: 100,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.broken_image,
-                  color: AppColors.secondary,
-                  size: 28,
-                ),
-              );
-            },
-          ),
-        ),
-      );
-    }
-
-    // Fallback to default icon
-    return Container(
-      width: 70,
-      height: 100,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        Icons.fitness_center,
-        color: AppColors.secondary,
-        size: 28,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section Title (matching Food Logger style)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Text(
-              "Workout History",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ),
-          // Content
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: FitCheckLoader(),
-                  )
-                : _workouts.isEmpty
-                    ? _buildEmptyState()
-                    : _buildWorkoutList(),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: _isLoading
+          ? const Center(child: FitCheckLoader())
+          : _workouts.isEmpty
+          ? _buildEmptyState()
+          : _buildWorkoutList(),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddWorkoutSheet,
         backgroundColor: AppColors.secondary,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+        elevation: 4,
+        icon: const Icon(Icons.add, color: Colors.white, size: 24),
+        label: const Text(
+          'Add Workout',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -336,34 +273,42 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: AppColors.secondary.withOpacity(0.1),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
               ),
               child: Icon(
                 Icons.fitness_center,
                 size: 80,
-                color: AppColors.secondary.withOpacity(0.7),
+                color: AppColors.secondary,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             const Text(
-              'Workout History Empty',
+              'No Workouts Yet',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1A1A1A),
+                letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Start tracking your workouts to see your progress here',
+              'Start your fitness journey today!\nTap the button below to add your first workout',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
-                height: 1.5,
+                height: 1.6,
               ),
             ),
           ],
@@ -373,7 +318,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
   }
 
   Widget _buildWorkoutList() {
-    // Group workouts by date
     Map<String, List<Workout>> groupedWorkouts = {};
     for (var workout in _workouts) {
       final dateKey = _formatDateGroupKey(workout.timestamp);
@@ -383,7 +327,6 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       groupedWorkouts[dateKey]!.add(workout);
     }
 
-    // Get sorted list of dates
     final sortedDates = groupedWorkouts.keys.toList()
       ..sort((a, b) {
         final dateA = groupedWorkouts[a]!.first.timestamp;
@@ -392,7 +335,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       });
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       itemCount: sortedDates.length,
       itemBuilder: (context, index) {
         final dateKey = sortedDates[index];
@@ -402,168 +345,485 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Header
+            // Date Header with enhanced styling
             Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 12, top: index == 0 ? 0 : 8),
-              child: Text(
-                _formatDateHeader(firstWorkout.timestamp),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
-                ),
+              padding: EdgeInsets.only(
+                left: 4,
+                bottom: 16,
+                top: index == 0 ? 0 : 24,
               ),
-            ),
-            // Workouts for this day
-            ...dayWorkouts.map((workout) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+              child: Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatDateHeader(firstWorkout.timestamp),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${dayWorkouts.length} ${dayWorkouts.length == 1 ? 'workout' : 'workouts'}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Leading Icon or Image
-                    _buildWorkoutImage(workout),
-                    const SizedBox(width: 12),
-                    // Content
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              workout.exerciseName,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1A1A1A),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                // Workout Type Badge (Cardio or Strength)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: workout.isCardio
-                                      ? Colors.blue.withOpacity(0.15)
-                                      : Colors.orange.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        workout.isCardio ? Icons.directions_run : Icons.fitness_center,
-                                        size: 14,
-                                        color: workout.isCardio ? Colors.blue.shade700 : Colors.orange.shade700,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        workout.isCardio ? 'Cardio' : 'Strength',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: workout.isCardio ? Colors.blue.shade700 : Colors.orange.shade700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Show details based on type
-                                if (workout.isStrength && workout.sets != null && workout.reps != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.secondary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '${workout.sets} × ${workout.reps}',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                  ),
-                                ] else if (workout.isCardio && workout.durationMinutes != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.secondary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '${workout.durationMinutes} min',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            if (workout.notes != null && workout.notes!.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                workout.notes!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatDate(workout.timestamp),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    // Delete button
-                    IconButton(
-                      onPressed: () => _showDeleteConfirmation(workout),
-                      icon: const Icon(Icons.remove_circle_outline),
-                      color: Colors.red.shade400,
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(8),
-                    ),
-                  ],
-                ),
-              ),
-            )),
+            ),
+            // Horizontal scrollable workouts for this day
+            _buildHorizontalWorkoutSection(dateKey, dayWorkouts),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildHorizontalWorkoutSection(String dateKey, List<Workout> workouts) {
+    // Initialize page controller and current page for this day if not exists
+    if (!_pageControllers.containsKey(dateKey)) {
+      _pageControllers[dateKey] = PageController(
+        viewportFraction: 0.92,
+      );
+      _currentPages[dateKey] = 0;
+    }
+
+    return Column(
+      children: [
+        // PageView for horizontal swiping
+        SizedBox(
+          height: 350,
+          child: PageView.builder(
+            controller: _pageControllers[dateKey],
+            itemCount: workouts.length,
+            onPageChanged: (page) {
+              setState(() {
+                _currentPages[dateKey] = page;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _buildWorkoutCard(workouts[index]),
+              );
+            },
+          ),
+        ),
+        // Page Indicators
+        if (workouts.length > 1) ...[
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              workouts.length,
+                  (index) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: _currentPages[dateKey] == index ? 24 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentPages[dateKey] == index
+                      ? AppColors.secondary
+                      : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildWorkoutCard(Workout workout) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Section with overlay
+          Stack(
+            children: [
+              // Workout Image
+              ClipRRect(
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(10)),
+                child: workout.imageUrl != null && workout.imageUrl!.isNotEmpty
+                    ? Image.network(
+                  workout.imageUrl!,
+                  width: double.infinity,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: double.infinity,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.grey.shade200,
+                            Colors.grey.shade100,
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes !=
+                              null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                              : null,
+                          strokeWidth: 3,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: double.infinity,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.secondary.withOpacity(0.1),
+                            AppColors.secondary.withOpacity(0.05),
+                          ],
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.fitness_center,
+                        size: 70,
+                        color: AppColors.secondary.withOpacity(0.3),
+                      ),
+                    );
+                  },
+                )
+                    : Container(
+                  width: double.infinity,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.secondary.withOpacity(0.15),
+                        AppColors.secondary.withOpacity(0.05),
+                      ],
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.fitness_center,
+                    size: 70,
+                    color: AppColors.secondary.withOpacity(0.4),
+                  ),
+                ),
+              ),
+              // Enhanced gradient overlay
+              Container(
+                width: double.infinity,
+                height: 220,
+                decoration: BoxDecoration(
+                  borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.75),
+                    ],
+                  ),
+                ),
+              ),
+              // Type Badge (Top Left) - Enhanced
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: workout.isCardio
+                        ? Colors.blue.shade600
+                        : AppColors.secondary,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (workout.isCardio
+                            ? Colors.blue.shade600
+                            : AppColors.secondary)
+                            .withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        workout.isCardio
+                            ? Icons.directions_run
+                            : Icons.fitness_center,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        workout.isCardio ? 'Cardio' : 'Strength',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Delete Button (Top Right) - Enhanced
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _showDeleteConfirmation(workout),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade500,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.shade500.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Exercise Name (Bottom) - Enhanced
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Text(
+                  workout.exerciseName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black45,
+                        offset: Offset(0, 1),
+                        blurRadius: 3,
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          // Details Section - Enhanced
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Stats Row with enhanced design
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      if (workout.isStrength &&
+                          workout.sets != null &&
+                          workout.reps != null) ...[
+                        Icon(
+                          Icons.fitness_center,
+                          size: 18,
+                          color: AppColors.secondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${workout.sets}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'sets',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${workout.reps}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'reps',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ] else if (workout.isCardio &&
+                          workout.durationMinutes != null) ...[
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 18,
+                          color: Colors.blue.shade600,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${workout.durationMinutes}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'minutes',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (workout.notes != null && workout.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.blue.shade100,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.notes_rounded,
+                          size: 16,
+                          color: Colors.blue.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            workout.notes!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade800,
+                              height: 1.4,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                // Time with enhanced styling
+                Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 15,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatDate(workout.timestamp),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

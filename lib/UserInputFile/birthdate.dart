@@ -159,7 +159,7 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
                 children: [
                   ShaderMask(
                     shaderCallback: (bounds) => LinearGradient(
-                      colors: [AppColors.primary, AppColors.secondary],
+                      colors: [AppColors.primary, AppColors.primary],
                     ).createShader(bounds),
                     child: const Text(
                       "Birthday",

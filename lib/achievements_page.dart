@@ -560,66 +560,50 @@ class _AchievementsPageState extends State<AchievementsPage> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.white, color.withOpacity(0.05)],
-            ),
+            color: Colors.white,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // Large Badge
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: imagePath != null
-                      ? Colors.transparent
-                      : (unlocked ? color : Colors.grey.shade300),
-                  boxShadow: unlocked
-                      ? [
-                          BoxShadow(
-                            color: color.withOpacity(0.4),
-                            blurRadius: 20,
-                            spreadRadius: 4,
-                          ),
-                        ]
-                      : null,
-                ),
+              SizedBox(
+                width: 180,
+                height: 180,
                 child: imagePath != null
-                    ? ClipOval(
+                    ? ColorFiltered(
+                        colorFilter: unlocked
+                            ? const ColorFilter.mode(
+                                Colors.transparent,
+                                BlendMode.multiply,
+                              )
+                            : const ColorFilter.matrix(<double>[
+                                0.2126, 0.7152, 0.0722, 0, 0, // Red channel
+                                0.2126, 0.7152, 0.0722, 0, 0, // Green channel
+                                0.2126, 0.7152, 0.0722, 0, 0, // Blue channel
+                                0, 0, 0, 1, 0, // Alpha channel
+                              ]),
                         child: Image.asset(
                           imagePath,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
+                          width: 180,
+                          height: 180,
+                          fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               decoration: BoxDecoration(
-                                color: unlocked ? color : Colors.grey.shade300,
+                                color: color,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                icon,
-                                color: unlocked
-                                    ? Colors.white
-                                    : Colors.grey.shade500,
-                                size: 60,
-                              ),
+                              child: Icon(icon, color: Colors.white, size: 90),
                             );
                           },
-                          color: unlocked ? null : Colors.grey,
-                          colorBlendMode: unlocked
-                              ? null
-                              : BlendMode.saturation,
                         ),
                       )
-                    : Icon(
-                        icon,
-                        color: unlocked ? Colors.white : Colors.grey.shade500,
-                        size: 60,
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 90),
                       ),
               ),
               const SizedBox(height: 20),

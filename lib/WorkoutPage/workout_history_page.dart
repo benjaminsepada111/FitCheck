@@ -512,16 +512,13 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [
-                                  AppColors.secondary.withOpacity(0.1),
-                                  AppColors.secondary.withOpacity(0.05),
-                                ],
+                                colors: [Colors.white, Colors.grey.shade100],
                               ),
                             ),
                             child: Icon(
                               Icons.fitness_center,
                               size: 70,
-                              color: AppColors.secondary.withOpacity(0.3),
+                              color: AppColors.secondary.withOpacity(0.4),
                             ),
                           );
                         },
@@ -533,20 +530,17 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              AppColors.secondary.withOpacity(0.15),
-                              AppColors.secondary.withOpacity(0.05),
-                            ],
+                            colors: [Colors.white, Colors.grey.shade100],
                           ),
                         ),
                         child: Icon(
                           Icons.fitness_center,
                           size: 70,
-                          color: AppColors.secondary.withOpacity(0.4),
+                          color: AppColors.secondary.withOpacity(0.5),
                         ),
                       ),
               ),
-              // Enhanced gradient overlay
+              // Subtle gradient overlay for text readability
               Container(
                 width: double.infinity,
                 height: 220,
@@ -557,10 +551,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.75),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                   ),
                 ),
               ),

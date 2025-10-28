@@ -367,14 +367,14 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             (MediaQuery.of(context).size.width - 44) /
             2, // Half width minus padding
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF06111D),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: const Color(0xFF1A2332)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -399,7 +399,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: Colors.white,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -407,27 +407,31 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.repeat, size: 14, color: Colors.grey.shade600),
+                      Icon(
+                        Icons.repeat,
+                        size: 14,
+                        color: Colors.white.withOpacity(0.6),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${workout.sets} sets',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Colors.white.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Icon(
                         Icons.numbers,
                         size: 14,
-                        color: Colors.grey.shade600,
+                        color: Colors.white.withOpacity(0.6),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${workout.reps} reps',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Colors.white.withOpacity(0.6),
                         ),
                       ),
                     ],

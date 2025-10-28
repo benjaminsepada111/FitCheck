@@ -7,6 +7,7 @@ import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/user_time_tracker.dart';
 import 'package:capstone_project/models/user_data.dart';
 import 'package:capstone_project/services/notification_service.dart';
+import 'package:capstone_project/achievements_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -340,11 +341,14 @@ class _ProfilePageState extends State<ProfilePage> {
                                 width: 2,
                               ),
                             ),
-                            child: _userData?.profilePictureUrl != null &&
+                            child:
+                                _userData?.profilePictureUrl != null &&
                                     _userData!.profilePictureUrl!.isNotEmpty
                                 ? CircleAvatar(
                                     radius: 30,
-                                    backgroundColor: Colors.white.withOpacity(0.2),
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.2,
+                                    ),
                                     child: ClipOval(
                                       child: Image.network(
                                         _userData!.profilePictureUrl!,
@@ -352,36 +356,46 @@ class _ProfilePageState extends State<ProfilePage> {
                                         width: 60,
                                         height: 60,
                                         loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null) return child;
+                                          if (loadingProgress == null)
+                                            return child;
                                           return Center(
                                             child: CircularProgressIndicator(
-                                              value: loadingProgress.expectedTotalBytes != null
-                                                  ? loadingProgress.cumulativeBytesLoaded /
-                                                      loadingProgress.expectedTotalBytes!
+                                              value:
+                                                  loadingProgress
+                                                          .expectedTotalBytes !=
+                                                      null
+                                                  ? loadingProgress
+                                                            .cumulativeBytesLoaded /
+                                                        loadingProgress
+                                                            .expectedTotalBytes!
                                                   : null,
                                               strokeWidth: 2,
-                                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
+                                              valueColor:
+                                                  const AlwaysStoppedAnimation<
+                                                    Color
+                                                  >(Colors.white),
                                             ),
                                           );
                                         },
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Text(
-                                            _getInitials(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          );
-                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Text(
+                                                _getInitials(),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              );
+                                            },
                                       ),
                                     ),
                                   )
                                 : CircleAvatar(
                                     radius: 30,
-                                    backgroundColor: Colors.white.withOpacity(0.2),
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.2,
+                                    ),
                                     child: Text(
                                       _getInitials(),
                                       style: const TextStyle(
@@ -435,6 +449,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 16),
+
+                // Statistics and Badges Section
+                _buildStatisticsAndBadgesCard(),
 
                 const SizedBox(height: 24),
 
@@ -652,6 +671,96 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildStatisticsAndBadgesCard() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AchievementsPage()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white,
+              Colors.amber.shade100.withOpacity(0.15),
+              Colors.amber.shade100.withOpacity(0.25),
+            ],
+            stops: const [0.0, 0.6, 1.0],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Badge icon with Star image
+            Image.asset(
+              'assets/images/achievements/Star.png',
+              width: 70,
+              height: 70,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback to icon if image fails
+                return Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.amber.shade400, Colors.amber.shade600],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.workspace_premium,
+                    color: Colors.white,
+                    size: 38,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 12),
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Achievements",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    "View your progress and milestones",
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            // Arrow
+            Icon(Icons.chevron_right, color: Colors.amber.shade700, size: 26),
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 /// Service for managing user-specific achievements in Firestore
 ///
@@ -11,27 +10,31 @@ class UserAchievementService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Achievement definitions with unlock conditions
+  /// Note: 'image' field is optional. If provided, it will be used instead of 'icon'
   static const Map<String, Map<String, dynamic>> achievementDefinitions = {
     'challenge_conqueror': {
-      'title': 'Challenge Conqueror',
+      'title': 'Conqueror',
       'description': 'Complete your first challenge',
       'icon': 'flag',
+      'image': 'assets/images/achievements/1.png',
       'color': 0xFF4CAF50, // Green
       'condition': 'challenges_completed',
       'threshold': 1,
     },
     'calorie_tracker': {
-      'title': 'Calorie Tracker',
-      'description': 'Consume 10000 calories total',
+      'title': 'Gourmand',
+      'description': 'Consume 100000 calories total',
       'icon': 'local_fire_department',
+      'image': 'assets/images/achievements/Fire.png',
       'color': 0xFFFF5722, // Deep Orange
       'condition': 'total_calories_consumed',
-      'threshold': 10000,
+      'threshold': 100000,
     },
     'steadfast': {
       'title': 'Steadfast',
       'description': 'Log in for 7 days',
       'icon': 'calendar_today',
+      'image': 'assets/images/achievements/Calendar.png',
       'color': 0xFF2196F3, // Blue
       'condition': 'total_login_days',
       'threshold': 7,
@@ -40,6 +43,7 @@ class UserAchievementService {
       'title': 'Perseverance',
       'description': 'Upload progress photos for 7 days',
       'icon': 'photo_camera',
+      'image': 'assets/images/achievements/Camera.png',
       'color': 0xFF9C27B0, // Purple
       'condition': 'photo_upload_days',
       'threshold': 7,
@@ -48,14 +52,16 @@ class UserAchievementService {
       'title': 'Discipline',
       'description': 'Log meals for 30 days',
       'icon': 'restaurant',
+      'image': 'assets/images/achievements/Trophy.png',
       'color': 0xFFFF9800, // Orange
       'condition': 'meal_logging_days',
       'threshold': 30,
     },
     'workout_warrior': {
-      'title': 'Workout Warrior',
+      'title': 'Warrior',
       'description': 'Complete 50 workouts',
       'icon': 'fitness_center',
+      'image': 'assets/images/achievements/Crown.png',
       'color': 0xFFE91E63, // Pink
       'condition': 'total_workouts',
       'threshold': 50,
@@ -147,7 +153,8 @@ class UserAchievementService {
       final stats = statsDoc.data() as Map<String, dynamic>? ?? {};
 
       final today = DateTime.now();
-      final todayKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final todayKey =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
       // Get existing login dates
       final loginDates = List<String>.from(stats['login_dates'] ?? []);
@@ -169,8 +176,7 @@ class UserAchievementService {
 
       // Check achievements
       await checkAndUnlockAchievements();
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Track photo upload
@@ -181,7 +187,8 @@ class UserAchievementService {
       final stats = statsDoc.data() as Map<String, dynamic>? ?? {};
 
       final today = DateTime.now();
-      final todayKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final todayKey =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
       final photoDates = List<String>.from(stats['photo_upload_dates'] ?? []);
 
@@ -195,8 +202,7 @@ class UserAchievementService {
 
         await checkAndUnlockAchievements();
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Track meal logging with calories
@@ -207,7 +213,8 @@ class UserAchievementService {
       final stats = statsDoc.data() as Map<String, dynamic>? ?? {};
 
       final today = DateTime.now();
-      final todayKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final todayKey =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
       final mealDates = List<String>.from(stats['meal_logging_dates'] ?? []);
 
@@ -218,8 +225,7 @@ class UserAchievementService {
       // Track calories consumed
       if (calories > 0) {
         updates['total_calories_consumed'] = FieldValue.increment(calories);
-      } else {
-      }
+      } else {}
 
       // Track meal logging day
       if (!mealDates.contains(todayKey)) {
@@ -230,8 +236,7 @@ class UserAchievementService {
 
       await statsRef.update(updates);
       await checkAndUnlockAchievements();
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Track workout completion
@@ -244,18 +249,15 @@ class UserAchievementService {
       });
 
       await checkAndUnlockAchievements();
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Track challenge completion
   static Future<void> trackChallengeCompletion() async {
     try {
       await incrementStat('challenges_completed', 1);
-    } catch (e) {
-    }
+    } catch (e) {}
   }
-
 
   /// Get user achievements
   static Future<Map<String, UserAchievement>> getUserAchievements() async {
@@ -352,8 +354,7 @@ class UserAchievementService {
         'progress': progress,
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Unlock an achievement
@@ -374,8 +375,7 @@ class UserAchievementService {
         'unlocked_at': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Get achievement with metadata
@@ -393,7 +393,8 @@ class UserAchievementService {
   }
 
   /// Get all achievements with full details
-  static Future<List<Map<String, dynamic>>> getAllAchievementsWithDetails() async {
+  static Future<List<Map<String, dynamic>>>
+  getAllAchievementsWithDetails() async {
     try {
       final userAchievements = await getUserAchievements();
       final stats = await getUserStats();
@@ -407,14 +408,16 @@ class UserAchievementService {
         final condition = definition['condition'] as String;
         final threshold = definition['threshold'] as int;
         final currentValue = (stats[condition] ?? 0) as int;
-        final progress = userAchievement?.progress ??
-                        (currentValue / threshold).clamp(0.0, 1.0);
+        final progress =
+            userAchievement?.progress ??
+            (currentValue / threshold).clamp(0.0, 1.0);
 
         return {
           'id': achievementId,
           'title': definition['title'],
           'description': definition['description'],
           'icon': definition['icon'],
+          'image': definition['image'], // Optional custom badge image
           'color': definition['color'],
           'unlocked': userAchievement?.unlocked ?? false,
           'progress': progress,
@@ -429,7 +432,8 @@ class UserAchievementService {
   }
 
   /// Get recently unlocked achievements (last 7 days)
-  static Future<List<Map<String, dynamic>>> getRecentlyUnlockedAchievements() async {
+  static Future<List<Map<String, dynamic>>>
+  getRecentlyUnlockedAchievements() async {
     try {
       final user = _auth.currentUser;
       if (user == null) return [];
@@ -468,10 +472,7 @@ class UserAchievementService {
       final unlockedCount = achievements.values.where((a) => a.unlocked).length;
       final totalCount = achievementDefinitions.length;
 
-      return {
-        'unlocked': unlockedCount,
-        'total': totalCount,
-      };
+      return {'unlocked': unlockedCount, 'total': totalCount};
     } catch (e) {
       return {'unlocked': 0, 'total': achievementDefinitions.length};
     }
@@ -506,7 +507,9 @@ class UserAchievement {
     return {
       'unlocked': unlocked,
       'progress': progress,
-      'unlocked_at': unlockedAt != null ? Timestamp.fromDate(unlockedAt!) : null,
+      'unlocked_at': unlockedAt != null
+          ? Timestamp.fromDate(unlockedAt!)
+          : null,
     };
   }
 }

@@ -3,7 +3,6 @@ import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/workout_service.dart';
-import 'package:capstone_project/achievements_page.dart';
 import '../app_text_styles.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'dart:async';
@@ -28,7 +27,6 @@ class TrackersState extends State<Trackers>
   int _currentCalories = 0;
   int _calorieGoal = 2000;
   int _caloriesBurned = 0;
-  int _newBadgesEarned = 0;
   bool _isLoading = true;
 
   // Animation controller for smooth transitions
@@ -205,12 +203,12 @@ class TrackersState extends State<Trackers>
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF06111D),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200, width: 1),
+        border: Border.all(color: const Color(0xFF1A2332), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -232,8 +230,8 @@ class TrackersState extends State<Trackers>
                       painter: _CircularProgressPainter(
                         progress: progress * _progressAnimation.value,
                         isOverGoal: isOverGoal,
-                        backgroundColor: Colors.red.shade50,
-                        progressColor: Colors.red.shade600,
+                        backgroundColor: const Color(0xFF1A2332),
+                        progressColor: Colors.red.shade400,
                       ),
                       child: SizedBox(
                         width: 140,
@@ -244,10 +242,10 @@ class TrackersState extends State<Trackers>
                             children: [
                               Text(
                                 netCalories.toString(),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 40,
                                   fontWeight: FontWeight.w900,
-                                  color: Colors.red.shade700,
+                                  color: Colors.white,
                                   height: 1.0,
                                   letterSpacing: -1.5,
                                 ),
@@ -258,7 +256,7 @@ class TrackersState extends State<Trackers>
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.red.shade400,
+                                  color: Colors.white.withOpacity(0.7),
                                 ),
                               ),
                             ],
@@ -279,19 +277,10 @@ class TrackersState extends State<Trackers>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white,
-                              Colors.red.shade50.withOpacity(0.3),
-                              Colors.red.shade50.withOpacity(0.5),
-                            ],
-                            stops: const [0.0, 0.5, 1.0],
-                          ),
+                          color: const Color(0xFF1A2332),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: Colors.red.shade100,
+                            color: const Color(0xFF2A3342),
                             width: 1,
                           ),
                         ),
@@ -300,14 +289,7 @@ class TrackersState extends State<Trackers>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.red.shade50,
-                                    Colors.red.shade100.withOpacity(0.4),
-                                  ],
-                                ),
+                                color: Colors.red.shade400.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -326,17 +308,17 @@ class TrackersState extends State<Trackers>
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.red.shade400,
+                                      color: Colors.white.withOpacity(0.6),
                                       letterSpacing: 0.3,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     '$_currentCalories cal',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w900,
-                                      color: Colors.red.shade500,
+                                      color: Colors.white,
                                       height: 1.1,
                                       letterSpacing: -0.5,
                                     ),
@@ -353,19 +335,10 @@ class TrackersState extends State<Trackers>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white,
-                              Colors.red.shade50.withOpacity(0.3),
-                              Colors.red.shade50.withOpacity(0.5),
-                            ],
-                            stops: const [0.0, 0.5, 1.0],
-                          ),
+                          color: const Color(0xFF1A2332),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: Colors.red.shade100,
+                            color: const Color(0xFF2A3342),
                             width: 1,
                           ),
                         ),
@@ -374,14 +347,7 @@ class TrackersState extends State<Trackers>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.red.shade50,
-                                    Colors.red.shade100.withOpacity(0.4),
-                                  ],
-                                ),
+                                color: Colors.red.shade400.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
@@ -400,17 +366,17 @@ class TrackersState extends State<Trackers>
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.red.shade400,
+                                      color: Colors.white.withOpacity(0.6),
                                       letterSpacing: 0.3,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     '$_caloriesBurned cal',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w900,
-                                      color: Colors.red.shade500,
+                                      color: Colors.white,
                                       height: 1.1,
                                       letterSpacing: -0.5,
                                     ),
@@ -428,127 +394,6 @@ class TrackersState extends State<Trackers>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Build Achievement Rectangle (Full Width)
-  Widget _buildAchievementRectangle() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AchievementsPage()),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(top: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Colors.amber.shade100.withValues(alpha: 0.15),
-              Colors.amber.shade100.withValues(alpha: 0.25),
-            ],
-            stops: const [0.0, 0.6, 1.0],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Badge icon with gradient
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.amber.shade400, Colors.amber.shade600],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.amber.shade400.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.workspace_premium,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Text content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Statistics and Badges",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _newBadgesEarned > 0
-                        ? "You have $_newBadgesEarned new badge${_newBadgesEarned > 1 ? 's' : ''}"
-                        : "View your progress and milestones",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Arrow or badge counter
-            if (_newBadgesEarned > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade600,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.amber.shade300.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  "$_newBadgesEarned",
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              )
-            else
-              Icon(Icons.chevron_right, color: Colors.amber.shade700, size: 24),
-          ],
-        ),
       ),
     );
   }
@@ -644,9 +489,6 @@ class TrackersState extends State<Trackers>
 
         // Main calorie overview card with circular progress
         _buildCalorieOverviewCard(),
-
-        // Achievement Rectangle (Full Width)
-        _buildAchievementRectangle(),
       ],
     );
   }

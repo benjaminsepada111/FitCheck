@@ -5,6 +5,7 @@ import 'package:capstone_project/models/challenge.dart';
 import '../app_text_styles.dart';
 import 'daily_logs.dart';
 import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/services/workout_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
@@ -103,6 +104,10 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       final foodLogs = await FoodLogService.getFoodLogsForDate(date, challengeId: widget.currentChallenge!.id);
       final hasFood = foodLogs.isNotEmpty;
 
+      // Check if there are any workouts
+      final workouts = await WorkoutService.getWorkoutsForDate(widget.currentChallenge!.id, date);
+      final hasWorkout = workouts.isNotEmpty;
+
       // Check if there's water intake
       final prefs = await SharedPreferences.getInstance();
       final dateKey = 'water_intake_${_formatDateKey(date)}';
@@ -118,7 +123,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       );
 
       // Day is complete if any activity was logged
-      return hasFood || hasWater || hasMilestone;
+      return hasFood || hasWorkout || hasWater || hasMilestone;
     } catch (e) {
       return false;
     }

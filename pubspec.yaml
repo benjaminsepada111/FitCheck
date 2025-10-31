@@ -98,6 +98,11 @@ flutter:
     - assets/animations/dumbell.json
     - assets/data/compendium_2024_activities.json
     - assets/animations/runningcharacter.json
+    - assets/images/breakfast.jpg
+    - assets/images/lunch.jpg
+    - assets/images/snack.jpg
+    - assets/images/dinner.jpg
+
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

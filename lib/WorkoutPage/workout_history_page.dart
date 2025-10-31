@@ -106,6 +106,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
           ),
           backgroundColor: Colors.orange.shade600,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -132,22 +133,43 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Workout'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Delete Workout',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
           content: Text(
             'Are you sure you want to delete "${workout.exerciseName}"?',
+            style: const TextStyle(fontSize: 15),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _deleteWorkout(workout);
               },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         );
@@ -193,6 +215,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
             ),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -209,6 +232,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
           content: const Text('Failed to delete workout'),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -337,7 +361,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       });
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 90),
+      padding: const EdgeInsets.fromLTRB(16, 16, 0, 90),
       itemCount: sortedDates.length,
       itemBuilder: (context, index) {
         final dateKey = sortedDates[index];
@@ -347,42 +371,39 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Header with enhanced styling
+            // Date Header
             Padding(
               padding: EdgeInsets.only(
-                left: 4,
+                left: 0,
+                right: 16,
                 bottom: 16,
                 top: index == 0 ? 0 : 32,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _formatDateHeader(firstWorkout.timestamp),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A),
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${dayWorkouts.length} ${dayWorkouts.length == 1 ? 'workout' : 'workouts'}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    _formatDateHeader(firstWorkout.timestamp),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${dayWorkouts.length} ${dayWorkouts.length == 1 ? 'workout' : 'workouts'}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
-            // Horizontal scrollable workouts for this day
+            // Horizontal scrollable workouts
             _buildHorizontalWorkoutSection(dateKey, dayWorkouts),
           ],
         );
@@ -391,12 +412,12 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
   }
 
   Widget _buildHorizontalWorkoutSection(
-    String dateKey,
-    List<Workout> workouts,
-  ) {
+      String dateKey,
+      List<Workout> workouts,
+      ) {
     // Initialize page controller and current page for this day if not exists
     if (!_pageControllers.containsKey(dateKey)) {
-      _pageControllers[dateKey] = PageController(viewportFraction: 0.97);
+      _pageControllers[dateKey] = PageController(viewportFraction: 0.92);
       _currentPages[dateKey] = 0;
     }
 
@@ -404,10 +425,11 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       children: [
         // PageView for horizontal swiping
         SizedBox(
-          height: 295,
+          height: 320,
           child: PageView.builder(
             controller: _pageControllers[dateKey],
             itemCount: workouts.length,
+            padEnds: false,
             onPageChanged: (page) {
               setState(() {
                 _currentPages[dateKey] = page;
@@ -415,7 +437,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
             },
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.only(right: 12),
                 child: _buildWorkoutCard(workouts[index]),
               );
             },
@@ -424,20 +446,23 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         // Page Indicators
         if (workouts.length > 1) ...[
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              workouts.length,
-              (index) => AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: _currentPages[dateKey] == index ? 24 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: _currentPages[dateKey] == index
-                      ? AppColors.secondary
-                      : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                workouts.length,
+                    (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentPages[dateKey] == index ? 24 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _currentPages[dateKey] == index
+                        ? AppColors.secondary
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               ),
             ),
@@ -449,379 +474,192 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
 
   Widget _buildWorkoutCard(Workout workout) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF2C3E50),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image Section with overlay
+          // Image Section
           Stack(
             children: [
-              // Workout Image
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(10),
+                  top: Radius.circular(16),
                 ),
                 child: workout.imageUrl != null && workout.imageUrl!.isNotEmpty
                     ? Image.network(
-                        workout.imageUrl!,
-                        width: double.infinity,
-                        height: 220,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            width: double.infinity,
-                            height: 220,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.grey.shade200,
-                                  Colors.grey.shade100,
-                                ],
-                              ),
-                            ),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value:
-                                    loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                    : null,
-                                strokeWidth: 3,
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: double.infinity,
-                            height: 220,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Colors.white, Colors.grey.shade100],
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.fitness_center,
-                              size: 70,
-                              color: AppColors.secondary.withOpacity(0.4),
-                            ),
-                          );
-                        },
-                      )
+                  workout.imageUrl!,
+                  width: double.infinity,
+                  height: 180,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: double.infinity,
+                      height: 180,
+                      color: Colors.grey.shade800,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value:
+                          loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                              : null,
+                          strokeWidth: 3,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: double.infinity,
+                      height: 180,
+                      color: Colors.grey.shade800,
+                      child: Icon(
+                        Icons.fitness_center,
+                        size: 60,
+                        color: Colors.grey.shade600,
+                      ),
+                    );
+                  },
+                )
                     : Container(
-                        width: double.infinity,
-                        height: 220,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Colors.white, Colors.grey.shade100],
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.fitness_center,
-                          size: 70,
-                          color: AppColors.secondary.withOpacity(0.5),
-                        ),
-                      ),
-              ),
-              // Subtle gradient overlay for text readability
-              Container(
-                width: double.infinity,
-                height: 220,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
+                  width: double.infinity,
+                  height: 180,
+                  color: Colors.grey.shade800,
+                  child: Icon(
+                    Icons.fitness_center,
+                    size: 60,
+                    color: Colors.grey.shade600,
                   ),
                 ),
               ),
-              // Type Badge (Top Left) - Enhanced
+              // Delete button
               Positioned(
-                top: 16,
-                left: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: workout.isCardio
-                        ? Colors.blue.shade600
-                        : AppColors.secondary,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            (workout.isCardio
-                                    ? Colors.blue.shade600
-                                    : AppColors.secondary)
-                                .withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        workout.isCardio
-                            ? Icons.directions_run
-                            : Icons.fitness_center,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        workout.isCardio ? 'Cardio' : 'Strength',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Delete Button (Top Right) - Enhanced
-              Positioned(
-                top: 12,
-                right: 12,
+                top: 8,
+                right: 8,
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () => _showDeleteConfirmation(workout),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade500,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.red.shade500.withOpacity(0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.delete_outline,
-                        size: 20,
+                        Icons.close,
+                        size: 18,
                         color: Colors.white,
                       ),
                     ),
                   ),
                 ),
               ),
-              // Exercise Name (Bottom) - Enhanced
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: Text(
+            ],
+          ),
+          // Details Section
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Type and Time Row
+                Row(
+                  children: [
+                    Icon(
+                      workout.isCardio
+                          ? Icons.directions_run
+                          : Icons.fitness_center,
+                      size: 16,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatDate(workout.timestamp),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '|',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      workout.isCardio ? 'Cardio' : 'Strength',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Exercise Name
+                Text(
                   workout.exerciseName,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    letterSpacing: -0.5,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black45,
-                        offset: Offset(0, 1),
-                        blurRadius: 3,
-                      ),
-                    ],
+                    height: 1.2,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-          // Details Section - Enhanced
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Stats Row with enhanced design
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+                const SizedBox(height: 8),
+                // Stats or Description
+                if (workout.isStrength &&
+                    workout.sets != null &&
+                    workout.reps != null)
+                  Text(
+                    '${workout.sets} sets • ${workout.reps} reps',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade400,
+                      height: 1.4,
+                    ),
+                  )
+                else if (workout.isCardio && workout.durationMinutes != null)
+                  Text(
+                    '${workout.durationMinutes} minutes of cardio',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade400,
+                      height: 1.4,
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          if (workout.isStrength &&
-                              workout.sets != null &&
-                              workout.reps != null) ...[
-                            Icon(
-                              Icons.fitness_center,
-                              size: 18,
-                              color: AppColors.secondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${workout.sets}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'sets',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 5,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade400,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${workout.reps}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'reps',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ] else if (workout.isCardio &&
-                              workout.durationMinutes != null) ...[
-                            Icon(
-                              Icons.schedule_rounded,
-                              size: 18,
-                              color: Colors.blue.shade600,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${workout.durationMinutes}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade600,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'minutes',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      // Time
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.access_time_rounded,
-                            size: 15,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _formatDate(workout.timestamp),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
                 if (workout.notes != null && workout.notes!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                  const SizedBox(height: 6),
+                  Text(
+                    workout.notes!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade400,
+                      height: 1.4,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.blue.shade100, width: 1),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.notes_rounded,
-                          size: 16,
-                          color: Colors.blue.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            workout.notes!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade800,
-                              height: 1.4,
-                            ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ],

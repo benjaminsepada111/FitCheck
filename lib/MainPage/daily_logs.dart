@@ -28,10 +28,20 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   List<Workout> _workouts = [];
   bool _isLoading = true;
 
+  // Page controller for workout carousel
+  PageController? _workoutPageController;
+  int _currentWorkoutPage = 0;
+
   @override
   void initState() {
     super.initState();
     _loadDailyData();
+  }
+
+  @override
+  void dispose() {
+    _workoutPageController?.dispose();
+    super.dispose();
   }
 
   bool _isSameDate(DateTime date1, DateTime date2) {
@@ -47,9 +57,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       // Load food logs for the selected date
       final foodLogs = widget.challenge != null
           ? await FoodLogService.getFoodLogsForDate(
-              widget.selectedDate,
-              challengeId: widget.challenge!.id,
-            )
+        widget.selectedDate,
+        challengeId: widget.challenge!.id,
+      )
           : <FoodLog>[];
 
       // Calculate total calories and organize by meal
@@ -75,8 +85,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       // Load milestones for the selected date
       final allMilestones = widget.challenge != null
           ? await MilestoneService.getAllMilestones(
-              challengeId: widget.challenge!.id,
-            )
+        challengeId: widget.challenge!.id,
+      )
           : <Milestone>[];
       final dateMilestones = allMilestones
           .where((m) => _isSameDate(m.date, widget.selectedDate))
@@ -85,9 +95,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       // Load workouts for the selected date
       final workoutsForDate = widget.challenge != null
           ? await WorkoutService.getWorkoutsForDate(
-              widget.challenge!.id,
-              widget.selectedDate,
-            )
+        widget.challenge!.id,
+        widget.selectedDate,
+      )
           : <Workout>[];
 
       setState(() {
@@ -96,6 +106,13 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         _milestones = dateMilestones;
         _workouts = workoutsForDate;
         _isLoading = false;
+
+        // Initialize page controller for workouts if there are any
+        if (workoutsForDate.isNotEmpty) {
+          _workoutPageController?.dispose();
+          _workoutPageController = PageController(viewportFraction: 0.90);
+          _currentWorkoutPage = 0;
+        }
       });
     } catch (e) {
       setState(() => _isLoading = false);
@@ -104,10 +121,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to load daily data'),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         );
@@ -137,12 +155,12 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -152,16 +170,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               'Daily Log',
               style: TextStyle(
                 color: Colors.black87,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
               ),
             ),
             Text(
               _formatDate(widget.selectedDate),
               style: TextStyle(
                 color: Colors.grey.shade600,
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
               ),
             ),
           ],
@@ -170,59 +190,81 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       body: _isLoading
           ? const Center(child: FitCheckLoader())
           : RefreshIndicator(
-              onRefresh: _loadDailyData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Daily Summary with circular progress
-                    _buildDailySummary(),
+        color: AppColors.secondary,
+        onRefresh: _loadDailyData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              // Daily Summary
+              _buildDailySummary(),
 
-                    const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-                    // Progress Photo Section
-                    if (_milestones.isNotEmpty) _buildProgressPhotos(),
+              // Progress Photo Section
+              if (_milestones.isNotEmpty) _buildProgressPhotos(),
 
-                    // Workout Section
-                    if (_workouts.isNotEmpty) _buildWorkoutSection(),
+              // Workout Section
+              if (_workouts.isNotEmpty) _buildWorkoutSection(),
 
-                    // Food Logs Section
-                    _buildFoodLogs(),
+              // Food Logs Section
+              _buildFoodLogs(),
 
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildDailySummary() {
-    // Calculate total food entries logged (not meal types)
     final mealsLogged = _foodEntriesByMeal.values.fold<int>(
       0,
-      (sum, entries) => sum + entries.length,
+          (sum, entries) => sum + entries.length,
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.secondary,
+            AppColors.secondary.withOpacity(0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Daily Summary',
+            'Today\'s Summary',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
                 child: _buildStatCard(
+                  icon: Icons.fitness_center_rounded,
                   label: 'Workouts',
                   value: _workouts.length.toString(),
                 ),
@@ -230,6 +272,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
+                  icon: Icons.local_fire_department_rounded,
                   label: 'Calories',
                   value: _loggedCalories.toString(),
                 ),
@@ -237,6 +280,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
+                  icon: Icons.restaurant_rounded,
                   label: 'Meals',
                   value: mealsLogged.toString(),
                 ),
@@ -248,39 +292,40 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
-  Widget _buildStatCard({required String label, required String value}) {
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.shade200, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Icon(icon, color: Colors.white, size: 28),
+          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Colors.white,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
+              fontSize: 11,
+              color: Colors.white,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
             ),
             textAlign: TextAlign.center,
           ),
@@ -301,21 +346,31 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               const Text(
                 'Progress Photos',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                  letterSpacing: -0.5,
                 ),
               ),
-              Text(
-                '${_milestones.length} ${_milestones.length == 1 ? 'photo' : 'photos'}',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_milestones.length} ${_milestones.length == 1 ? 'photo' : 'photos'}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Display all milestones for this date
+          const SizedBox(height: 16),
           ..._milestones.map((milestone) => _buildMilestoneCard(milestone)),
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -323,37 +378,89 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
   Widget _buildWorkoutSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Workouts',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Workouts',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_workouts.length} ${_workouts.length == 1 ? 'workout' : 'workouts'}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Horizontal workout carousel
+          SizedBox(
+            height: 200,
+            child: PageView.builder(
+              controller: _workoutPageController,
+              itemCount: _workouts.length,
+              padEnds: false,
+              onPageChanged: (page) {
+                setState(() {
+                  _currentWorkoutPage = page;
+                });
+              },
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: index == 0 ? 16 : 6,
+                    right: index == _workouts.length - 1 ? 16 : 6,
+                  ),
+                  child: _buildWorkoutCard(_workouts[index]),
+                );
+              },
+            ),
+          ),
+          // Page Indicators
+          if (_workouts.length > 1) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _workouts.length,
+                    (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentWorkoutPage == index ? 28 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _currentWorkoutPage == index
+                        ? AppColors.secondary
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
               ),
-              Text(
-                '${_workouts.length} ${_workouts.length == 1 ? 'workout' : 'workouts'}',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Display workout cards
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _workouts
-                .map((workout) => _buildWorkoutCard(workout))
-                .toList(),
-          ),
-          const SizedBox(height: 24),
+            ),
+          ],
         ],
       ),
     );
@@ -363,80 +470,146 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return GestureDetector(
       onTap: () => _showWorkoutDetail(workout),
       child: Container(
-        width:
-            (MediaQuery.of(context).size.width - 44) /
-            2, // Half width minus padding
+        width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF06111D),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF1A2332)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image or placeholder
+            // Image
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(16),
               ),
-              child: _buildWorkoutImage(workout, height: 120),
+              child: SizedBox(
+                width: 140,
+                height: 200,
+                child: _buildWorkoutImage(workout, height: 200),
+              ),
             ),
-            // Exercise details
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    workout.exerciseName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+            // Details
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: workout.isCardio
+                            ? Colors.blue.withOpacity(0.1)
+                            : AppColors.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            workout.isCardio
+                                ? Icons.directions_run_rounded
+                                : Icons.fitness_center_rounded,
+                            size: 14,
+                            color: workout.isCardio
+                                ? Colors.blue.shade600
+                                : AppColors.secondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            workout.isCardio ? 'Cardio' : 'Strength',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: workout.isCardio
+                                  ? Colors.blue.shade600
+                                  : AppColors.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.repeat,
-                        size: 14,
-                        color: Colors.white.withOpacity(0.6),
+                    const SizedBox(height: 12),
+                    Text(
+                      workout.exerciseName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${workout.sets} sets',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.6),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    if (workout.isStrength && workout.sets != null && workout.reps != null)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.repeat_rounded,
+                            size: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${workout.sets} sets × ${workout.reps} reps',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (workout.isCardio && workout.durationMinutes != null)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${workout.durationMinutes} minutes',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 13,
+                          color: Colors.grey.shade500,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.numbers,
-                        size: 14,
-                        color: Colors.white.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${workout.reps} reps',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.6),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatTime(workout.timestamp),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -449,7 +622,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: SingleChildScrollView(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 500),
@@ -460,30 +633,31 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 // Image
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+                    top: Radius.circular(24),
                   ),
                   child: _buildWorkoutImage(workout, height: 250),
                 ),
                 // Details
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         workout.exerciseName,
                         style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       Row(
                         children: [
                           Expanded(
                             child: _buildDetailItem(
-                              Icons.repeat,
+                              Icons.repeat_rounded,
                               'Sets',
                               workout.sets.toString(),
                             ),
@@ -491,7 +665,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildDetailItem(
-                              Icons.numbers,
+                              Icons.numbers_rounded,
                               'Reps',
                               workout.reps.toString(),
                             ),
@@ -500,34 +674,45 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                       ),
                       if (workout.notes != null &&
                           workout.notes!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.note_outlined,
-                              size: 18,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Notes',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.notes_rounded,
+                                    size: 18,
+                                    color: AppColors.secondary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Notes',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          workout.notes!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade800,
-                            height: 1.5,
+                              const SizedBox(height: 12),
+                              Text(
+                                workout.notes!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -535,21 +720,22 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                       Row(
                         children: [
                           Icon(
-                            Icons.access_time,
+                            Icons.access_time_rounded,
                             size: 14,
                             color: Colors.grey.shade500,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           Text(
                             _formatTime(workout.timestamp),
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -557,16 +743,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.secondary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
+                            elevation: 0,
                           ),
                           child: const Text(
                             'Close',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ),
@@ -584,28 +772,33 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
   Widget _buildDetailItem(IconData icon, String label, String value) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+        color: AppColors.secondary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: AppColors.secondary, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: AppColors.secondary, size: 28),
+          const SizedBox(height: 10),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
               color: AppColors.secondary,
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
           ),
         ],
       ),
@@ -615,112 +808,98 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   Widget _buildMilestoneCard(Milestone milestone) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Progress Photo
           Container(
-            width: 180,
-            height: 280,
+            width: 140,
+            height: 200,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child:
-                  milestone.imagePath != null && milestone.imagePath!.isNotEmpty
-                  ? Image.file(
-                      File(milestone.imagePath!),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildPlaceholderImage();
-                      },
-                    )
-                  : _buildPlaceholderImage(),
+              borderRadius: BorderRadius.circular(16),
+              child: _buildMilestoneImage(milestone),
             ),
           ),
           const SizedBox(width: 16),
           // Notes
           Expanded(
-            child: Container(
-              height: 280,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.note_outlined,
-                        size: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Notes',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        milestone.notes ?? 'No notes added',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: milestone.notes != null
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade400,
-                          height: 1.5,
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.notes_rounded,
+                      size: 16,
+                      color: AppColors.secondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Notes',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                        letterSpacing: 0.2,
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  milestone.notes ?? 'No notes added',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: milestone.notes != null
+                        ? Colors.grey.shade800
+                        : Colors.grey.shade400,
+                    height: 1.6,
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 12,
-                        color: Colors.grey.shade500,
+                  maxLines: 6,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 13,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatTime(milestone.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatTime(milestone.createdAt),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -742,7 +921,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       ),
       child: Center(
         child: Icon(
-          Icons.image,
+          Icons.image_rounded,
           size: 48,
           color: Colors.white.withOpacity(0.7),
         ),
@@ -760,7 +939,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   Widget _buildFoodLogs() {
     final totalEntries = _foodEntriesByMeal.values.fold<int>(
       0,
-      (sum, entries) => sum + entries.length,
+          (sum, entries) => sum + entries.length,
     );
 
     return Container(
@@ -774,26 +953,38 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               const Text(
                 'Food Logs',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                  letterSpacing: -0.5,
                 ),
               ),
-              Text(
-                '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // Build each meal section
           _buildMealSection('Breakfast'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _buildMealSection('Lunch'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _buildMealSection('Dinner'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _buildMealSection('Snack'),
         ],
       ),
@@ -804,54 +995,95 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     final entries = _foodEntriesByMeal[mealType] ?? [];
     final totalCalories = entries.fold<int>(
       0,
-      (sum, entry) => sum + entry.totalCalories.round(),
+          (sum, entry) => sum + entry.totalCalories.round(),
     );
+
+    IconData mealIcon;
+    switch (mealType) {
+      case 'Breakfast':
+        mealIcon = Icons.wb_sunny_rounded;
+        break;
+      case 'Lunch':
+        mealIcon = Icons.lunch_dining_rounded;
+        break;
+      case 'Dinner':
+        mealIcon = Icons.dinner_dining_rounded;
+        break;
+      default:
+        mealIcon = Icons.restaurant_rounded;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              mealType,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                mealIcon,
+                size: 20,
+                color: AppColors.secondary,
               ),
             ),
-            if (entries.isNotEmpty)
-              Text(
-                '$totalCalories cal',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.secondary,
-                ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mealType,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  if (entries.isNotEmpty)
+                    Text(
+                      '$totalCalories cal',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (entries.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.restaurant_outlined,
-                  size: 20,
+                  size: 18,
                   color: Colors.grey.shade400,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'No entries',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade500,
+                  ),
                 ),
               ],
             ),
@@ -866,28 +1098,28 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return GestureDetector(
       onTap: () => _showFoodDetail(entry),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
-            // Food image or placeholder
+            // Food image
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: _buildFoodImage(entry, width: 60, height: 60),
+              borderRadius: BorderRadius.circular(12),
+              child: _buildFoodImage(entry, width: 70, height: 70),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             // Food details
             Expanded(
               child: Column(
@@ -896,45 +1128,45 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                   Text(
                     entry.foodName,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                      letterSpacing: -0.2,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       if (entry.servingSize > 0) ...[
                         Icon(
-                          Icons.scale,
-                          size: 12,
+                          Icons.scale_rounded,
+                          size: 13,
                           color: Colors.grey.shade600,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${entry.servingSize.toStringAsFixed(0)}g',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        Text(
-                          ' • ',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
+                        const SizedBox(width: 8),
                       ],
                       Icon(
-                        Icons.local_fire_department,
-                        size: 12,
+                        Icons.local_fire_department_rounded,
+                        size: 13,
                         color: Colors.grey.shade600,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${entry.totalCalories.round()} cal',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -945,17 +1177,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             ),
             // Calorie badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
+                color: AppColors.secondary,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '${entry.totalCalories.round()}',
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.secondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: -0.2,
                 ),
               ),
             ),
@@ -969,7 +1202,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: SingleChildScrollView(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 500),
@@ -980,7 +1213,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 // Image
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+                    top: Radius.circular(24),
                   ),
                   child: _buildFoodImage(
                     entry,
@@ -990,24 +1223,25 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 ),
                 // Details
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         entry.foodName,
                         style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                          letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       Row(
                         children: [
                           Expanded(
                             child: _buildFoodDetailItem(
-                              Icons.local_fire_department,
+                              Icons.local_fire_department_rounded,
                               'Calories',
                               '${entry.totalCalories.round()}',
                             ),
@@ -1015,45 +1249,55 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildFoodDetailItem(
-                              Icons.scale,
+                              Icons.scale_rounded,
                               'Serving',
                               '${entry.servingSize.toStringAsFixed(0)}g',
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Nutritional Info',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
-                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 16,
+                                  color: AppColors.secondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Nutritional Info',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade800,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
                             Text(
                               '${entry.caloriesPer100g.toStringAsFixed(1)} cal per 100g',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey.shade800,
+                                color: Colors.grey.shade700,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -1061,16 +1305,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.secondary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
+                            elevation: 0,
                           ),
                           child: const Text(
                             'Close',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ),
@@ -1088,41 +1334,45 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
   Widget _buildFoodDetailItem(IconData icon, String label, String value) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+        color: AppColors.secondary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, color: AppColors.secondary, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: AppColors.secondary, size: 28),
+          const SizedBox(height: 10),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
               color: AppColors.secondary,
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Helper method to build food image from either imageUrl (Cloud Storage) or imageBase64 (legacy)
+  /// Helper method to build food image
   Widget _buildFoodImage(
-    FoodEntry entry, {
-    required double width,
-    required double height,
-  }) {
-    // Priority 1: Use imageUrl from Cloud Storage (new method)
+      FoodEntry entry, {
+        required double width,
+        required double height,
+      }) {
     if (entry.imageUrl != null && entry.imageUrl!.isNotEmpty) {
       return Image.network(
         entry.imageUrl!,
@@ -1134,14 +1384,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           return Container(
             width: width,
             height: height,
-            color: Colors.grey.shade200,
+            color: Colors.grey.shade100,
             child: Center(
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
                     ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
+                    loadingProgress.expectedTotalBytes!
                     : null,
                 color: AppColors.secondary,
+                strokeWidth: 3,
               ),
             ),
           );
@@ -1152,7 +1403,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       );
     }
 
-    // Priority 2: Use imageBase64 (legacy/backward compatibility)
     if (entry.imageBase64 != null && entry.imageBase64!.isNotEmpty) {
       try {
         return Image.memory(
@@ -1169,11 +1419,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       }
     }
 
-    // No image available - show placeholder
     return _buildFoodImagePlaceholder(width, height);
   }
 
-  /// Build placeholder for food images
   Widget _buildFoodImagePlaceholder(double width, double height) {
     return Container(
       width: width,
@@ -1190,17 +1438,16 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       ),
       child: Center(
         child: Icon(
-          Icons.restaurant,
-          size: height > 100 ? 64 : 24,
-          color: Colors.white.withOpacity(0.8),
+          Icons.restaurant_rounded,
+          size: height > 100 ? 64 : 28,
+          color: Colors.white.withOpacity(0.9),
         ),
       ),
     );
   }
 
-  /// Helper method to build workout image from either imageUrl (Cloud Storage) or imageBase64 (legacy)
+  /// Helper method to build workout image
   Widget _buildWorkoutImage(Workout workout, {required double height}) {
-    // Priority 1: Use imageUrl from Cloud Storage (new method)
     if (workout.imageUrl != null && workout.imageUrl!.isNotEmpty) {
       return Image.network(
         workout.imageUrl!,
@@ -1212,14 +1459,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           return Container(
             height: height,
             width: double.infinity,
-            color: Colors.grey.shade200,
+            color: Colors.grey.shade100,
             child: Center(
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
                     ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
+                    loadingProgress.expectedTotalBytes!
                     : null,
                 color: AppColors.secondary,
+                strokeWidth: 3,
               ),
             ),
           );
@@ -1230,7 +1478,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       );
     }
 
-    // Priority 2: Use imageBase64 (legacy/backward compatibility)
     if (workout.imageBase64 != null && workout.imageBase64!.isNotEmpty) {
       try {
         return Image.memory(
@@ -1247,11 +1494,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       }
     }
 
-    // No image available - show placeholder
     return _buildWorkoutImagePlaceholder(height);
   }
 
-  /// Build placeholder for workout images
   Widget _buildWorkoutImagePlaceholder(double height) {
     return Container(
       height: height,
@@ -1267,16 +1512,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         ),
       ),
       child: Icon(
-        Icons.fitness_center,
+        Icons.fitness_center_rounded,
         size: height > 150 ? 64 : 40,
-        color: Colors.white.withOpacity(0.8),
+        color: Colors.white.withOpacity(0.9),
       ),
     );
   }
 
-  /// Helper method to build milestone image from either imageUrl (Cloud Storage) or imagePath (local file)
+  /// Helper method to build milestone image
   Widget _buildMilestoneImage(Milestone milestone) {
-    // Priority 1: Use imageUrl from Cloud Storage (new method)
     if (milestone.imageUrl != null && milestone.imageUrl!.isNotEmpty) {
       return Image.network(
         milestone.imageUrl!,
@@ -1284,14 +1528,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Container(
-            color: Colors.grey.shade200,
+            color: Colors.grey.shade100,
             child: Center(
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
                     ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
+                    loadingProgress.expectedTotalBytes!
                     : null,
                 color: AppColors.secondary,
+                strokeWidth: 3,
               ),
             ),
           );
@@ -1302,7 +1547,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       );
     }
 
-    // Priority 2: Use imagePath (local file/legacy)
     if (milestone.imagePath != null && milestone.imagePath!.isNotEmpty) {
       try {
         return Image.file(
@@ -1317,11 +1561,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       }
     }
 
-    // No image available - show placeholder
     return _buildMilestoneImagePlaceholder();
   }
 
-  /// Build placeholder for milestone images
   Widget _buildMilestoneImagePlaceholder() {
     return Container(
       decoration: BoxDecoration(
@@ -1336,9 +1578,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       ),
       child: Center(
         child: Icon(
-          Icons.image,
+          Icons.image_rounded,
           size: 48,
-          color: Colors.white.withOpacity(0.7),
+          color: Colors.white.withOpacity(0.9),
         ),
       ),
     );

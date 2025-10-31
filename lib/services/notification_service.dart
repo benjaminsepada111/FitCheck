@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 class NotificationService {
   // Singleton pattern - ensures only one instance exists
@@ -29,6 +32,7 @@ class NotificationService {
 
   /// Initialize the notification service
   /// Call this once in main.dart
+
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -44,16 +48,27 @@ class NotificationService {
       const AndroidInitializationSettings androidSettings =
       AndroidInitializationSettings('@mipmap/ic_launcher');
 
-      // iOS-specific settings
-      const DarwinInitializationSettings iosSettings =
+      // iOS-specific settings with action categories
+      final DarwinInitializationSettings iosSettings =
       DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
         requestSoundPermission: true,
+        notificationCategories: <DarwinNotificationCategory>[
+          DarwinNotificationCategory(
+            'meal_reminder_category',
+            actions: <DarwinNotificationAction>[
+              DarwinNotificationAction.plain(
+                'log_now',
+                'Log Now',
+              ),
+            ],
+          ),
+        ],
       );
 
       // Combined initialization settings
-      const InitializationSettings initSettings = InitializationSettings(
+      final InitializationSettings initSettings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       );
@@ -152,10 +167,52 @@ class NotificationService {
 
     return true; // iOS doesn't need this
   }
+  /// Copy asset image to temporary directory and return file path
+  Future<String?> _getAssetImagePath(String assetPath) async {
+    try {
+      final ByteData data = await rootBundle.load(assetPath);
+      final Directory tempDir = await getTemporaryDirectory();
+      final String fileName = assetPath.split('/').last;
+      final File tempFile = File('${tempDir.path}/$fileName');
 
+      await tempFile.writeAsBytes(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
+
+      debugPrint('✅ Asset copied to: ${tempFile.path}');
+      return tempFile.path;
+    } catch (e) {
+      debugPrint('❌ Error copying asset image: $e');
+      return null;
+    }
+  }
+
+  /// Get asset image path based on meal type
+  String _getMealAssetPath(String mealType) {
+    switch (mealType.toLowerCase()) {
+      case 'breakfast':
+        return 'assets/images/breakfast.jpg';
+      case 'lunch':
+        return 'assets/images/lunch.jpg';
+      case 'snack':
+        return 'assets/images/snack.jpg';
+      case 'dinner':
+        return 'assets/images/dinner.jpg';
+      default:
+        return 'assets/images/snack.jpg';
+    }
+  }
+
+  /// Handle notification tap events
   /// Handle notification tap events
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
+
+    // Handle action button clicks
+    if (response.actionId == 'log_now') {
+      debugPrint('🔘 Log Now button tapped');
+      // You can add navigation logic here or use a callback
+    }
   }
 
   /// Show an instant notification (appears immediately)
@@ -210,6 +267,7 @@ class NotificationService {
   }
 
   /// Schedule daily meal reminders at specific times
+  /// Schedule daily meal reminders at specific times WITH IMAGES
   Future<void> scheduleDailyMealReminders() async {
     if (!_isInitialized) {
       debugPrint('⚠️ NotificationService not initialized');
@@ -228,6 +286,7 @@ class NotificationService {
           'minute': 0,
           'meal': 'Breakfast',
           'emoji': '🍳',
+          'asset': 'assets/images/breakfast.jpg',
         },
         {
           'id': lunchReminderId,
@@ -235,6 +294,7 @@ class NotificationService {
           'minute': 0,
           'meal': 'Lunch',
           'emoji': '🍱',
+          'asset': 'assets/images/lunch.jpg',
         },
         {
           'id': snackReminderId,
@@ -242,6 +302,7 @@ class NotificationService {
           'minute': 0,
           'meal': 'Snack',
           'emoji': '🍎',
+          'asset': 'assets/images/snack.jpg',
         },
         {
           'id': dinnerReminderId,
@@ -249,34 +310,59 @@ class NotificationService {
           'minute': 0,
           'meal': 'Dinner',
           'emoji': '🍽️',
+          'asset': 'assets/images/dinner.jpg',
         },
       ];
 
-      const AndroidNotificationDetails androidDetails =
-      AndroidNotificationDetails(
-        'meal_reminder_channel',
-        'Meal Reminders',
-        channelDescription: 'Daily reminders to log your meals',
-        importance: Importance.high,
-        priority: Priority.high,
-        enableVibration: true,
-        playSound: true,
-        visibility: NotificationVisibility.public,
-        icon: '@mipmap/ic_launcher',
-      );
-
-      const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
-
-      const NotificationDetails notificationDetails = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
-
       for (final reminder in mealReminders) {
+        // Get image path for this meal
+        final String? imagePath = await _getAssetImagePath(reminder['asset'] as String);
+
+        // Create action button
+        const AndroidNotificationAction logNowAction = AndroidNotificationAction(
+          'log_now',
+          'Log Now',
+          showsUserInterface: true,
+        );
+
+        // Configure notification with image
+        final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+          'meal_reminder_channel',
+          'Meal Reminders',
+          channelDescription: 'Daily reminders to log your meals',
+          importance: Importance.high,
+          priority: Priority.high,
+          enableVibration: true,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+          icon: '@mipmap/ic_launcher',
+          largeIcon: imagePath != null ? FilePathAndroidBitmap(imagePath) : null,
+          styleInformation: imagePath != null
+              ? BigPictureStyleInformation(
+            FilePathAndroidBitmap(imagePath),
+            contentTitle: '${reminder['emoji']} Time for ${reminder['meal']}!',
+            summaryText: "Don't forget to log your ${reminder['meal']} in FitCheck!",
+            hideExpandedLargeIcon: false,
+          )
+              : null,
+          actions: const <AndroidNotificationAction>[logNowAction],
+        );
+
+        final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          attachments: imagePath != null
+              ? <DarwinNotificationAttachment>[DarwinNotificationAttachment(imagePath)]
+              : null,
+          categoryIdentifier: 'meal_reminder_category',
+        );
+
+        final NotificationDetails notificationDetails = NotificationDetails(
+          android: androidDetails,
+          iOS: iosDetails,
+        );
+
         var scheduledTime = tz.TZDateTime(
           tz.local,
           now.year,
@@ -296,7 +382,7 @@ class NotificationService {
 
         await _notifications.zonedSchedule(
           reminder['id'] as int,
-          '$emoji Meal Reminder',
+          '$emoji Time for $mealName!',
           "Don't forget to log your $mealName in FitCheck!",
           scheduledTime,
           notificationDetails,
@@ -308,10 +394,10 @@ class NotificationService {
         );
 
         debugPrint(
-            '✅ Scheduled $mealName reminder at ${reminder['hour']}:${(reminder['minute'] as int).toString().padLeft(2, '0')}');
+            '✅ Scheduled $mealName reminder with image at ${reminder['hour']}:${(reminder['minute'] as int).toString().padLeft(2, '0')}');
       }
 
-      debugPrint('✅ All daily meal reminders scheduled successfully');
+      debugPrint('✅ All daily meal reminders with images scheduled successfully');
     } catch (e) {
       debugPrint('❌ Error scheduling meal reminders: $e');
     }
@@ -504,4 +590,5 @@ class NotificationService {
       debugPrint('  - ID: ${notification.id}, Title: ${notification.title}');
     }
   }
+
 }

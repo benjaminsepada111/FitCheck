@@ -501,6 +501,25 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     if (_isDownloading) return;
 
     try {
+      // ⭐ REQUEST STORAGE PERMISSION FIRST
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        PermissionStatus status;
+
+        if (androidInfo.version.sdkInt >= 33) {
+          // Android 13+ - Request video permission
+          status = await Permission.videos.request();
+        } else {
+          // Android 12 and below - Request storage permission
+          status = await Permission.storage.request();
+        }
+
+        if (!status.isGranted) {
+          _showSnackBar('Storage permission is required to save video to gallery');
+          return;
+        }
+      }
+
       setState(() => _isDownloading = true);
 
       showDialog(

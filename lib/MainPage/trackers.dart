@@ -3,6 +3,7 @@ import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
 import '../app_text_styles.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'dart:async';
@@ -178,8 +179,29 @@ class TrackersState extends State<Trackers>
           widget.onCaloriesChanged(_currentCalories);
         });
 
-    // Note: WorkoutService doesn't have a real-time stream yet
-    // We'll refresh manually when workouts are added
+    // Listen to workout changes
+    _workoutSubscription = WorkoutServiceV2.getWorkoutsStreamForDate(
+      challengeId: widget.currentChallenge!.id,
+      date: today,
+    ).listen((workouts) async {
+      if (!mounted) return;
+
+      // Get user weight for calorie calculation
+      final userData = await UserDataService.loadUserData();
+      final userWeight = userData?.weight?.toDouble() ?? 70.0;
+
+      int caloriesBurned = 0;
+      for (var workout in workouts) {
+        caloriesBurned += workout.calculateCaloriesBurned(userWeight);
+      }
+
+      setState(() {
+        _caloriesBurned = caloriesBurned;
+      });
+
+      // Trigger animation
+      _animationController.forward(from: 0);
+    });
   }
 
   // Public method to refresh data (can be called from parent)
@@ -197,29 +219,20 @@ class TrackersState extends State<Trackers>
     final netCalories = (_currentCalories - _caloriesBurned)
         .clamp(0, double.infinity)
         .toInt();
-    final progress = _calculateProgress(netCalories, _calorieGoal);
+    final consumedProgress = _calculateProgress(_currentCalories, _calorieGoal);
+    final burnedProgress = _calculateProgress(_caloriesBurned, _calorieGoal);
     final isOverGoal = netCalories > _calorieGoal;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C3340),
+        color: const Color(0xFF06111D),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title Section
-          Text(
-            'Calories',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
           // Main Content Row
           Row(
             children: [
@@ -232,10 +245,10 @@ class TrackersState extends State<Trackers>
                     return CustomPaint(
                       size: const Size(120, 120),
                       painter: _CircularProgressPainter(
-                        progress: progress * _progressAnimation.value,
+                        consumedProgress: consumedProgress * _progressAnimation.value,
+                        burnedProgress: burnedProgress * _progressAnimation.value,
                         isOverGoal: isOverGoal,
                         backgroundColor: Colors.grey.shade700,
-                        progressColor: isOverGoal ? Colors.orange : Colors.red,
                       ),
                       child: SizedBox(
                         width: 120,
@@ -247,18 +260,19 @@ class TrackersState extends State<Trackers>
                               Text(
                                 netCalories.toString(),
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: 36,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                   height: 1.0,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
-                                'Remaining',
+                                '/ $_calorieGoal',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 14,
                                   color: Colors.grey.shade400,
+                                  height: 1.0,
                                 ),
                               ),
                             ],
@@ -270,6 +284,13 @@ class TrackersState extends State<Trackers>
                 ),
               ),
               const SizedBox(width: 20),
+              // Vertical divider line
+              Container(
+                width: 1,
+                height: 100,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(width: 20),
               // Right Side - Stats Column
               Expanded(
                 flex: 3,
@@ -277,15 +298,8 @@ class TrackersState extends State<Trackers>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildStatRow(
-                      icon: Icons.flag_rounded,
-                      label: 'Base Goal',
-                      value: _calorieGoal.toString(),
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStatRow(
                       icon: Icons.restaurant_rounded,
-                      label: 'Food',
+                      label: 'Calories Consumed',
                       value: _currentCalories.toString(),
                       color: Colors.red,
                     ),
@@ -318,7 +332,7 @@ class TrackersState extends State<Trackers>
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -342,7 +356,7 @@ class TrackersState extends State<Trackers>
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 24,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -450,18 +464,18 @@ class TrackersState extends State<Trackers>
   }
 }
 
-// Custom painter for circular progress indicator
+// Custom painter for circular progress indicator with dual arcs
 class _CircularProgressPainter extends CustomPainter {
-  final double progress;
+  final double consumedProgress;
+  final double burnedProgress;
   final bool isOverGoal;
   final Color backgroundColor;
-  final Color progressColor;
 
   _CircularProgressPainter({
-    required this.progress,
+    required this.consumedProgress,
+    required this.burnedProgress,
     required this.isOverGoal,
     required this.backgroundColor,
-    required this.progressColor,
   });
 
   @override
@@ -476,7 +490,7 @@ class _CircularProgressPainter extends CustomPainter {
 
     // Background arc - using dark gray from theme
     final backgroundPaint = Paint()
-      ..color = const Color(0xFF2A2A2A)
+      ..color = const Color(0xFF1A2332)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -489,41 +503,71 @@ class _CircularProgressPainter extends CustomPainter {
       backgroundPaint,
     );
 
-    // Progress arc
-    if (progress > 0) {
-      // Use red color from theme
-      final progressPaint = Paint()
-        ..color = const Color(0xFFE94560)
+    // Consumed calories arc (red)
+    if (consumedProgress > 0) {
+      final consumedPaint = Paint()
+        ..color = const Color(0xFFE94560) // Red
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round;
 
-      final progressSweep = totalSweep * progress;
+      final consumedSweep = totalSweep * consumedProgress;
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         startAngle,
-        progressSweep,
+        consumedSweep,
         false,
-        progressPaint,
+        consumedPaint,
       );
 
-      // Add subtle dot at the end
-      final endAngle = startAngle + progressSweep;
-      final endX = center.dx + radius * math.cos(endAngle);
-      final endY = center.dy + radius * math.sin(endAngle);
-      final endPoint = Offset(endX, endY);
+      // Add dot at the end of consumed arc
+      final consumedEndAngle = startAngle + consumedSweep;
+      final consumedEndX = center.dx + radius * math.cos(consumedEndAngle);
+      final consumedEndY = center.dy + radius * math.sin(consumedEndAngle);
+      final consumedEndPoint = Offset(consumedEndX, consumedEndY);
 
-      final dotPaint = Paint()
+      final consumedDotPaint = Paint()
         ..color = const Color(0xFFE94560)
         ..style = PaintingStyle.fill;
 
-      canvas.drawCircle(endPoint, strokeWidth / 2.2, dotPaint);
+      canvas.drawCircle(consumedEndPoint, strokeWidth / 2.2, consumedDotPaint);
+    }
+
+    // Burned calories arc (orange) - drawn on top/overlapping
+    if (burnedProgress > 0) {
+      final burnedPaint = Paint()
+        ..color = const Color(0xFFFF8C42) // Orange
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      final burnedSweep = totalSweep * burnedProgress;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        burnedSweep,
+        false,
+        burnedPaint,
+      );
+
+      // Add dot at the end of burned arc
+      final burnedEndAngle = startAngle + burnedSweep;
+      final burnedEndX = center.dx + radius * math.cos(burnedEndAngle);
+      final burnedEndY = center.dy + radius * math.sin(burnedEndAngle);
+      final burnedEndPoint = Offset(burnedEndX, burnedEndY);
+
+      final burnedDotPaint = Paint()
+        ..color = const Color(0xFFFF8C42)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(burnedEndPoint, strokeWidth / 2.2, burnedDotPaint);
     }
   }
 
   @override
   bool shouldRepaint(_CircularProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
+    return oldDelegate.consumedProgress != consumedProgress ||
+        oldDelegate.burnedProgress != burnedProgress ||
         oldDelegate.isOverGoal != isOverGoal;
   }
 }

@@ -7,6 +7,7 @@ import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/user_data_service.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
@@ -23,6 +24,8 @@ class DailyLogsPage extends StatefulWidget {
 
 class _DailyLogsPageState extends State<DailyLogsPage> {
   int _loggedCalories = 0;
+  int _calorieGoal = 2000;
+  int _caloriesBurned = 0;
   Map<String, List<FoodEntry>> _foodEntriesByMeal = {};
   List<Milestone> _milestones = [];
   List<Workout> _workouts = [];
@@ -54,6 +57,17 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Get calorie goal
+      int goal = 2000;
+      if (widget.challenge?.dailyCalorieGoal != null) {
+        goal = widget.challenge!.dailyCalorieGoal;
+      } else {
+        final calculatedGoal = await UserDataService.getDailyCalorieGoal();
+        if (calculatedGoal != 2000) {
+          goal = calculatedGoal;
+        }
+      }
+
       // Load food logs for the selected date
       final foodLogs = widget.challenge != null
           ? await FoodLogService.getFoodLogsForDate(
@@ -76,9 +90,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
 
         if (mealEntries.containsKey(log.mealType)) {
           mealEntries[log.mealType] = log.entries;
-
-          // Log each entry
-          for (var entry in log.entries) {}
         }
       }
 
@@ -100,8 +111,21 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       )
           : <Workout>[];
 
+      // Calculate calories burned from workouts
+      int caloriesBurned = 0;
+      if (widget.challenge != null && workoutsForDate.isNotEmpty) {
+        final userData = await UserDataService.loadUserData();
+        final userWeight = userData?.weight?.toDouble() ?? 70.0;
+
+        for (var workout in workoutsForDate) {
+          caloriesBurned += workout.calculateCaloriesBurned(userWeight);
+        }
+      }
+
       setState(() {
+        _calorieGoal = goal;
         _loggedCalories = totalCalories;
+        _caloriesBurned = caloriesBurned;
         _foodEntriesByMeal = mealEntries;
         _milestones = dateMilestones;
         _workouts = workoutsForDate;
@@ -221,11 +245,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   }
 
   Widget _buildDailySummary() {
-    final mealsLogged = _foodEntriesByMeal.values.fold<int>(
-      0,
-          (sum, entries) => sum + entries.length,
-    );
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -235,13 +254,13 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           end: Alignment.bottomRight,
           colors: [
             AppColors.secondary,
-            AppColors.secondary.withOpacity(0.8),
+            AppColors.secondary.withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.secondary.withOpacity(0.3),
+            color: AppColors.secondary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -264,25 +283,25 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             children: [
               Expanded(
                 child: _buildStatCard(
-                  icon: Icons.fitness_center_rounded,
-                  label: 'Workouts',
-                  value: _workouts.length.toString(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.local_fire_department_rounded,
-                  label: 'Calories',
-                  value: _loggedCalories.toString(),
+                  icon: Icons.track_changes_rounded,
+                  label: 'Goal',
+                  value: _calorieGoal.toString(),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
                   icon: Icons.restaurant_rounded,
-                  label: 'Meals',
-                  value: mealsLogged.toString(),
+                  label: 'Consumed',
+                  value: _loggedCalories.toString(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.local_fire_department_rounded,
+                  label: 'Burned',
+                  value: _caloriesBurned.toString(),
                 ),
               ),
             ],
@@ -300,9 +319,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

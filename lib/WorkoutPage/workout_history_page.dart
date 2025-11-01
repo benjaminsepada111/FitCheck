@@ -475,7 +475,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
   Widget _buildWorkoutCard(Workout workout) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C3E50),
+        color: const Color(0xFF06111D),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -506,7 +506,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                     return Container(
                       width: double.infinity,
                       height: 180,
-                      color: Colors.grey.shade800,
+                      color: const Color(0xFF1A2332),
                       child: Center(
                         child: CircularProgressIndicator(
                           value:
@@ -524,7 +524,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                     return Container(
                       width: double.infinity,
                       height: 180,
-                      color: Colors.grey.shade800,
+                      color: const Color(0xFF1A2332),
                       child: Icon(
                         Icons.fitness_center,
                         size: 60,
@@ -536,7 +536,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                     : Container(
                   width: double.infinity,
                   height: 180,
-                  color: Colors.grey.shade800,
+                  color: const Color(0xFF1A2332),
                   child: Icon(
                     Icons.fitness_center,
                     size: 60,

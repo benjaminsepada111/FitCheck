@@ -176,7 +176,7 @@ class StatsService {
                   .toDouble();
               final servingSize = (entry['servingSize'] ?? 0).toDouble();
               final calories = (caloriesPer100g * servingSize) / 100;
-              totalCalories += calories.round().toInt();
+              totalCalories = (totalCalories + calories.toInt()) as int;
             }
           }
         } else {
@@ -184,7 +184,7 @@ class StatsService {
           final caloriesPer100g = (data['caloriesPer100g'] ?? 0).toDouble();
           final servingSize = (data['servingSize'] ?? 0).toDouble();
           final calories = (caloriesPer100g * servingSize) / 100;
-          totalCalories += calories.round().toInt();
+          totalCalories = (totalCalories + calories.toInt()) as int;
         }
       }
 
@@ -228,7 +228,7 @@ class StatsService {
           // Calories = MET × weight(kg) × duration(hours)
           // Using average weight of 70kg for estimation
           final calories = met * 70 * (duration / 60);
-          totalCalories += calories.round().toInt();
+          totalCalories = (totalCalories + calories.toInt()) as int;
         }
       }
 

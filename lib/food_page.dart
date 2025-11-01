@@ -144,7 +144,7 @@ class _FoodPageState extends State<FoodPage>
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check, color: Colors.white, size: 16),
@@ -878,7 +878,7 @@ class _FoodPageState extends State<FoodPage>
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -949,9 +949,9 @@ class _FoodPageState extends State<FoodPage>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.secondary.withOpacity(0.08),
+              AppColors.secondary.withValues(alpha: 0.08),
               Colors.white,
-              AppColors.secondary.withOpacity(0.03),
+              AppColors.secondary.withValues(alpha: 0.03),
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
@@ -977,14 +977,14 @@ class _FoodPageState extends State<FoodPage>
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
                               colors: [
-                                AppColors.secondary.withOpacity(0.2),
-                                AppColors.secondary.withOpacity(0.1),
-                                AppColors.secondary.withOpacity(0.05),
+                                AppColors.secondary.withValues(alpha: 0.2),
+                                AppColors.secondary.withValues(alpha: 0.1),
+                                AppColors.secondary.withValues(alpha: 0.05),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.secondary.withOpacity(0.25),
+                                color: AppColors.secondary.withValues(alpha: 0.25),
                                 blurRadius: 40,
                                 spreadRadius: 5,
                                 offset: const Offset(0, 10),
@@ -1000,7 +1000,7 @@ class _FoodPageState extends State<FoodPage>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: AppColors.secondary.withOpacity(0.3),
+                                    color: AppColors.secondary.withValues(alpha: 0.3),
                                     width: 2,
                                   ),
                                 ),
@@ -1012,8 +1012,8 @@ class _FoodPageState extends State<FoodPage>
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppColors.secondary.withOpacity(0.2),
-                                      AppColors.secondary.withOpacity(0.15),
+                                      AppColors.secondary.withValues(alpha: 0.2),
+                                      AppColors.secondary.withValues(alpha: 0.15),
                                     ],
                                   ),
                                 ),
@@ -1079,7 +1079,7 @@ class _FoodPageState extends State<FoodPage>
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.secondary.withOpacity(0.3),
+                          color: AppColors.secondary.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -1102,7 +1102,7 @@ class _FoodPageState extends State<FoodPage>
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(
@@ -1159,14 +1159,7 @@ class _FoodPageState extends State<FoodPage>
 
   Widget _buildMainFoodPage() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.red.shade50.withOpacity(0.3), Colors.white],
-          stops: const [0.0, 0.3],
-        ),
-      ),
+      color: Colors.white,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1243,7 +1236,7 @@ class _FoodPageState extends State<FoodPage>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: AppColors.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -1328,9 +1321,9 @@ class _FoodPageState extends State<FoodPage>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
       ),
       child: Row(
         children: [
@@ -1339,7 +1332,7 @@ class _FoodPageState extends State<FoodPage>
             height: 48,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [color.withOpacity(0.2), color.withOpacity(0.15)],
+                colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.15)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),

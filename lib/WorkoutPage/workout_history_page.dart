@@ -425,7 +425,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       children: [
         // PageView for horizontal swiping
         SizedBox(
-          height: 320,
+          height: 261,
           child: PageView.builder(
             controller: _pageControllers[dateKey],
             itemCount: workouts.length,
@@ -575,8 +575,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Type and Time Row
+                // Type and Time Row with duration/sets inline
                 Row(
                   children: [
                     Icon(
@@ -612,9 +613,49 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    // Add duration for cardio or sets/reps for strength inline
+                    if (workout.isCardio && workout.durationMinutes != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '|',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${workout.durationMinutes} minutes',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ] else if (workout.isStrength &&
+                        workout.sets != null &&
+                        workout.reps != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '|',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${workout.sets} sets • ${workout.reps} reps',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 // Exercise Name
                 Text(
                   workout.exerciseName,
@@ -624,44 +665,9 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                     color: Colors.white,
                     height: 1.2,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-                // Stats or Description
-                if (workout.isStrength &&
-                    workout.sets != null &&
-                    workout.reps != null)
-                  Text(
-                    '${workout.sets} sets • ${workout.reps} reps',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade400,
-                      height: 1.4,
-                    ),
-                  )
-                else if (workout.isCardio && workout.durationMinutes != null)
-                  Text(
-                    '${workout.durationMinutes} minutes of cardio',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade400,
-                      height: 1.4,
-                    ),
-                  ),
-                if (workout.notes != null && workout.notes!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    workout.notes!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade400,
-                      height: 1.4,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
               ],
             ),
           ),

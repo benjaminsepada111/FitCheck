@@ -249,18 +249,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.secondary,
-            AppColors.secondary.withValues(alpha: 0.8),
-          ],
-        ),
+        color: const Color(0xFF06111D),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -316,17 +309,34 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     required String label,
     required String value,
   }) {
+    // Determine color based on label
+    Color iconColor;
+    if (label == 'Goal') {
+      iconColor = Colors.blue;
+    } else if (label == 'Consumed') {
+      iconColor = Colors.red;
+    } else {
+      iconColor = Colors.orange;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: Colors.grey.shade800.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.white, size: 28),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
           const SizedBox(height: 8),
           Text(
             value,
@@ -340,9 +350,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: Colors.white,
+              color: Colors.grey.shade400,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.3,
             ),
@@ -374,7 +384,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
+                  color: AppColors.secondary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -418,7 +428,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: AppColors.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -492,10 +502,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -507,7 +517,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             // Image
             ClipRRect(
               borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(16),
+                left: Radius.circular(20),
               ),
               child: SizedBox(
                 width: 140,
@@ -521,43 +531,65 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: workout.isCardio
-                            ? Colors.blue.withOpacity(0.1)
-                            : AppColors.secondary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            workout.isCardio
-                                ? Icons.directions_run_rounded
-                                : Icons.fitness_center_rounded,
-                            size: 14,
+                    // Top: Type and Duration
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
                             color: workout.isCardio
-                                ? Colors.blue.shade600
-                                : AppColors.secondary,
+                                ? Colors.blue.withValues(alpha: 0.1)
+                                : AppColors.secondary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          const SizedBox(width: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                workout.isCardio
+                                    ? Icons.directions_run_rounded
+                                    : Icons.fitness_center_rounded,
+                                size: 14,
+                                color: workout.isCardio
+                                    ? Colors.blue.shade600
+                                    : AppColors.secondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                workout.isCardio ? 'Cardio' : 'Strength',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: workout.isCardio
+                                      ? Colors.blue.shade600
+                                      : AppColors.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (workout.isCardio && workout.durationMinutes != null) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
                           Text(
-                            workout.isCardio ? 'Cardio' : 'Strength',
+                            '${workout.durationMinutes} min',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: workout.isCardio
-                                  ? Colors.blue.shade600
-                                  : AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade600,
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    // Title right below top row
                     Text(
                       workout.exerciseName,
                       style: const TextStyle(
@@ -569,8 +601,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 12),
-                    if (workout.isStrength && workout.sets != null && workout.reps != null)
+                    if (workout.isStrength && workout.sets != null && workout.reps != null) ...[
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(
@@ -588,27 +620,10 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                             ),
                           ),
                         ],
-                      )
-                    else if (workout.isCardio && workout.durationMinutes != null)
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.schedule_rounded,
-                            size: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${workout.durationMinutes} minutes',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
                       ),
-                    const SizedBox(height: 8),
+                    ],
+                    const Spacer(),
+                    // Bottom: Time
                     Row(
                       children: [
                         Icon(
@@ -793,9 +808,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.08),
+        color: AppColors.secondary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -833,7 +848,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -850,7 +865,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -926,27 +941,6 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
-  Widget _buildPlaceholderImage() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.secondary.withOpacity(0.7),
-            AppColors.secondary.withOpacity(0.4),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.image_rounded,
-          size: 48,
-          color: Colors.white.withOpacity(0.7),
-        ),
-      ),
-    );
-  }
 
   String _formatTime(DateTime dateTime) {
     final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
@@ -981,7 +975,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
+                  color: AppColors.secondary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -1029,7 +1023,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         mealIcon = Icons.dinner_dining_rounded;
         break;
       default:
-        mealIcon = Icons.restaurant_rounded;
+        mealIcon = Icons.fastfood_rounded;
     }
 
     return Column(
@@ -1040,7 +1034,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
+                color: AppColors.secondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -1050,31 +1044,32 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mealType,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  if (entries.isNotEmpty)
-                    Text(
-                      '$totalCalories cal',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                ],
+            Text(
+              mealType,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A1A),
+                letterSpacing: -0.3,
               ),
             ),
+            if (entries.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.local_fire_department_rounded,
+                size: 14,
+                color: AppColors.secondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '$totalCalories cal',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 12),
@@ -1125,7 +1120,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1355,9 +1350,9 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withOpacity(0.08),
+        color: AppColors.secondary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -1450,8 +1445,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.secondary.withOpacity(0.6),
-            AppColors.secondary.withOpacity(0.3),
+            AppColors.secondary.withValues(alpha: 0.6),
+            AppColors.secondary.withValues(alpha: 0.3),
           ],
         ),
       ),
@@ -1459,7 +1454,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         child: Icon(
           Icons.restaurant_rounded,
           size: height > 100 ? 64 : 28,
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
     );
@@ -1525,15 +1520,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.secondary.withOpacity(0.7),
-            AppColors.secondary.withOpacity(0.4),
+            AppColors.secondary.withValues(alpha: 0.7),
+            AppColors.secondary.withValues(alpha: 0.4),
           ],
         ),
       ),
       child: Icon(
         Icons.fitness_center_rounded,
         size: height > 150 ? 64 : 40,
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
       ),
     );
   }
@@ -1590,8 +1585,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.secondary.withOpacity(0.7),
-            AppColors.secondary.withOpacity(0.4),
+            AppColors.secondary.withValues(alpha: 0.7),
+            AppColors.secondary.withValues(alpha: 0.4),
           ],
         ),
       ),
@@ -1599,7 +1594,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
         child: Icon(
           Icons.image_rounded,
           size: 48,
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
     );

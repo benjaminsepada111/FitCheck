@@ -28,18 +28,18 @@ class ChallengeCalendar extends StatefulWidget {
 }
 
 class _ChallengeCalendarState extends State<ChallengeCalendar> {
-  DateTime currentMonth = DateTime(2025, 1);
+  late DateTime currentMonth;
   Map<String, bool> _dayCompletionStatus = {};
   bool _isLoadingCompletions = false;
 
   @override
   void initState() {
     super.initState();
+    // Initialize to current month
+    final now = DateTime.now();
+    currentMonth = DateTime(now.year, now.month);
+
     if (widget.currentChallenge != null) {
-      currentMonth = DateTime(
-        widget.currentChallenge!.startDate.year,
-        widget.currentChallenge!.startDate.month,
-      );
       _loadMonthCompletions();
     }
   }
@@ -49,12 +49,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
     super.didUpdateWidget(oldWidget);
     if (widget.currentChallenge != null &&
         oldWidget.currentChallenge != widget.currentChallenge) {
-      setState(() {
-        currentMonth = DateTime(
-          widget.currentChallenge!.startDate.year,
-          widget.currentChallenge!.startDate.month,
-        );
-      });
       _loadMonthCompletions();
     }
   }
@@ -66,7 +60,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
     setState(() => _isLoadingCompletions = true);
 
     try {
-      final firstDay = DateTime(currentMonth.year, currentMonth.month, 1);
       final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
 
       Map<String, bool> completions = {};
@@ -153,12 +146,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
 
   void _onChallengeCreated(Challenge challenge) {
     widget.onChallengeCreated(challenge);
-    setState(() {
-      currentMonth = DateTime(
-        challenge.startDate.year,
-        challenge.startDate.month,
-      );
-    });
     _loadMonthCompletions();
   }
 
@@ -361,9 +348,9 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -397,7 +384,9 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
               // Track challenge completion for achievements
               try {
                 await UserAchievementService.trackChallengeCompletion();
-              } catch (e) {}
+              } catch (e) {
+                // Silently fail if achievement tracking fails
+              }
 
               widget.onChallengeEnded();
               navigator.pop();
@@ -447,7 +436,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -571,7 +560,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
   }
 
   void _navigateToDailyLog(DateTime selectedDate) async {
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DailyLogsPage(
@@ -581,7 +570,13 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       ),
     );
 
-    await _loadMonthCompletions();
+    // Only reload completion for the specific day that was viewed
+    if (mounted && widget.currentChallenge != null) {
+      final isComplete = await _checkDayCompletion(selectedDate);
+      setState(() {
+        _dayCompletionStatus[_getDateKey(selectedDate)] = isComplete;
+      });
+    }
   }
 
   Widget _buildDateCell(String date, {bool isOtherMonth = false, int? day}) {
@@ -658,7 +653,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       icon = Icons.warning_amber_rounded;
     } else if (isInChallenge && isFuture) {
       // Future challenge day - Very light red with border
-      backgroundColor = AppColors.secondary.shade50.withOpacity(0.3);
+      backgroundColor = AppColors.secondary.shade50.withValues(alpha: 0.3);
       textColor = AppColors.secondary.shade700;
       border = Border.all(color: AppColors.secondary.shade200, width: 1);
       icon = Icons.radio_button_unchecked;
@@ -670,7 +665,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       border = Border.all(color: AppColors.secondary, width: 2);
     } else if (isOtherMonth) {
       // Other month days - Very light grey
-      backgroundColor = Colors.grey.shade100.withOpacity(0.3);
+      backgroundColor = Colors.grey.shade100.withValues(alpha: 0.3);
       textColor = Colors.grey.shade400;
     } else {
       // Regular non-challenge days - Light grey
@@ -689,7 +684,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
         boxShadow: isClickable
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 2,
                   offset: const Offset(0, 1),
                 ),
@@ -733,7 +728,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
             Positioned(
               top: 2,
               right: 2,
-              child: Icon(icon, size: 12, color: textColor.withOpacity(0.9)),
+              child: Icon(icon, size: 12, color: textColor.withValues(alpha: 0.9)),
             ),
         ],
       ),
@@ -741,7 +736,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
 
     return AspectRatio(
       aspectRatio: 1.0,
-      child: isClickable && day != null
+      child: isClickable
           ? InkWell(
               onTap: () {
                 final selectedDate = DateTime(
@@ -752,29 +747,11 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                 _navigateToDailyLog(selectedDate);
               },
               borderRadius: borderRadius,
-              splashColor: AppColors.secondary.withOpacity(0.3),
-              highlightColor: AppColors.secondary.withOpacity(0.1),
+              splashColor: AppColors.secondary.withValues(alpha: 0.3),
+              highlightColor: AppColors.secondary.withValues(alpha: 0.1),
               child: dateWidget,
             )
           : dateWidget,
     );
-  }
-
-  String _formatSelectedDate(DateTime date) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }

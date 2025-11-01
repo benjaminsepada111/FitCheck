@@ -20,6 +20,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:gal/gal.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 
 class MilestonePreviewPage extends StatefulWidget {
@@ -84,6 +86,29 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     }
   }
 
+
+  Future<bool> _requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+      if (androidInfo.version.sdkInt >= 33) {
+        // Android 13+ - request video permission
+        final status = await Permission.videos.request();
+        return status.isGranted;
+      } else if (androidInfo.version.sdkInt >= 30) {
+        // Android 11-12 - request manage external storage
+        final status = await Permission.manageExternalStorage.request();
+        return status.isGranted;
+      } else {
+        // Android 10 and below
+        final status = await Permission.storage.request();
+        return status.isGranted;
+      }
+    }
+    return true; // iOS doesn't need this permission for video export
+  }
+
+
   /// Save video URL to SharedPreferences
   Future<void> _saveCachedVideoUrl(String url) async {
     try {
@@ -144,6 +169,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       return;
     }
 
+    // REQUEST STORAGE PERMISSION FIRST
+    final hasPermission = await _requestStoragePermission();
+    if (!hasPermission) {
+      _showSnackBar('Storage permission is required to export video');
+      return;
+    }
+
     // CHECK IF VIDEO ALREADY EXISTS
     if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
       _showSnackBar('Opening existing video...');
@@ -163,6 +195,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       return;
     }
 
+    // Rest of your existing code...
     // If no video exists, create a new one
     setState(() => _isExporting = true);
 

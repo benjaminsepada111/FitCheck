@@ -13,6 +13,8 @@ import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/api_service.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 // ============================================================================
 // MAIN VIDEO EDITOR PAGE
@@ -70,6 +72,80 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
   Future<void> _initializeVideo() async {
     await _initializeVideoWithUrl(_currentVideoUrl, autoPlay: false);
+  }
+
+  Future<bool> _requestAudioPermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+      if (androidInfo.version.sdkInt >= 33) {
+        // Android 13+ - request audio permission
+        final status = await Permission.audio.request();
+
+        if (status.isDenied) {
+          // Show dialog to explain why permission is needed
+          final shouldOpenSettings = await _showPermissionExplanationDialog(
+            'Audio Access Required',
+            'This app needs access to your audio files to add music to your video.',
+          );
+          if (shouldOpenSettings) {
+            await openAppSettings();
+          }
+          return false;
+        }
+
+        if (status.isPermanentlyDenied) {
+          await openAppSettings();
+          return false;
+        }
+
+        return status.isGranted;
+      } else {
+        // Android 12 and below - request storage permission
+        final status = await Permission.storage.request();
+
+        if (status.isDenied) {
+          final shouldOpenSettings = await _showPermissionExplanationDialog(
+            'Storage Access Required',
+            'This app needs storage access to select music files.',
+          );
+          if (shouldOpenSettings) {
+            await openAppSettings();
+          }
+          return false;
+        }
+
+        if (status.isPermanentlyDenied) {
+          await openAppSettings();
+          return false;
+        }
+
+        return status.isGranted;
+      }
+    }
+    return true; // iOS doesn't need this permission for file picker
+  }
+
+  Future<bool> _showPermissionExplanationDialog(String title, String message) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Open Settings', style: TextStyle(color: AppColors.secondary)),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 
   Future<void> _initializeVideoWithUrl(String videoUrl,
@@ -335,6 +411,13 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                       ? Icon(Icons.check_circle, color: AppColors.secondary)
                       : null,
                   onTap: () async {
+                    // Check permission ONLY when user clicks "Upload Music File"
+                    final hasPermission = await _requestAudioPermission();
+                    if (!hasPermission) {
+                      _showSnackBar('Storage permission is required to select music files');
+                      return;
+                    }
+
                     try {
                       FilePickerResult? result = await FilePicker.platform.pickFiles(
                         type: FileType.audio,

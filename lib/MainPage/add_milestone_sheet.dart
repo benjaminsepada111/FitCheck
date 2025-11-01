@@ -5,6 +5,8 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class AddMilestoneSheet extends StatefulWidget {
   final Function(Milestone milestone, File? imageFile) onSave;
@@ -28,6 +30,40 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      var status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Camera permission denied")),
+        );
+        return;
+      }
+    } else if (source == ImageSource.gallery) {
+      // ⭐ REQUEST PHOTO PERMISSION FOR GALLERY
+      PermissionStatus status;
+
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+        if (androidInfo.version.sdkInt >= 33) {
+          // Android 13+ - Use photos permission
+          status = await Permission.photos.request();
+        } else {
+          // Android 12 and below - Use storage permission
+          status = await Permission.storage.request();
+        }
+
+        if (!status.isGranted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Photos permission is required to select images")),
+          );
+          return;
+        }
+      }
+    }
+
     final pickedFile = await _picker.pickImage(
       source: source,
       imageQuality: 80,

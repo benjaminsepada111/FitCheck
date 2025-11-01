@@ -5,6 +5,7 @@ import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/calorie_calculator.dart';
 import 'package:capstone_project/services/challenge_service.dart';
 import 'package:capstone_project/models/user_data.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CreateChallengeSheet extends StatefulWidget {
   final dynamic Function(Challenge) onChallengeCreated;
@@ -112,6 +113,17 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     setState(() {});
   }
 
+  Future<bool> _requestCalendarPermission() async {
+    var status = await Permission.calendar.status;
+
+    if (status.isDenied || status.isRestricted) {
+      status = await Permission.calendar.request();
+    }
+
+    return status.isGranted;
+  }
+
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -123,9 +135,16 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   }
 
   Future<void> _selectDate(
-    TextEditingController controller,
-    bool isStartDate,
-  ) async {
+      TextEditingController controller,
+      bool isStartDate,
+      ) async {
+
+    bool granted = await _requestCalendarPermission();
+    if (!granted) {
+      _showError("Calendar permission is required.");
+      return;
+    }
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -145,6 +164,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         );
       },
     );
+
     if (picked != null) {
       setState(() {
         if (isStartDate) {
@@ -162,9 +182,10 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         }
       });
       controller.text =
-          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+      '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
     }
   }
+
 
   void _calculateGoals() async {
     if (_userData == null ||

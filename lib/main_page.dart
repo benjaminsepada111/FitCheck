@@ -16,8 +16,10 @@ import 'services/user_data_service.dart';
 import 'services/user_time_tracker.dart';
 import 'services/login_tracker_service.dart';
 import 'services/user_achievement_service.dart';
+import 'services/weekly_checkin_service.dart';
 import 'UserInputFile/genderselection.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'MainPage/weekly_checkin_wizard.dart';
 
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
@@ -74,6 +76,11 @@ class _MainPageState extends State<MainPage> {
       // Start background tasks (don't wait for these)
       _initializeTimeTracking();
       _recordDailyLogin();
+
+      // Check for weekly check-in (with delay for UI to settle)
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _checkWeeklyCheckIn();
+      });
 
       // Refresh challenge data in background to ensure latest state
       _refreshChallengeDataInBackground();
@@ -147,6 +154,31 @@ class _MainPageState extends State<MainPage> {
       }
     } catch (e) {
       // Silently handle daily login errors
+    }
+  }
+
+  /// Check if user needs a weekly check-in and show wizard
+  Future<void> _checkWeeklyCheckIn() async {
+    try {
+      if (_currentChallenge != null) {
+        final needsCheckIn = await WeeklyCheckInService.needsCheckIn(_currentChallenge!);
+        if (needsCheckIn && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WeeklyCheckInWizard(
+                challenge: _currentChallenge!,
+                onCheckInComplete: () {
+                  // Refresh trackers after check-in
+                  _trackersKey.currentState?.refreshData();
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Silently handle check-in wizard errors
     }
   }
 

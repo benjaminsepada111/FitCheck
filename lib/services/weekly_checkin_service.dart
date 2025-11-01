@@ -124,6 +124,7 @@ class WeeklyCheckInService {
     required int newWeight,
     String? notes,
     String? progressFeeling,
+    String? activityLevelChange,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -147,6 +148,7 @@ class WeeklyCheckInService {
         currentWeight: newWeight,
         notes: notes,
         progressFeeling: progressFeeling,
+        activityLevelChange: activityLevelChange,
         previousCalorieGoal: currentCalorieGoal,
         newCalorieGoal: newCalorieGoal,
         createdAt: DateTime.now(),

@@ -7,6 +7,7 @@ class WeeklyCheckIn {
   final int currentWeight; // in kg
   final String? notes;
   final String? progressFeeling; // 'great', 'good', 'okay', 'struggling'
+  final String? activityLevelChange; // 'increased', 'decreased', 'no_change'
   final int? previousCalorieGoal;
   final int? newCalorieGoal;
   final DateTime createdAt;
@@ -19,6 +20,7 @@ class WeeklyCheckIn {
     required this.currentWeight,
     this.notes,
     this.progressFeeling,
+    this.activityLevelChange,
     this.previousCalorieGoal,
     this.newCalorieGoal,
     required this.createdAt,
@@ -33,6 +35,7 @@ class WeeklyCheckIn {
       'currentWeight': currentWeight,
       'notes': notes,
       'progressFeeling': progressFeeling,
+      'activityLevelChange': activityLevelChange,
       'previousCalorieGoal': previousCalorieGoal,
       'newCalorieGoal': newCalorieGoal,
       'createdAt': createdAt.toIso8601String(),
@@ -48,6 +51,7 @@ class WeeklyCheckIn {
       currentWeight: json['currentWeight'],
       notes: json['notes'],
       progressFeeling: json['progressFeeling'],
+      activityLevelChange: json['activityLevelChange'],
       previousCalorieGoal: json['previousCalorieGoal'],
       newCalorieGoal: json['newCalorieGoal'],
       createdAt: DateTime.parse(json['createdAt']),
@@ -62,6 +66,7 @@ class WeeklyCheckIn {
     int? currentWeight,
     String? notes,
     String? progressFeeling,
+    String? activityLevelChange,
     int? previousCalorieGoal,
     int? newCalorieGoal,
     DateTime? createdAt,
@@ -74,6 +79,7 @@ class WeeklyCheckIn {
       currentWeight: currentWeight ?? this.currentWeight,
       notes: notes ?? this.notes,
       progressFeeling: progressFeeling ?? this.progressFeeling,
+      activityLevelChange: activityLevelChange ?? this.activityLevelChange,
       previousCalorieGoal: previousCalorieGoal ?? this.previousCalorieGoal,
       newCalorieGoal: newCalorieGoal ?? this.newCalorieGoal,
       createdAt: createdAt ?? this.createdAt,

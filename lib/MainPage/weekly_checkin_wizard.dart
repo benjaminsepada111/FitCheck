@@ -126,26 +126,43 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     setState(() => _isAnimating = true);
     _buttonAnimationController.forward();
 
+    bool shouldResetAnimation = true;
+
     try {
       bool isValid = await _validateCurrentPage();
-      if (!isValid) return;
+      if (!isValid) {
+        // Validation failed, reset state immediately
+        if (mounted) {
+          _buttonAnimationController.reverse();
+          setState(() => _isAnimating = false);
+        }
+        shouldResetAnimation = false;
+        return;
+      }
 
       if (currentIndex == 4) {
-        // Submit check-in
+        // Submit check-in - handles its own state reset on error
         await _submitCheckIn();
+        // After submission, we either moved to page 5 (success) or stayed on page 4 (error)
+        // In either case, _submitCheckIn handles the animation state
+        shouldResetAnimation = false;
       } else if (currentIndex == 5) {
         // Done button on success page
-        Navigator.pop(context);
-        widget.onCheckInComplete();
+        if (mounted) {
+          Navigator.of(context).pop();
+          widget.onCheckInComplete();
+        }
+        shouldResetAnimation = false;
+        return;
       } else {
-        // Move to next page
+        // Move to next page (pages 0-3)
         await _controller.nextPage(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOutCubic,
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && shouldResetAnimation) {
         _buttonAnimationController.reverse();
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) setState(() => _isAnimating = false);
@@ -176,11 +193,15 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Future<void> _submitCheckIn() async {
     final newWeight = int.tryParse(_weightController.text);
     if (newWeight == null || newWeight <= 0) {
-      setState(() {
-        _weightError = 'Please enter a valid weight';
-      });
-      // Go back to weight page
-      _controller.jumpToPage(0);
+      if (mounted) {
+        _buttonAnimationController.reverse();
+        setState(() {
+          _weightError = 'Please enter a valid weight';
+          _isAnimating = false;
+        });
+        // Go back to weight page
+        _controller.jumpToPage(0);
+      }
       return;
     }
 
@@ -195,15 +216,49 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
         activityLevelChange: _selectedActivityChange,
       );
 
-      if (success && mounted) {
-        // Navigate to success page
-        await _controller.nextPage(
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeInOutCubic,
-        );
+      if (mounted) {
+        if (success) {
+          // Navigate to success page
+          _buttonAnimationController.reverse();
+          await _controller.nextPage(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOutCubic,
+          );
+          // Reset animation state after navigation completes
+          if (mounted) {
+            setState(() => _isAnimating = false);
+          }
+        } else {
+          // If submission failed, show error and reset animation state
+          _buttonAnimationController.reverse();
+          setState(() {
+            _isAnimating = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to save check-in. Please try again.'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
-      // Silent fail - could add error handling if needed
+      if (mounted) {
+        _buttonAnimationController.reverse();
+        setState(() {
+          _isAnimating = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An error occurred. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -872,8 +927,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    widget.onCheckInComplete();
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      widget.onCheckInComplete();
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,

@@ -6,6 +6,7 @@ import '../models/weekly_checkin.dart';
 import '../models/challenge.dart';
 import 'user_data_service.dart';
 import 'challenge_service.dart';
+import 'calorie_calculator.dart';
 
 class WeeklyCheckInService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -118,7 +119,7 @@ class WeeklyCheckInService {
     return (daysSinceStart / 7).floor();
   }
 
-  /// Process check-in and update user data + challenge calorie goal
+  /// Process check-in with adaptive calorie adjustment
   static Future<bool> processCheckInAndUpdateGoals({
     required Challenge challenge,
     required int newWeight,
@@ -130,34 +131,57 @@ class WeeklyCheckInService {
       final user = _auth.currentUser;
       if (user == null) return false;
 
-      // Get current calorie goal
+      // Get current user data and calorie goal
+      final userData = await UserDataService.loadUserData();
+      if (userData == null) return false;
+
       final currentCalorieGoal = challenge.dailyCalorieGoal;
+
+      // Get previous check-in to compare weight
+      final latestCheckIn = await getLatestCheckIn(challenge.id);
+      final previousWeight = latestCheckIn?.currentWeight ?? userData.weight ?? newWeight;
+
+      // Calculate adaptive adjustment
+      final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
+        userData: userData,
+        currentWeight: newWeight,
+        previousWeight: previousWeight,
+        currentCalorieGoal: currentCalorieGoal,
+      );
+
+      final newCalorieGoal = adaptiveResult['newCalorieGoal'] as int;
+      final adjustment = adaptiveResult['adjustment'] as int;
+      final interpretation = adaptiveResult['interpretation'] as String;
+      final reason = adaptiveResult['reason'] as String;
+      final weightChange = adaptiveResult['weightChange'] as double;
 
       // Update user weight in profile
       await UserDataService.updateUserData(weight: newWeight);
 
-      // Recalculate calorie goal based on new weight
-      final newCalorieGoal = await UserDataService.getDailyCalorieGoal();
-
-      // Create check-in record
+      // Create detailed check-in record
       final checkIn = WeeklyCheckIn(
         id: _firestore.collection('temp').doc().id,
         challengeId: challenge.id,
         checkInDate: DateTime.now(),
         weekNumber: getCurrentWeekNumber(challenge),
         currentWeight: newWeight,
+        previousWeight: previousWeight,
+        weightChange: weightChange,
         notes: notes,
         progressFeeling: progressFeeling,
         activityLevelChange: activityLevelChange,
         previousCalorieGoal: currentCalorieGoal,
         newCalorieGoal: newCalorieGoal,
+        calorieAdjustment: adjustment,
+        progressInterpretation: interpretation,
+        adaptiveReason: reason,
         createdAt: DateTime.now(),
       );
 
-      // Save check-in
+      // Save check-in to history
       await saveCheckIn(checkIn);
 
-      // Update challenge calorie goal if it changed
+      // Update challenge with new calorie goal
       if (newCalorieGoal != currentCalorieGoal) {
         final updatedChallenge = challenge.copyWith(
           dailyCalorieGoal: newCalorieGoal,

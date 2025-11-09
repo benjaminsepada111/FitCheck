@@ -237,18 +237,6 @@ class UserDataService {
     }
   }
 
-  /// Get daily water goal using CalorieCalculator
-  static Future<int> getDailyWaterGoal() async {
-    try {
-      final userData = await loadUserData();
-      if (userData != null && CalorieCalculator.isValidUserData(userData)) {
-        return CalorieCalculator.calculateDailyWaterGoal(userData);
-      }
-      return 8; // Default fallback
-    } catch (e) {
-      return 8;
-    }
-  }
 
   /// Get calorie breakdown using CalorieCalculator
   static Future<Map<String, dynamic>?> getCalorieBreakdown() async {

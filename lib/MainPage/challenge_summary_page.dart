@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/food_log_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:capstone_project/services/weekly_checkin_service.dart';
+import 'package:capstone_project/models/weekly_checkin.dart';
 
 class ChallengeSummaryPage extends StatefulWidget {
   final Map<String, dynamic> challenge;
@@ -15,7 +16,6 @@ class ChallengeSummaryPage extends StatefulWidget {
 
 class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   bool isMonthlySelected = false; // Default view: Weekly Summary (false = Weekly, true = Overall)
-  int _totalWaterConsumed = 0;
   bool _isLoading = true;
   List<FlSpot> _dailyCalorieDataPoints = [];
   List<FlSpot> _weeklyCalorieDataPoints = [];
@@ -34,6 +34,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   int _currentWeek = 1;
   int _currentPeriod = 1; // For overall view navigation
   bool _useMonthsForOverall = false;
+  List<WeeklyCheckIn> _weeklyCheckIns = []; // Weekly check-in history
 
   @override
   void initState() {
@@ -58,7 +59,6 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       final totalDays = endDate.difference(startDate).inDays + 1;
 
       // Calculate total calories consumed and build data points
-      int totalWater = 0;
       List<FlSpot> dataPoints = [];
       List<double> calorieValues = [];
 
@@ -75,10 +75,6 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         dayIndex++;
         dataPoints.add(FlSpot(dayIndex.toDouble(), dailyCalories));
         calorieValues.add(dailyCalories);
-
-        // Get water for this day
-        final dailyWater = await _getWaterIntakeForDate(date);
-        totalWater += dailyWater;
       }
 
       // Calculate min and max for chart scaling
@@ -217,8 +213,10 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         maxMonthlyCal = maxMonthlyCal + padding;
       }
 
+      // Load weekly check-ins for this challenge
+      final checkIns = await WeeklyCheckInService.getCheckInsForChallenge(challengeId);
+
       setState(() {
-        _totalWaterConsumed = totalWater;
         _dailyCalorieDataPoints = dataPoints;
         _weeklyCalorieDataPoints = weeklyDataPoints;
         _monthlyCalorieDataPoints = monthlyDataPoints;
@@ -236,20 +234,11 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         _useMonthsForOverall = useMonths;
         _currentWeek = 1;
         _currentPeriod = 1;
+        _weeklyCheckIns = checkIns;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<int> _getWaterIntakeForDate(DateTime date) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = 'water_intake_${_formatDateKey(date)}';
-      return prefs.getInt(dateKey) ?? 0;
-    } catch (e) {
-      return 0;
     }
   }
 
@@ -267,36 +256,45 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        elevation: 0,
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Challenge History',
           style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
           ),
         ),
         centerTitle: false,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
             _buildChallengeCard(widget.challenge),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildSummaryButtons(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             _buildPeriodNavigation(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             _buildCalorieProgressChart(),
+            const SizedBox(height: 24),
+            // Show Weight Progress chart only in Overall view
+            if (isMonthlySelected) ...[
+              _buildWeightProgressChart(),
+              const SizedBox(height: 24),
+            ],
+            _buildWeeklyProgressSection(),
           ],
         ),
       ),
@@ -308,11 +306,17 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.shade200),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -324,80 +328,98 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   child: Text(
                     challenge['title'] ?? 'Challenge',
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A1A),
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary[100],
+                    color: AppColors.secondary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     challenge['status'] ?? 'Completed',
                     style: TextStyle(
-                      color: AppColors.secondary[700],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary.shade700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
             // Date
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 6),
+                Icon(Icons.calendar_today, size: 16, color: AppColors.secondary.shade600),
+                const SizedBox(width: 8),
                 Text(
                   challenge['dateRange'] ?? 'No dates',
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: Colors.grey[700],
                     fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Progress
             const Text(
               'Progress',
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A1A),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
-                  child: LinearProgressIndicator(
-                    value: (challenge['progress'] ?? 100) / 100.0,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
-                    minHeight: 6,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: (challenge['progress'] ?? 100) / 100.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.secondary,
+                              AppColors.secondary.shade600,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   '${challenge['progress'] ?? 100}%',
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
             // Stats
             _isLoading
@@ -406,15 +428,17 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildStatItem(
-                      icon: Icons.local_fire_department,
+                      icon: Icons.restaurant,
                       label: 'Daily Calorie',
                       value: '${widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
                       color: AppColors.secondary,
                     ),
                     _buildStatItem(
-                      icon: Icons.local_drink,
-                      label: 'Total Water',
-                      value: '$_totalWaterConsumed glasses',
+                      icon: Icons.monitor_weight_outlined,
+                      label: 'Starting Weight',
+                      value: _weeklyCheckIns.isNotEmpty
+                          ? '${_weeklyCheckIns.first.currentWeight}kg'
+                          : 'N/A',
                       color: AppColors.secondary,
                     ),
                     _buildStatItem(
@@ -434,27 +458,41 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.secondary.shade200),
+                  color: AppColors.secondary.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.secondary.withValues(alpha: 0.15),
+                    width: 1.5,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Notes',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.note_outlined,
+                          size: 16,
+                          color: AppColors.secondary.shade600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Notes',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Text(
                       challenge['notes'] ?? '',
                       style: const TextStyle(
                         fontSize: 14,
-                        color: Colors.black87,
+                        color: Color(0xFF1A1A1A),
+                        height: 1.5,
                       ),
                     ),
                   ],
@@ -472,99 +510,136 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
     required String value,
     required Color color,
   }) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  color.withValues(alpha: 0.15),
+                  color.withValues(alpha: 0.08),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 26,
+            ),
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 24,
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1A1A),
+              letterSpacing: -0.3,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildSummaryButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                isMonthlySelected = false;
-                _currentWeek = 1; // Reset to week 1 when switching
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: !isMonthlySelected ? AppColors.secondary : Colors.grey[200],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Weekly Summary',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: !isMonthlySelected ? Colors.white : Colors.grey[600],
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  isMonthlySelected = false;
+                  _currentWeek = 1; // Reset to week 1 when switching
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: !isMonthlySelected ? AppColors.secondary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: !isMonthlySelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.secondary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  'Weekly Summary',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: !isMonthlySelected ? Colors.white : Colors.grey[700],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                isMonthlySelected = true;
-                _currentPeriod = 1; // Reset to period 1 when switching
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: isMonthlySelected ? AppColors.secondary : Colors.grey[200],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Overall',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isMonthlySelected ? Colors.white : Colors.grey[600],
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+          const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  isMonthlySelected = true;
+                  _currentPeriod = 1; // Reset to period 1 when switching
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: isMonthlySelected ? AppColors.secondary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isMonthlySelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.secondary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  'Overall',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isMonthlySelected ? Colors.white : Colors.grey[700],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -577,17 +652,16 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       // Weekly Summary: show week selection buttons
       if (_totalWeeks <= 1) return const SizedBox.shrink();
 
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(_totalWeeks, (index) {
-          final weekNumber = index + 1;
-          final isSelected = weekNumber == _currentWeek;
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(_totalWeeks, (index) {
+            final weekNumber = index + 1;
+            final isSelected = weekNumber == _currentWeek;
 
-          return Expanded(
-            child: Padding(
+            return Padding(
               padding: EdgeInsets.only(
-                left: index == 0 ? 0 : 4,
-                right: index == _totalWeeks - 1 ? 0 : 4,
+                right: index == _totalWeeks - 1 ? 0 : 8,
               ),
               child: GestureDetector(
                 onTap: () {
@@ -596,30 +670,48 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   });
                 },
                 child: Container(
-                  height: 45,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.secondary : Colors.white,
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              AppColors.secondary,
+                              AppColors.secondary.shade600,
+                            ],
+                          )
+                        : null,
+                    color: isSelected ? null : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isSelected ? AppColors.secondary : AppColors.secondary.shade200,
-                      width: 2,
+                      color: isSelected
+                          ? AppColors.secondary
+                          : AppColors.secondary.withValues(alpha: 0.3),
+                      width: 1.5,
                     ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.secondary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
-                  child: Center(
-                    child: Text(
-                      weekNumber.toString(),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : AppColors.secondary,
-                      ),
+                  child: Text(
+                    'Week $weekNumber',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : AppColors.secondary,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       );
     } else {
       // Overall: no navigation needed for overall view showing all data
@@ -636,11 +728,19 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         height: 300,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.secondary.shade200),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: const Center(
-          child: CircularProgressIndicator(),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+          ),
         ),
       );
     }
@@ -696,60 +796,102 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           width: double.infinity,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.secondary.shade200),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'CALORIE PROGRESS',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                    letterSpacing: 1.0,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.secondary.withValues(alpha: 0.15),
+                            AppColors.secondary.withValues(alpha: 0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.show_chart,
+                        size: 18,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Calorie Progress',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        Text(
+                          dateRange,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                Text(
-                  dateRange.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[500],
-                  ),
-                ),
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
                 Center(
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 48,
-                        color: Colors.grey[300],
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.calendar_today_outlined,
+                          size: 48,
+                          color: AppColors.secondary.shade600,
+                        ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Text(
                         'No data for Week $_currentWeek yet',
+                        style: const TextStyle(
+                          color: Color(0xFF1A1A1A),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Data will appear as you log calories',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Data will appear as you log calories',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
-                        ),
-                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -784,31 +926,65 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondary.shade200),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'CALORIE PROGRESS',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-                letterSpacing: 1.0,
-              ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.15),
+                        AppColors.secondary.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.show_chart,
+                    size: 18,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Calorie Progress',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      dateRange,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            Text(
-              dateRange.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[500],
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             SizedBox(
               height: 200,
               child: Stack(
@@ -1004,5 +1180,574 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[date.month - 1]} ${date.day}';
+  }
+
+  Widget _buildWeightProgressChart() {
+    // Show loading state
+    if (_isLoading) {
+      return Container(
+        width: double.infinity,
+        height: 300,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+          ),
+        ),
+      );
+    }
+
+    // Get weight data from weekly check-ins
+    if (_weeklyCheckIns.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Build data points from check-ins
+    List<FlSpot> weightDataPoints = [];
+    List<double> weightValues = [];
+
+    for (var checkIn in _weeklyCheckIns) {
+      weightDataPoints.add(FlSpot(checkIn.weekNumber.toDouble(), checkIn.currentWeight.toDouble()));
+      weightValues.add(checkIn.currentWeight.toDouble());
+    }
+
+    // Calculate min and max for chart scaling
+    double minWeight = weightValues.reduce((a, b) => a < b ? a : b);
+    double maxWeight = weightValues.reduce((a, b) => a > b ? a : b);
+
+    // Add padding to min/max
+    final padding = (maxWeight - minWeight) * 0.2;
+    minWeight = (minWeight - padding).clamp(0, double.infinity);
+    maxWeight = maxWeight + padding;
+
+    final startDate = widget.challenge['startDate'] as DateTime;
+    final endDate = widget.challenge['endDate'] as DateTime;
+    String dateRange = '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}';
+
+    // Calculate interval for y-axis
+    final range = maxWeight - minWeight;
+    final interval = (range / 4).clamp(1.0, double.infinity).toDouble();
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.15),
+                        AppColors.secondary.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.monitor_weight,
+                    size: 18,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Weight Progress',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      dateRange,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: interval,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: Colors.grey[200]!,
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: interval,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            value.toStringAsFixed(1),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          );
+                        },
+                        reservedSize: 40,
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 30,
+                        getTitlesWidget: (value, meta) {
+                          // Only show labels for integer values
+                          if (value != value.roundToDouble()) {
+                            return const Text('');
+                          }
+
+                          final weekNum = value.toInt();
+                          if (weekNum >= 1 && weekNum <= _totalWeeks) {
+                            // Show week numbers
+                            if (_totalWeeks <= 10) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  weekNum.toString(),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+                            } else if (weekNum == 1 || weekNum == _totalWeeks) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  weekNum.toString(),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                          return const Text('');
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 1,
+                  maxX: _totalWeeks.toDouble(),
+                  minY: minWeight,
+                  maxY: maxWeight,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: weightDataPoints,
+                      isCurved: false,
+                      color: AppColors.secondary,
+                      barWidth: 3,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: 4,
+                            color: AppColors.secondary,
+                            strokeColor: Colors.white,
+                            strokeWidth: 2,
+                          );
+                        },
+                      ),
+                      belowBarData: BarAreaData(show: false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'WEEK',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyProgressSection() {
+    // FILTER: Only show check-ins for the current selected week in Weekly Summary view
+    final isWeekly = !isMonthlySelected;
+
+    if (isWeekly) {
+      // Weekly Summary: Show card for current week (with data or empty state)
+      final filteredCheckIns = _weeklyCheckIns
+          .where((checkIn) => checkIn.weekNumber == _currentWeek)
+          .toList();
+
+      if (filteredCheckIns.isEmpty) {
+        // Show empty state for this week
+        return _buildEmptyCheckInCard();
+      } else {
+        return _buildCheckInCard(filteredCheckIns.first);
+      }
+    } else {
+      // Overall view: Show all check-ins
+      if (_weeklyCheckIns.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _weeklyCheckIns.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final checkIn = _weeklyCheckIns[index];
+          return _buildCheckInCard(checkIn);
+        },
+      );
+    }
+  }
+
+  Widget _buildEmptyCheckInCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header matching Calorie Progress style
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.15),
+                        AppColors.secondary.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.assignment_turned_in,
+                    size: 18,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Weekly Check-In',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            // Empty state content
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.pending_actions,
+                      size: 40,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No check-in data yet',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Complete your weekly check-in to see progress',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckInCard(WeeklyCheckIn checkIn) {
+    final weightChangeText = checkIn.weightChange != null
+        ? checkIn.weightChange! >= 0
+            ? '+${checkIn.weightChange!.toStringAsFixed(1)}kg'
+            : '${checkIn.weightChange!.toStringAsFixed(1)}kg'
+        : 'N/A';
+
+    final calorieChangeText = checkIn.calorieAdjustment != null && checkIn.calorieAdjustment != 0
+        ? checkIn.calorieAdjustment! > 0
+            ? '+${checkIn.calorieAdjustment}'
+            : '${checkIn.calorieAdjustment}'
+        : '0';
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header matching Calorie Progress style
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.15),
+                        AppColors.secondary.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.assignment_turned_in,
+                    size: 18,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Weekly Check-In',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      _formatDateShort(checkIn.checkInDate),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Weight and Calorie Info
+            _buildInfoRow(
+              'Weight',
+              '${checkIn.currentWeight}kg',
+              weightChangeText,
+              checkIn.weightChange != null && checkIn.weightChange! < 0
+                  ? Colors.green.shade600
+                  : checkIn.weightChange != null && checkIn.weightChange! > 0
+                      ? Colors.orange.shade600
+                      : Colors.grey.shade600,
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow(
+              'Calorie Goal',
+              '${checkIn.newCalorieGoal ?? 'N/A'}',
+              calorieChangeText != '0' ? '$calorieChangeText cal' : 'No change',
+              checkIn.calorieAdjustment != null && checkIn.calorieAdjustment! != 0
+                  ? AppColors.secondary
+                  : Colors.grey.shade600,
+            ),
+
+            // Notes
+            if (checkIn.notes != null && checkIn.notes!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.shade200,
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.note_outlined, size: 14, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Notes',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      checkIn.notes!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, String change, Color changeColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Row(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '($change)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: changeColor,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

@@ -7,9 +7,7 @@ import 'daily_logs.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/workout_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
-import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ChallengeCalendar extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -107,12 +105,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       );
       final hasWorkout = workouts.isNotEmpty;
 
-      // Check if there's water intake
-      final prefs = await SharedPreferences.getInstance();
-      final dateKey = 'water_intake_${_formatDateKey(date)}';
-      final waterIntake = prefs.getInt(dateKey) ?? 0;
-      final hasWater = waterIntake > 0;
-
       // Check if there are any milestones
       final allMilestones = await MilestoneService.getAllMilestones(
         challengeId: widget.currentChallenge!.id,
@@ -125,7 +117,7 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       );
 
       // Day is complete if any activity was logged
-      return hasFood || hasWorkout || hasWater || hasMilestone;
+      return hasFood || hasWorkout || hasMilestone;
     } catch (e) {
       return false;
     }
@@ -133,10 +125,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
 
   String _getDateKey(DateTime date) {
     return '${date.year}-${date.month}-${date.day}';
-  }
-
-  String _formatDateKey(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   bool _isDayComplete(int day) {
@@ -328,89 +316,6 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
     }
 
     return weeks;
-  }
-
-  void _handleEndChallenge() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'End Challenge',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Are you sure you want to end this challenge?'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber,
-                    color: Colors.orange[700],
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'This will mark the challenge as complete and stop tracking.',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-              // Track challenge completion for achievements
-              try {
-                await UserAchievementService.trackChallengeCompletion();
-              } catch (e) {
-                // Silently fail if achievement tracking fails
-              }
-
-              widget.onChallengeEnded();
-              navigator.pop();
-
-              scaffoldMessenger.showSnackBar(
-                SnackBar(
-                  content: const Text('Challenge completed successfully!'),
-                  backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('End Challenge'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override

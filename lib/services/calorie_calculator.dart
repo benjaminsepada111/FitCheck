@@ -89,27 +89,6 @@ class CalorieCalculator {
     }
   }
 
-  /// Calculate daily water goal
-  static int calculateDailyWaterGoal(UserData userData) {
-    if (userData.weight == null) {
-      return 8; // Default 8 glasses
-    }
-
-    final baseWater = userData.weight! * 35; // ml per day
-
-    // Add extra for active individuals
-    final activity = userData.activityLevel!.toLowerCase();
-    final isActive = activity == 'active' || activity == 'very active';
-    final extraWater = isActive ? 625 : 0; // ml
-
-    final totalWaterMl = baseWater + extraWater;
-
-    // Convert to 8oz glasses (≈237ml per glass)
-    final glasses = (totalWaterMl / 237).round();
-
-    return glasses.clamp(6, 12);
-  }
-
   /// Get detailed calorie breakdown for display
   static Map<String, dynamic> getCalorieBreakdown(UserData userData) {
     if (!isValidUserData(userData)) {
@@ -237,5 +216,122 @@ class CalorieCalculator {
         userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
 
     return (adjustment * 7) / 3500.0; // pounds per week
+  }
+
+  /// Calculate adaptive calorie adjustment based on weight progress
+  /// Returns a map with: newCalorieGoal, adjustment, interpretation, reason
+  static Map<String, dynamic> calculateAdaptiveAdjustment({
+    required UserData userData,
+    required int currentWeight,
+    required int previousWeight,
+    required int currentCalorieGoal,
+  }) {
+    final goal = userData.goal!.toLowerCase();
+    final weightChange = (currentWeight - previousWeight).toDouble(); // kg
+
+    String interpretation;
+    String reason;
+    int adjustment = 0;
+
+    // Recalculate base calories with new weight
+    final updatedUserData = userData.copyWith(weight: currentWeight);
+    final newBaseTDEE = calculateTDEE(updatedUserData);
+    final goalAdjustment = userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
+    int newCalorieGoal = (newBaseTDEE + goalAdjustment).round();
+
+    // Apply safety minimums
+    if (userData.gender!.toLowerCase() == 'female') {
+      newCalorieGoal = newCalorieGoal < 1200 ? 1200 : newCalorieGoal;
+    } else {
+      newCalorieGoal = newCalorieGoal < 1500 ? 1500 : newCalorieGoal;
+    }
+
+    // Base adjustment on weight change
+    final baseAdjustment = newCalorieGoal - currentCalorieGoal;
+
+    // Goal-specific adaptive logic
+    if (goal.contains('maintain')) {
+      // MAINTAIN WEIGHT: Expect weight to stay roughly the same (±0.5kg tolerance)
+      if (weightChange.abs() <= 0.5) {
+        interpretation = 'maintained';
+        reason = 'Weight stable within target range. Maintaining current calorie goal.';
+        adjustment = 0;
+        newCalorieGoal = currentCalorieGoal; // Keep current goal
+      } else if (weightChange > 0.5) {
+        interpretation = 'surplus';
+        reason = 'Weight increased by ${weightChange.toStringAsFixed(1)}kg. Reducing calories by 100 to correct.';
+        adjustment = -100;
+        newCalorieGoal = currentCalorieGoal - 100;
+      } else {
+        interpretation = 'deficit';
+        reason = 'Weight decreased by ${weightChange.abs().toStringAsFixed(1)}kg. Increasing calories by 100 to correct.';
+        adjustment = 100;
+        newCalorieGoal = currentCalorieGoal + 100;
+      }
+    } else if (goal.contains('lose') || goal.contains('fat')) {
+      // FAT LOSS: Expect 0.5-1kg loss per week
+      if (weightChange >= 0) {
+        interpretation = 'no_progress';
+        reason = 'Weight increased/unchanged. Reducing calories by 150 to increase deficit.';
+        adjustment = -150;
+        newCalorieGoal = currentCalorieGoal - 150;
+      } else if (weightChange < -1.0) {
+        interpretation = 'rapid_loss';
+        reason = 'Weight loss too fast (${weightChange.abs().toStringAsFixed(1)}kg). Increasing calories by 100 to slow down.';
+        adjustment = 100;
+        newCalorieGoal = currentCalorieGoal + 100;
+      } else if (weightChange >= -0.5) {
+        interpretation = 'slow_loss';
+        reason = 'Weight loss slow (${weightChange.abs().toStringAsFixed(1)}kg). Reducing calories by 100 to increase progress.';
+        adjustment = -100;
+        newCalorieGoal = currentCalorieGoal - 100;
+      } else {
+        interpretation = 'optimal_loss';
+        reason = 'Weight loss on track (${weightChange.abs().toStringAsFixed(1)}kg). Applying base recalculation.';
+        adjustment = baseAdjustment;
+      }
+    } else if (goal.contains('gain') || goal.contains('muscle')) {
+      // MUSCLE GAIN: Expect 0.25-0.5kg gain per week
+      if (weightChange <= 0) {
+        interpretation = 'no_progress';
+        reason = 'Weight decreased/unchanged. Increasing calories by 150 to create surplus.';
+        adjustment = 150;
+        newCalorieGoal = currentCalorieGoal + 150;
+      } else if (weightChange > 0.5) {
+        interpretation = 'rapid_gain';
+        reason = 'Weight gain too fast (${weightChange.toStringAsFixed(1)}kg). Reducing calories by 100 to slow down.';
+        adjustment = -100;
+        newCalorieGoal = currentCalorieGoal - 100;
+      } else if (weightChange < 0.25) {
+        interpretation = 'slow_gain';
+        reason = 'Weight gain slow (${weightChange.toStringAsFixed(1)}kg). Increasing calories by 100 to boost progress.';
+        adjustment = 100;
+        newCalorieGoal = currentCalorieGoal + 100;
+      } else {
+        interpretation = 'optimal_gain';
+        reason = 'Weight gain on track (${weightChange.toStringAsFixed(1)}kg). Applying base recalculation.';
+        adjustment = baseAdjustment;
+      }
+    } else {
+      // Unknown goal - just recalculate based on new weight
+      interpretation = 'recalculated';
+      reason = 'Calorie goal recalculated based on new weight.';
+      adjustment = baseAdjustment;
+    }
+
+    // Apply safety minimums again after adjustment
+    if (userData.gender!.toLowerCase() == 'female') {
+      newCalorieGoal = newCalorieGoal < 1200 ? 1200 : newCalorieGoal;
+    } else {
+      newCalorieGoal = newCalorieGoal < 1500 ? 1500 : newCalorieGoal;
+    }
+
+    return {
+      'newCalorieGoal': newCalorieGoal,
+      'adjustment': adjustment,
+      'interpretation': interpretation,
+      'reason': reason,
+      'weightChange': weightChange,
+    };
   }
 }

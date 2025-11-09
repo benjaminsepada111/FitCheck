@@ -169,8 +169,9 @@ class _MainPageState extends State<MainPage> {
               builder: (context) => WeeklyCheckInWizard(
                 challenge: _currentChallenge!,
                 onCheckInComplete: () {
-                  // Refresh trackers after check-in
+                  // Refresh trackers and challenge data after check-in
                   _trackersKey.currentState?.refreshData();
+                  _refreshChallengeDataInBackground();
                 },
               ),
             ),

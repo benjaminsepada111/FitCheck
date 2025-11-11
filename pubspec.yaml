@@ -71,6 +71,13 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_native_splash: ^2.4.0
+  flutter_launcher_icons: ^0.14.4
+
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -103,6 +110,7 @@ flutter:
     - assets/images/lunch.jpg
     - assets/images/snack.jpg
     - assets/images/dinner.jpg
+    - assets/icons/icon.png
 
 
   # The following line ensures that the Material Icons font is
@@ -150,10 +158,9 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 flutter_native_splash:
-  color: "#FFFFFF" # background color (you can change this)
-  image: assets/images/logot2.png # your custom logo (place this file under assets/images)
-  branding: assets/images/logot.png # optional bottom small logo
+  color: "#121C29" # background color (you can change this)
+  image: assets/icons/icon.png # your custom logo (place this file under assets/images)
   android_12:
-    image: assets/images/logot2.png
-    color: "#FFFFFF"
+    image: assets/icons/icon.png
+    color: "#121C29"
   web: false

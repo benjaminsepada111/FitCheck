@@ -234,23 +234,30 @@ async function processVideoWithFFmpeg(imageFiles, durationPerImage, musicPath, o
 
 /**
  * Build FFmpeg filter complex for crossfade transitions
+ * KEY FIX: Images must be looped before trimming to create video duration
  */
 function buildFilterComplex(imageCount, durationPerImage) {
   if (imageCount === 1) {
+    // Single image: loop it for the full duration
     return [
-      `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[outv]`
+      `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p[outv]`
     ];
   }
 
   const filters = [];
   const fadeDuration = 0.5; // seconds
 
+  // First, prepare each image with proper looping and duration
   for (let i = 0; i < imageCount; i++) {
+    // loop=-1 means infinite loop, size=1 means loop 1 frame at a time
+    // trim cuts the looped video to the desired duration
+    // setpts resets timestamps to start from 0
     filters.push(
-      `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,trim=duration=${durationPerImage}[v${i}]`
+      `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p[v${i}]`
     );
   }
 
+  // Then apply crossfade transitions between consecutive clips
   let current = 'v0';
   for (let i = 1; i < imageCount; i++) {
     const offset = (durationPerImage * i) - fadeDuration;

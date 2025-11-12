@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../LoginPages/login_page.dart';
 import '../color/colors.dart';
 import '../services/user_time_tracker.dart';
+import '../utils/page_transitions.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -171,7 +172,10 @@ class _SignUpPageState extends State<SignUpPage> {
           // Handle back button - navigate to login
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
+            SlidePageRoute(
+              page: const LoginPage(),
+              direction: AxisDirection.left,
+            ),
           );
         }
       },
@@ -191,7 +195,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   IconButton(
                     onPressed: () => Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
+                      SlidePageRoute(
+                        page: const LoginPage(),
+                        direction: AxisDirection.left,
+                      ),
                     ),
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
@@ -516,7 +523,10 @@ class _SignUpPageState extends State<SignUpPage> {
                     child: GestureDetector(
                       onTap: () => Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const LoginPage()),
+                        SlidePageRoute(
+                          page: const LoginPage(),
+                          direction: AxisDirection.left,
+                        ),
                       ),
                       child: const Text.rich(
                         TextSpan(

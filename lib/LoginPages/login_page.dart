@@ -8,6 +8,7 @@ import 'package:capstone_project/SignUpPages/signuppage.dart';
 import '../app_text_styles.dart';
 import '../color/colors.dart';
 import '../services/auth_service.dart';
+import '../utils/page_transitions.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -308,12 +309,13 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF06111D),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                 const SizedBox(height: 30),
 
                 // FITCHECK Logo
@@ -351,19 +353,6 @@ class _LoginPageState extends State<LoginPage> {
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Subtitle
-                const Text(
-                  'To log in, please enter your phone number or\nemail address and confirm your password.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF9CA3AF),
-                    height: 1.5,
                   ),
                 ),
 
@@ -607,8 +596,9 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const ForgotPasswordPage(),
+                          SlidePageRoute(
+                            page: const ForgotPasswordPage(),
+                            direction: AxisDirection.right,
                           ),
                         );
                       },
@@ -815,8 +805,9 @@ class _LoginPageState extends State<LoginPage> {
                   onTap: () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignUpPage(),
+                      SlidePageRoute(
+                        page: const SignUpPage(),
+                        direction: AxisDirection.right,
                       ),
                     );
                   },
@@ -843,6 +834,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 40),
               ],
             ),
+          ),
           ),
         ),
       ),

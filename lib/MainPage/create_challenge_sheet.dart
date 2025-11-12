@@ -28,6 +28,12 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   DateTime? _startDate;
   DateTime? _endDate;
 
+  // Weight and Height for this challenge
+  final TextEditingController _weightController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+  int? _challengeWeight;
+  int? _challengeHeight;
+
   // Activity Level & Goal
   String? _selectedLifestyleLevel;
   String? _selectedGoal;
@@ -110,6 +116,17 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
 
   Future<void> _loadUserData() async {
     _userData = await UserDataService.loadUserData();
+    if (_userData != null) {
+      // Pre-fill weight and height from user's profile
+      if (_userData!.weight != null) {
+        _challengeWeight = _userData!.weight;
+        _weightController.text = _userData!.weight.toString();
+      }
+      if (_userData!.height != null) {
+        _challengeHeight = _userData!.height;
+        _heightController.text = _userData!.height.toString();
+      }
+    }
     setState(() {});
   }
 
@@ -131,6 +148,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     _startDateController.dispose();
     _endDateController.dispose();
     _notesController.dispose();
+    _weightController.dispose();
+    _heightController.dispose();
     super.dispose();
   }
 
@@ -231,6 +250,14 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       _showError('Please select an end date');
       return false;
     }
+    if (_challengeWeight == null || _challengeWeight! <= 0) {
+      _showError('Please enter a valid weight');
+      return false;
+    }
+    if (_challengeHeight == null || _challengeHeight! <= 0) {
+      _showError('Please enter a valid height');
+      return false;
+    }
     return true;
   }
 
@@ -274,12 +301,18 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     setState(() => _isCreating = true);
 
     try {
+      // Use the weight entered/edited by user during challenge creation
+      // This becomes the permanent originalWeight for this challenge
+      int? originalWeight = _challengeWeight;
+
       final challenge = Challenge(
         id: ChallengeService.generateChallengeId(),
         title: _titleController.text.trim(),
         startDate: _startDate!,
         endDate: _endDate!,
         dailyCalorieGoal: _calculatedCalorieGoal,
+        originalCalorieGoal: _calculatedCalorieGoal, // Store original calorie goal
+        originalWeight: originalWeight,
         createdAt: DateTime.now(),
         notes: _notesController.text.trim(),
       );
@@ -487,6 +520,34 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                   label: 'End Date *',
                   controller: _endDateController,
                   onTap: () => _selectDate(_endDateController, false),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Weight and Height
+          Row(
+            children: [
+              Expanded(
+                child: _buildNumberField(
+                  label: 'Weight (kg) *',
+                  controller: _weightController,
+                  hint: 'e.g., 70',
+                  onChanged: (value) {
+                    _challengeWeight = int.tryParse(value);
+                  },
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _buildNumberField(
+                  label: 'Height (cm) *',
+                  controller: _heightController,
+                  hint: 'e.g., 170',
+                  onChanged: (value) {
+                    _challengeHeight = int.tryParse(value);
+                  },
                 ),
               ),
             ],
@@ -754,6 +815,42 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           decoration: InputDecoration(
             hintText: "mm/dd/yyyy",
             suffixIcon: Icon(Icons.calendar_today, color: AppColors.secondary),
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.secondary, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNumberField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required Function(String) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            hintText: hint,
             filled: true,
             fillColor: Colors.grey.shade100,
             border: OutlineInputBorder(

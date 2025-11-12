@@ -430,14 +430,14 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                     _buildStatItem(
                       icon: Icons.restaurant,
                       label: 'Daily Calorie',
-                      value: '${widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
+                      value: '${widget.challenge['originalCalorieGoal'] ?? widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
                       color: AppColors.secondary,
                     ),
                     _buildStatItem(
                       icon: Icons.monitor_weight_outlined,
                       label: 'Starting Weight',
-                      value: _weeklyCheckIns.isNotEmpty
-                          ? '${_weeklyCheckIns.first.currentWeight}kg'
+                      value: widget.challenge['originalWeight'] != null
+                          ? '${widget.challenge['originalWeight']}kg'
                           : 'N/A',
                       color: AppColors.secondary,
                     ),

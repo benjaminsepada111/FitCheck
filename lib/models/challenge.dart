@@ -6,7 +6,9 @@ class Challenge {
   final String title;
   final DateTime startDate;
   final DateTime endDate;
-  final int dailyCalorieGoal;
+  final int dailyCalorieGoal; // Current/adjusted calorie goal (can change via check-ins)
+  final int? originalCalorieGoal; // Original calorie goal at challenge creation (never changes)
+  final int? originalWeight; // Starting weight at challenge creation (in kg)
   final String notes;
   final DateTime createdAt;
   final String lifecycleStatus; // 'active', 'completed', 'cancelled'
@@ -19,6 +21,8 @@ class Challenge {
     required this.endDate,
     required this.dailyCalorieGoal,
     required this.createdAt,
+    this.originalCalorieGoal,
+    this.originalWeight,
     this.notes = '',
     this.lifecycleStatus = 'active',
     this.cancelledAt,
@@ -32,9 +36,17 @@ class Challenge {
     required DateTime endDate,
     String notes = '',
     int? customCalorieGoal, // Override calculated goal if needed
+    int? originalWeight, // Starting weight at challenge creation
   }) async {
     int calorieGoal =
         customCalorieGoal ?? await UserDataService.getDailyCalorieGoal();
+
+    // Get current user weight if originalWeight not provided
+    int? startingWeight = originalWeight;
+    if (startingWeight == null) {
+      final userData = await UserDataService.loadUserData();
+      startingWeight = userData?.weight;
+    }
 
     return Challenge(
       id: id,
@@ -42,6 +54,8 @@ class Challenge {
       startDate: startDate,
       endDate: endDate,
       dailyCalorieGoal: calorieGoal,
+      originalCalorieGoal: calorieGoal, // Store original calorie goal
+      originalWeight: startingWeight,
       createdAt: DateTime.now(),
       notes: notes,
     );
@@ -166,6 +180,8 @@ class Challenge {
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
       'dailyCalorieGoal': dailyCalorieGoal,
+      'originalCalorieGoal': originalCalorieGoal,
+      'originalWeight': originalWeight,
       'createdAt': createdAt.toIso8601String(),
       'notes': notes,
       'lifecycleStatus': lifecycleStatus,
@@ -181,6 +197,8 @@ class Challenge {
       startDate: DateTime.parse(json['startDate']),
       endDate: DateTime.parse(json['endDate']),
       dailyCalorieGoal: json['dailyCalorieGoal'],
+      originalCalorieGoal: json['originalCalorieGoal'] ?? json['dailyCalorieGoal'], // Fallback for old challenges
+      originalWeight: json['originalWeight'],
       createdAt: DateTime.parse(json['createdAt']),
       notes: json['notes'] ?? '',
       lifecycleStatus:
@@ -199,6 +217,8 @@ class Challenge {
     DateTime? startDate,
     DateTime? endDate,
     int? dailyCalorieGoal,
+    int? originalCalorieGoal,
+    int? originalWeight,
     DateTime? createdAt,
     String? notes,
     String? lifecycleStatus,
@@ -210,6 +230,8 @@ class Challenge {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       dailyCalorieGoal: dailyCalorieGoal ?? this.dailyCalorieGoal,
+      originalCalorieGoal: originalCalorieGoal ?? this.originalCalorieGoal,
+      originalWeight: originalWeight ?? this.originalWeight,
       createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
       lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
@@ -231,6 +253,8 @@ class Challenge {
         other.startDate == startDate &&
         other.endDate == endDate &&
         other.dailyCalorieGoal == dailyCalorieGoal &&
+        other.originalCalorieGoal == originalCalorieGoal &&
+        other.originalWeight == originalWeight &&
         other.createdAt == createdAt &&
         other.notes == notes &&
         other.lifecycleStatus == lifecycleStatus &&
@@ -245,6 +269,8 @@ class Challenge {
       startDate,
       endDate,
       dailyCalorieGoal,
+      originalCalorieGoal,
+      originalWeight,
       createdAt,
       notes,
       lifecycleStatus,

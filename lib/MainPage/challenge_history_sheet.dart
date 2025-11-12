@@ -549,6 +549,8 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
       'progress': progress,
       'status': status,
       'dailyCalorieGoal': challenge.dailyCalorieGoal,
+      'originalCalorieGoal': challenge.originalCalorieGoal,
+      'originalWeight': challenge.originalWeight,
       'notes': challenge.notes,
       'startDate': challenge.startDate,
       'endDate': challenge.endDate,

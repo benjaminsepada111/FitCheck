@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-import 'profile_setup.dart';
+import 'onboarding_navigation.dart';
 // Global constants for height range
 const int kMinHeight = 100;
 const int kMaxHeight = 320;
@@ -78,15 +78,15 @@ class _HeightPageState extends State<HeightPage>
     setState(() => _isLoading = true);
 
     try {
-      final success = await UserDataService.updateUserData(height: selectedHeight);
+      // Store data temporarily in OnboardingData instead of saving to Firebase
+      final nav = OnboardingNavigation.of(context);
+      if (nav != null) {
+        nav.data.height = selectedHeight;
 
-      if (success && mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfileSetupPage()),
-        );
-      } else if (mounted) {
-        _showErrorSnackBar('Failed to save height. Please try again.');
+        // Move to next page (summary page)
+        if (nav.onNext != null) {
+          nav.onNext!();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -112,21 +112,15 @@ class _HeightPageState extends State<HeightPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 30),
+            const Spacer(),
+
             ShaderMask(
               shaderCallback: (bounds) => LinearGradient(
-                colors: [AppColors.primary, AppColors.secondary],
+                colors: [AppColors.primary, AppColors.primary],
               ).createShader(bounds),
               child: const Text(
                 "Height",
@@ -138,12 +132,12 @@ class _HeightPageState extends State<HeightPage>
                 ),
               ),
             ),
-
+            const SizedBox(height: 8),
             Text(
               "Enter your height in CM",
               style: TextStyle(
                 fontSize: 16,
-                color: AppColors.secondary.shade600,
+                color: Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
                 height: 1.3,
               ),
@@ -183,7 +177,8 @@ class _HeightPageState extends State<HeightPage>
             const SizedBox(height: 20),
 
             // Number slider + vertical ruler with synchronized scrolling
-            Expanded(
+            SizedBox(
+              height: 250,
               child: Row(
                 children: [
                   const SizedBox(width: 16),
@@ -222,31 +217,67 @@ class _HeightPageState extends State<HeightPage>
               ),
             ),
 
-            // Continue Button
+            const Spacer(),
+
+            // Navigation Buttons
             Container(
               padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  // Back Button
+                  SizedBox(
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : () {
+                        final nav = OnboardingNavigation.of(context);
+                        if (nav?.onBack != null) {
+                          nav!.onBack!();
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade300,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                      ),
+                      child: Text(
+                        'BACK',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'CONTINUE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                  const SizedBox(width: 12),
+                  // Next Button
+                  Expanded(
+                    child: SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveAndContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                'NEXT',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

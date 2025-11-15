@@ -390,9 +390,12 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                   ),
                   const SizedBox(height: 30),
 
-                  // --- Input fields ---
+                  // --- Editable Information Section ---
+                  _buildSectionHeader("Personal Information"),
+                  const SizedBox(height: 16),
+
                   _buildTextField(
-                    label: "Full Name",
+                    label: "Nickname",
                     controller: _nameController,
                     icon: Icons.person_outline,
                     readOnly: false,
@@ -414,10 +417,21 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                     readOnly: true,
                     hint: "Email cannot be changed",
                   ),
-                  const SizedBox(height: 16),
 
-                  // Display other user info (read-only)
+                  const SizedBox(height: 32),
+
+                  // --- Profile Details Section ---
                   if (_userData != null) ...[
+                    _buildSectionHeader("Profile Details"),
+                    const SizedBox(height: 16),
+
+                    // Hobbies Section
+                    if (_userData!.hobbies != null && _userData!.hobbies!.isNotEmpty) ...[
+                      _buildHobbiesSection(_userData!.hobbies!),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Personal Details in a Grid
                     _buildInfoCard(
                       "Gender",
                       _userData!.gender ?? "Not set",
@@ -425,21 +439,31 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                     ),
                     const SizedBox(height: 12),
                     _buildInfoCard(
-                      "Age",
-                      _userData!.age != null ? "${_userData!.age} years" : "Not set",
+                      "Birthdate",
+                      _userData!.birthDate != null ? _formatBirthDate(_userData!.birthDate!) : "Not set",
                       Icons.cake_outlined,
                     ),
                     const SizedBox(height: 12),
-                    _buildInfoCard(
-                      "Weight",
-                      _userData!.weight != null ? "${_userData!.weight} kg" : "Not set",
-                      Icons.monitor_weight_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInfoCard(
-                      "Height",
-                      _userData!.height != null ? "${_userData!.height} cm" : "Not set",
-                      Icons.height_outlined,
+
+                    // Physical Stats Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCompactInfoCard(
+                            "Weight",
+                            _userData!.weight != null ? "${_userData!.weight} kg" : "Not set",
+                            Icons.monitor_weight_outlined,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildCompactInfoCard(
+                            "Height",
+                            _userData!.height != null ? "${_userData!.height} cm" : "Not set",
+                            Icons.height_outlined,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
 
@@ -493,6 +517,12 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       return '${names[0][0]}${names[1][0]}'.toUpperCase();
     }
     return _nameController.text.substring(0, 2).toUpperCase();
+  }
+
+  String _formatBirthDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   Widget _buildTextField({
@@ -597,6 +627,118 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 24,
+          decoration: BoxDecoration(
+            color: AppColors.secondary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHobbiesSection(List<String> hobbies) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Hobbies",
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: hobbies.map((hobby) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.secondary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  hobby,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactInfoCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: AppColors.secondary,
+            size: 32,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

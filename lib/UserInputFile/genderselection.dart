@@ -1,8 +1,7 @@
   import 'package:flutter/material.dart';
   import 'package:capstone_project/color/colors.dart';
   import 'package:capstone_project/services/user_data_service.dart';
-  import 'birthdate.dart';
-  import 'package:capstone_project/LoginPages/login_page.dart';
+  import 'onboarding_navigation.dart';
 
   class GenderSelection extends StatefulWidget {
     const GenderSelection({super.key});
@@ -73,15 +72,15 @@
       setState(() => _isLoading = true);
 
       try {
-        final success = await UserDataService.updateUserData(gender: selectedGender);
+        // Store data temporarily in OnboardingData instead of saving to Firebase
+        final nav = OnboardingNavigation.of(context);
+        if (nav != null) {
+          nav.data.gender = selectedGender;
 
-        if (success && mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const BirthdatePage()),
-          );
-        } else if (mounted) {
-          _showErrorSnackBar('Failed to save gender selection. Please try again.');
+          // Move to next page
+          if (nav.onNext != null) {
+            nav.onNext!();
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -106,30 +105,18 @@
     @override
     Widget build(BuildContext context) {
       return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
-            },
-          ),
-
-        ),
-        body: Container(
-          width: double.infinity,
-          child: SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                     // Header Section with enhanced styling
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -218,42 +205,80 @@
                     ),
 
                     const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
 
-
-                    const SizedBox(height: 40),
-
-                    // Continue Button
+              // Navigation Buttons
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    // Back Button
                     SizedBox(
-                      width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _saveAndContinue,
+                        onPressed: _isLoading ? null : () {
+                          final nav = OnboardingNavigation.of(context);
+                          if (nav?.onBack != null) {
+                            nav!.onBack!();
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
+                          backgroundColor: Colors.grey.shade300,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
                         ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'CONTINUE',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                        child: Text(
+                          'BACK',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Next Button
+                    Expanded(
+                      child: SizedBox(
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _saveAndContinue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text(
+                                  'NEXT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
     Widget genderOption({
       required String title,

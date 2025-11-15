@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
+import 'nickname_page.dart';
 
 class PrivacyConsentPage extends StatefulWidget {
   const PrivacyConsentPage({super.key});
@@ -75,8 +76,11 @@ class _PrivacyConsentPageState extends State<PrivacyConsentPage> with TickerProv
         _scaleController.forward();
       });
 
-      // Navigate to next screen
-      Navigator.pushReplacementNamed(context, "/home");
+      // Navigate to nickname page (first onboarding step)
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const NicknamePage()),
+      );
     } else {
       // Show enhanced warning with better styling
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,7 +126,7 @@ class _PrivacyConsentPageState extends State<PrivacyConsentPage> with TickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
+      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -174,35 +178,27 @@ class _PrivacyConsentPageState extends State<PrivacyConsentPage> with TickerProv
                           ),
                           const SizedBox(height: 32),
 
-                          // Enhanced title with gradient text effect
-                          ShaderMask(
-                            shaderCallback: (bounds) => LinearGradient(
-                              colors: [
-                                AppColors.secondary,
-                                AppColors.secondary.withOpacity(0.8),
-                              ],
-                            ).createShader(bounds),
-                            child: const Text(
-                              "Privacy & Terms",
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: -0.5,
-                              ),
-                              textAlign: TextAlign.center,
+                          // Title
+                          const Text(
+                            "Privacy & Terms",
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                              letterSpacing: -0.5,
                             ),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
 
-                          // Enhanced subtitle
+                          // Subtitle
                           Text(
                             "We value your privacy and are committed to protecting your personal information",
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey.shade600,
                               fontWeight: FontWeight.w400,
-                              height: 1.5,
+                              height: 1.4,
                             ),
                             textAlign: TextAlign.center,
                           ),

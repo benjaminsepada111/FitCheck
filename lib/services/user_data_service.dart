@@ -74,6 +74,7 @@ class UserDataService {
   static Future<bool> updateUserData({
     String? name,
     String? bio,
+    List<String>? hobbies,
     String? gender,
     DateTime? birthDate,
     int? weight,
@@ -90,6 +91,7 @@ class UserDataService {
       final updatedData = currentData.copyWith(
         name: name,
         bio: bio,
+        hobbies: hobbies,
         gender: gender,
         birthDate: birthDate,
         weight: weight,

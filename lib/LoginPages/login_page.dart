@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' show Platform;
-import '../UserInputFile/onboarding_screen.dart';
 import 'forgot_password.dart';
 import 'package:capstone_project/SignUpPages/signuppage.dart';
 import '../app_text_styles.dart';
@@ -406,11 +405,11 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
 
-                // Email or Phone Number Label
+                // Email Label
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Email or Phone Number',
+                    'Email',
                     style: TextStyle(
                       fontSize: 14,
                       color: Color(0xFF9CA3AF),
@@ -435,9 +434,10 @@ class _LoginPageState extends State<LoginPage> {
                   child: TextField(
                     controller: _emailController,
                     onChanged: (_) => _clearErrors(),
+                    keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Email or Phone Number',
+                      hintText: 'Email',
                       hintStyle: const TextStyle(
                         color: Color(0xFF6B7280),
                         fontSize: 15,
@@ -596,9 +596,8 @@ class _LoginPageState extends State<LoginPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          SlidePageRoute(
+                          FadePageRoute(
                             page: const ForgotPasswordPage(),
-                            direction: AxisDirection.right,
                           ),
                         );
                       },
@@ -805,9 +804,8 @@ class _LoginPageState extends State<LoginPage> {
                   onTap: () {
                     Navigator.pushReplacement(
                       context,
-                      SlidePageRoute(
+                      FadePageRoute(
                         page: const SignUpPage(),
-                        direction: AxisDirection.right,
                       ),
                     );
                   },

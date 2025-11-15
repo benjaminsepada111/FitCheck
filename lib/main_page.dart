@@ -17,7 +17,7 @@ import 'services/user_time_tracker.dart';
 import 'services/login_tracker_service.dart';
 import 'services/user_achievement_service.dart';
 import 'services/weekly_checkin_service.dart';
-import 'UserInputFile/genderselection.dart';
+import 'UserInputFile/onboarding_wizard.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'MainPage/weekly_checkin_wizard.dart';
 
@@ -810,8 +810,8 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
         initialChallengeHistory: _preloadedChallengeHistory,
       );
     } else {
-      // User needs to complete profile setup
-      return const GenderSelection();
+      // User needs to complete profile setup - start with onboarding wizard
+      return const OnboardingWizard();
     }
   }
 }

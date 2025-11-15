@@ -2,6 +2,7 @@
 class UserData {
   final String? name;
   final String? bio;
+  final List<String>? hobbies; // user's selected hobbies/interests
   final String? gender;
   final DateTime? birthDate;
   final int? weight; // in kg
@@ -15,6 +16,7 @@ class UserData {
   UserData({
     this.name,
     this.bio,
+    this.hobbies,
     this.gender,
     this.birthDate,
     this.weight,
@@ -59,6 +61,7 @@ class UserData {
     return {
       'name': name,
       'bio': bio,
+      'hobbies': hobbies,
       'gender': gender,
       'birthDate': birthDate?.toIso8601String(),
       'weight': weight,
@@ -76,6 +79,9 @@ class UserData {
     return UserData(
       name: json['name'],
       bio: json['bio'],
+      hobbies: json['hobbies'] != null
+          ? List<String>.from(json['hobbies'])
+          : null,
       gender: json['gender'],
       birthDate: json['birthDate'] != null
           ? DateTime.parse(json['birthDate'])
@@ -96,6 +102,7 @@ class UserData {
   UserData copyWith({
     String? name,
     String? bio,
+    List<String>? hobbies,
     String? gender,
     DateTime? birthDate,
     int? weight,
@@ -109,6 +116,7 @@ class UserData {
     return UserData(
       name: name ?? this.name,
       bio: bio ?? this.bio,
+      hobbies: hobbies ?? this.hobbies,
       gender: gender ?? this.gender,
       birthDate: birthDate ?? this.birthDate,
       weight: weight ?? this.weight,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-import 'weightselectorpage.dart';
+import 'onboarding_navigation.dart';
 
 class BirthdatePage extends StatefulWidget {
   const BirthdatePage({super.key});
@@ -92,16 +92,16 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
     setState(() => _isLoading = true);
 
     try {
+      // Store data temporarily in OnboardingData instead of saving to Firebase
       final birthDate = DateTime(selectedYear, selectedMonth, selectedDay);
-      final success = await UserDataService.updateUserData(birthDate: birthDate);
+      final nav = OnboardingNavigation.of(context);
+      if (nav != null) {
+        nav.data.birthDate = birthDate;
 
-      if (success && mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WeightSelectorPage()),
-        );
-      } else if (mounted) {
-        _showErrorSnackBar('Failed to save birth date. Please try again.');
+        // Move to next page
+        if (nav.onNext != null) {
+          nav.onNext!();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -138,88 +138,48 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Container(
-        width: double.infinity,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
-              child: Column(
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                      colors: [AppColors.primary, AppColors.primary],
-                    ).createShader(bounds),
-                    child: const Text(
-                      "Birthday",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    "Enter your date of birth",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.secondary.shade600,
-                      fontWeight: FontWeight.w400,
-                      height: 1.4,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            children: [
+              const Spacer(),
 
-            const SizedBox(height: 20),
-
-            SlideTransition(
-              position: _slideAnimation,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
+                child: Column(
                   children: [
-                    const Icon(
-                      Icons.cake_outlined,
-                      color: AppColors.secondary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Age: $calculatedAge years",
-                      style: TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                    ShaderMask(
+                      shaderCallback: (bounds) => LinearGradient(
+                        colors: [AppColors.primary, AppColors.primary],
+                      ).createShader(bounds),
+                      child: const Text(
+                        "Birthday",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Enter your date of birth",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 40),
+              const SizedBox(height: 40),
 
             SlideTransition(
               position: _slideAnimation,
@@ -295,33 +255,69 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
 
             const SizedBox(height: 40),
 
-            // Continue Button
+            const Spacer(),
+
+            // Navigation Buttons at bottom
             SlideTransition(
               position: _slideAnimation,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveAndContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    // Back Button
+                    SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : () {
+                          final nav = OnboardingNavigation.of(context);
+                          if (nav?.onBack != null) {
+                            nav!.onBack!();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade300,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                        ),
+                        child: Text(
+                          'BACK',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'CONTINUE',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    const SizedBox(width: 12),
+                    // Next Button
+                    Expanded(
+                      child: SizedBox(
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _saveAndContinue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                  ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text(
+                                  'NEXT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

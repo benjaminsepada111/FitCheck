@@ -20,6 +20,7 @@ import 'services/weekly_checkin_service.dart';
 import 'UserInputFile/onboarding_wizard.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'MainPage/weekly_checkin_wizard.dart';
+import 'package:capstone_project/widgets/empty_state.dart';
 
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
@@ -573,19 +574,22 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _getBody() {
-    // Use IndexedStack to keep pages alive and prevent rebuilding
     return IndexedStack(
       index: _selectedIndex,
       children: [
-        // Home page (index 0)
-        SingleChildScrollView(
+        // HOME PAGE
+        _currentChallenge == null
+            ? EmptyState(
+          type: EmptyStateType.noChallengeHome,
+          onAction: _showCreateChallenge,
+        )
+            : SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MilestoneJourney(
-                key:
-                    _milestoneKey, // GlobalKey maintains identity across rebuilds
+                key: _milestoneKey,
                 currentChallenge: _currentChallenge,
                 onCreateChallenge: _showCreateChallenge,
               ),
@@ -604,29 +608,50 @@ class _MainPageState extends State<MainPage> {
             ],
           ),
         ),
-        // Food page (index 1)
-        FoodPage(
-          key: _foodPageKey, // GlobalKey maintains identity across rebuilds
+
+        // FOOD PAGE
+        _currentChallenge == null
+            ? EmptyState(
+          type: EmptyStateType.noChallengeFood,
+          onAction: _showCreateChallenge,
+        )
+            : FoodPage(
+          key: _foodPageKey,
           currentChallenge: _currentChallenge,
           onChallengeCreated: _onChallengeCreated,
           onCaloriesUpdated: _refreshTrackers,
         ),
-        // Workout page (index 2)
-        WorkoutHistoryPage(
-          key: _workoutPageKey, // GlobalKey maintains identity across rebuilds
+
+        // WORKOUT PAGE
+        _currentChallenge == null
+            ? EmptyState(
+          type: EmptyStateType.noChallengeWorkout,
+          onAction: _showCreateChallenge,
+        )
+            : WorkoutHistoryPage(
+          key: _workoutPageKey,
           currentChallenge: _currentChallenge,
         ),
-        // Profile page (index 3)
+
+        // PROFILE PAGE
         const ProfilePage(),
       ],
     );
   }
 
+
+  // In your MainPage build method, replace the Scaffold with this:
+
   @override
   Widget build(BuildContext context) {
+    // Check if we should show empty state
+    bool showEmptyState = _currentChallenge == null;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: NestedScrollView(
+      body: showEmptyState
+          ? _getBody() // Show empty state without AppBar
+          : NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverAppBar(

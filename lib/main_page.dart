@@ -21,6 +21,8 @@ import 'UserInputFile/onboarding_wizard.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'MainPage/weekly_checkin_wizard.dart';
 import 'package:capstone_project/widgets/empty_state.dart';
+import 'package:capstone_project/NotificationSettingsPage.dart';
+import 'package:capstone_project/widgets/NotificationBellIcon.dart';
 
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
@@ -109,7 +111,7 @@ class _MainPageState extends State<MainPage> {
       await UserAchievementService.trackDailyLogin();
 
       final newlyUnlocked =
-          await UserAchievementService.checkAndUnlockAchievements();
+      await UserAchievementService.checkAndUnlockAchievements();
 
       if (newlyUnlocked.isNotEmpty && mounted) {
         for (final id in newlyUnlocked) {
@@ -421,7 +423,7 @@ class _MainPageState extends State<MainPage> {
       } else {
         try {
           _currentChallenge = _challengeHistory.firstWhere(
-            (challenge) => challenge.title == challengeTitle,
+                (challenge) => challenge.title == challengeTitle,
           );
         } catch (e) {
           _currentChallenge = null;
@@ -639,9 +641,6 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-
-  // In your MainPage build method, replace the Scaffold with this:
-
   @override
   Widget build(BuildContext context) {
     // Check if we should show empty state
@@ -661,72 +660,145 @@ class _MainPageState extends State<MainPage> {
               pinned: true,
               elevation: 4,
               shadowColor: Colors.black.withValues(alpha: 0.1),
-              toolbarHeight: 60,
+              toolbarHeight: 68,
               title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("FitCheck", style: AppTextStyles.appTitle),
-                  PopupMenuButton<String>(
-                    offset: const Offset(0, 20),
-                    onSelected: (value) {
-                      if (value == "View Challenge History") {
-                        _showChallengeHistory();
-                      } else {
-                        _onChallengeSelected(value);
-                      }
-                    },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: Colors.white,
-                    elevation: 6,
-                    itemBuilder: (context) => _buildPopupMenuItems(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  // FitCheck Logo with green indicator
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/icons/icon.png', // Update this path to match your logo location
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: _currentChallenge != null
-                                  ? Colors.green
-                                  : Colors.grey,
-                              shape: BoxShape.circle,
-                            ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
                           ),
-                          const SizedBox(width: 8),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 150),
-                            child: Text(
-                              _selectedChallenge,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 10),
+
+                  // FitCheck Title with Subtitle
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'FitCheck',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          height: 1.2,
+                        ),
+                      ),
+                      Text(
+                        'Track & Achieve',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black54,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(width: 40),
+
+                  // Challenge Selector Dropdown
+                  Flexible(
+                    child: PopupMenuButton<String>(
+                      offset: const Offset(20, 30),
+                      onSelected: (value) {
+                        if (value == "View Challenge History") {
+                          _showChallengeHistory();
+                        } else {
+                          _onChallengeSelected(value);
+                        }
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      color: Colors.white,
+                      elevation: 6,
+                      itemBuilder: (context) => _buildPopupMenuItems(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: _currentChallenge != null
+                                    ? Colors.green
+                                    : Colors.grey,
+                                shape: BoxShape.circle,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.black54,
-                            size: 20,
-                          ),
-                        ],
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                _selectedChallenge,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.black54,
+                              size: 16,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+
+                  NotificationIconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationPage(),
+                        ),
+                      );
+                    },
+                    iconColor: Colors.black87,
+                    badgeColor: Colors.red,
+                  ),
+                  const SizedBox(width: 3),
                 ],
               ),
             ),

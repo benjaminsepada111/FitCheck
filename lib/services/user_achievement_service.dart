@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:capstone_project/services/notification_storage_service.dart';
 
 /// Service for managing user-specific achievements in Firestore
 ///
@@ -248,6 +249,15 @@ class UserAchievementService {
         'updated_at': FieldValue.serverTimestamp(),
       });
 
+      // Save notification
+      await NotificationStorageService.saveNotification(
+        type: NotificationStorageService.typeWorkoutLogged,
+        title: 'Workout Completed',
+        description: 'Great job! You completed a workout session.',
+        iconName: 'fitness_center',
+        iconColor: 0xFF4CAF50,
+      );
+
       await checkAndUnlockAchievements();
     } catch (e) {}
   }
@@ -256,6 +266,15 @@ class UserAchievementService {
   static Future<void> trackChallengeCompletion() async {
     try {
       await incrementStat('challenges_completed', 1);
+
+      // Save notification
+      await NotificationStorageService.saveNotification(
+        type: NotificationStorageService.typeChallengeCompleted,
+        title: 'Challenge Completed!',
+        description: 'Congratulations! You\'ve completed a challenge.',
+        iconName: 'flag',
+        iconColor: 0xFF9C27B0,
+      );
     } catch (e) {}
   }
 
@@ -326,6 +345,19 @@ class UserAchievementService {
         if (currentValue >= threshold) {
           await _unlockAchievement(achievementId);
           newlyUnlocked.add(achievementId);
+
+          // Save notification for achievement unlock
+          await NotificationStorageService.saveNotification(
+            type: NotificationStorageService.typeAchievementUnlocked,
+            title: '🏆 Achievement Unlocked!',
+            description: 'You\'ve unlocked "${definition['title']}" - ${definition['description']}',
+            iconName: 'emoji_events',
+            iconColor: 0xFFFFD700, // Gold
+            metadata: {
+              'achievementId': achievementId,
+              'achievementTitle': definition['title'],
+            },
+          );
         }
       }
 
@@ -337,9 +369,9 @@ class UserAchievementService {
 
   /// Update achievement progress
   static Future<void> _updateAchievementProgress(
-    String achievementId,
-    double progress,
-  ) async {
+      String achievementId,
+      double progress,
+      ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) return;
@@ -410,7 +442,7 @@ class UserAchievementService {
         final currentValue = (stats[condition] ?? 0) as int;
         final progress =
             userAchievement?.progress ??
-            (currentValue / threshold).clamp(0.0, 1.0);
+                (currentValue / threshold).clamp(0.0, 1.0);
 
         return {
           'id': achievementId,

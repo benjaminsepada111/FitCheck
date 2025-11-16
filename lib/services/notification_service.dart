@@ -6,6 +6,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:capstone_project/services/notification_storage_service.dart';
 
 class NotificationService {
   // Singleton pattern - ensures only one instance exists
@@ -30,9 +32,56 @@ class NotificationService {
   static const int afternoonReminderId = 1001;
   static const int eveningReminderId = 1002;
 
+  /// Get notification ID for meal type
+  int _getMealReminderId(String mealType) {
+    switch (mealType) {
+      case 'Breakfast':
+        return breakfastReminderId;
+      case 'Lunch':
+        return lunchReminderId;
+      case 'Snack':
+        return snackReminderId;
+      case 'Dinner':
+        return dinnerReminderId;
+      default:
+        return breakfastReminderId;
+    }
+  }
+
+  /// Get meal emoji
+  String _getMealEmoji(String mealType) {
+    switch (mealType) {
+      case 'Breakfast':
+        return '🍳';
+      case 'Lunch':
+        return '🍱';
+      case 'Snack':
+        return '🍎';
+      case 'Dinner':
+        return '🍽️';
+      default:
+        return '🔔';
+    }
+  }
+
+  /// Get meal asset path
+  String _getMealAssetPath(String mealType) {
+    switch (mealType.toLowerCase()) {
+      case 'breakfast':
+        return 'assets/images/breakfast.jpg';
+      case 'lunch':
+        return 'assets/images/lunch.jpg';
+      case 'snack':
+        return 'assets/images/snack.jpg';
+      case 'dinner':
+        return 'assets/images/dinner.jpg';
+      default:
+        return 'assets/images/snack.jpg';
+    }
+  }
+
   /// Initialize the notification service
   /// Call this once in main.dart
-
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -82,7 +131,7 @@ class NotificationService {
       // Request permissions for Android 13+ and iOS
       await _requestPermissions();
 
-      // 🆕 Request exact alarm permission (Android 12+)
+      // Request exact alarm permission (Android 12+)
       final exactAlarmGranted = await requestExactAlarmPermission();
       if (!exactAlarmGranted) {
         debugPrint('⚠️ Cannot schedule exact alarms without permission');
@@ -91,10 +140,82 @@ class NotificationService {
       _isInitialized = true;
       debugPrint('✅ NotificationService initialized successfully');
 
-      // Automatically schedule meal reminders on initialization
-      await scheduleDailyMealReminders();
+      // 🆕 Load and apply saved notification settings (or use defaults)
+      await _loadAndApplySavedSettings();
     } catch (e) {
       debugPrint('❌ Error initializing NotificationService: $e');
+    }
+  }
+
+  /// 🆕 Load saved settings and apply them, or use defaults
+  Future<void> _loadAndApplySavedSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Check if user has ever customized settings
+      final hasCustomSettings = prefs.containsKey('breakfast_enabled');
+
+      if (hasCustomSettings) {
+        debugPrint('📱 Loading custom notification settings...');
+
+        // Load and schedule each meal based on saved preferences
+        await _scheduleFromSavedPreferences('Breakfast', prefs);
+        await _scheduleFromSavedPreferences('Lunch', prefs);
+        await _scheduleFromSavedPreferences('Snack', prefs);
+        await _scheduleFromSavedPreferences('Dinner', prefs);
+
+        // Load milestone settings
+        final milestoneEnabled = prefs.getBool('milestone_enabled') ?? false;
+        if (milestoneEnabled) {
+          final hour = prefs.getInt('milestone_hour') ?? 20;
+          final minute = prefs.getInt('milestone_minute') ?? 0;
+          await scheduleMilestoneReminderAt(hour, minute);
+        }
+
+        debugPrint('✅ Custom notification settings applied');
+      } else {
+        debugPrint('📱 No custom settings found, using defaults...');
+        // Use default scheduling (original behavior)
+        await scheduleDailyMealReminders();
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading saved settings, using defaults: $e');
+      // Fallback to default scheduling if there's an error
+      await scheduleDailyMealReminders();
+    }
+  }
+
+  /// 🆕 Helper to schedule a meal from saved preferences
+  Future<void> _scheduleFromSavedPreferences(
+      String mealType,
+      SharedPreferences prefs,
+      ) async {
+    final mealLower = mealType.toLowerCase();
+    final isEnabled = prefs.getBool('${mealLower}_enabled') ?? true;
+
+    if (isEnabled) {
+      final hour = prefs.getInt('${mealLower}_hour') ??
+          _getDefaultHour(mealType);
+      final minute = prefs.getInt('${mealLower}_minute') ?? 0;
+      await scheduleMealReminder(mealType, hour, minute);
+    } else {
+      await cancelMealReminderByType(mealType);
+    }
+  }
+
+  /// Get default hour for meal type
+  int _getDefaultHour(String mealType) {
+    switch (mealType) {
+      case 'Breakfast':
+        return 8;
+      case 'Lunch':
+        return 12;
+      case 'Snack':
+        return 16;
+      case 'Dinner':
+        return 19;
+      default:
+        return 12;
     }
   }
 
@@ -167,6 +288,7 @@ class NotificationService {
 
     return true; // iOS doesn't need this
   }
+
   /// Copy asset image to temporary directory and return file path
   Future<String?> _getAssetImagePath(String assetPath) async {
     try {
@@ -187,23 +309,6 @@ class NotificationService {
     }
   }
 
-  /// Get asset image path based on meal type
-  String _getMealAssetPath(String mealType) {
-    switch (mealType.toLowerCase()) {
-      case 'breakfast':
-        return 'assets/images/breakfast.jpg';
-      case 'lunch':
-        return 'assets/images/lunch.jpg';
-      case 'snack':
-        return 'assets/images/snack.jpg';
-      case 'dinner':
-        return 'assets/images/dinner.jpg';
-      default:
-        return 'assets/images/snack.jpg';
-    }
-  }
-
-  /// Handle notification tap events
   /// Handle notification tap events
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
@@ -266,8 +371,204 @@ class NotificationService {
     }
   }
 
-  /// Schedule daily meal reminders at specific times
-  /// Schedule daily meal reminders at specific times WITH IMAGES
+  /// 🆕 Schedule a single meal reminder at custom time
+  Future<void> scheduleMealReminder(
+      String mealType,
+      int hour,
+      int minute,
+      ) async {
+    if (!_isInitialized) {
+      debugPrint('⚠️ NotificationService not initialized');
+      return;
+    }
+
+    try {
+      final int notificationId = _getMealReminderId(mealType);
+      final String emoji = _getMealEmoji(mealType);
+      final String assetPath = _getMealAssetPath(mealType);
+
+      // Get image path
+      final String? imagePath = await _getAssetImagePath(assetPath);
+
+      // Create action button
+      const AndroidNotificationAction logNowAction = AndroidNotificationAction(
+        'log_now',
+        'Log Now',
+        showsUserInterface: true,
+      );
+
+      // Configure notification with image
+      final AndroidNotificationDetails androidDetails =
+      AndroidNotificationDetails(
+        'meal_reminder_channel',
+        'Meal Reminders',
+        channelDescription: 'Daily reminders to log your meals',
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+        visibility: NotificationVisibility.public,
+        icon: '@mipmap/ic_launcher',
+        largeIcon:
+        imagePath != null ? FilePathAndroidBitmap(imagePath) : null,
+        styleInformation: imagePath != null
+            ? BigPictureStyleInformation(
+          FilePathAndroidBitmap(imagePath),
+          contentTitle: '$emoji Time for $mealType!',
+          summaryText: "Don't forget to log your $mealType in FitCheck!",
+          hideExpandedLargeIcon: false,
+        )
+            : null,
+        actions: const <AndroidNotificationAction>[logNowAction],
+      );
+
+      final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        attachments: imagePath != null
+            ? <DarwinNotificationAttachment>[
+          DarwinNotificationAttachment(imagePath)
+        ]
+            : null,
+        categoryIdentifier: 'meal_reminder_category',
+      );
+
+      final NotificationDetails notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      // Schedule the notification
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledTime = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+        0,
+      );
+
+      // If time has passed today, schedule for tomorrow
+      if (scheduledTime.isBefore(now)) {
+        scheduledTime = scheduledTime.add(const Duration(days: 1));
+      }
+
+      await _notifications.zonedSchedule(
+        notificationId,
+        '$emoji Time for $mealType!',
+        "Don't forget to log your $mealType in FitCheck!",
+        scheduledTime,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: 'meal_reminder_${mealType.toLowerCase()}',
+      );
+
+      debugPrint(
+          '✅ Scheduled $mealType reminder at ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}');
+    } catch (e) {
+      debugPrint('❌ Error scheduling $mealType reminder: $e');
+    }
+  }
+
+  /// 🆕 Cancel a specific meal reminder by type
+  Future<void> cancelMealReminderByType(String mealType) async {
+    try {
+      final int notificationId = _getMealReminderId(mealType);
+      await _notifications.cancel(notificationId);
+      debugPrint('✅ Cancelled $mealType reminder');
+    } catch (e) {
+      debugPrint('❌ Error cancelling $mealType reminder: $e');
+    }
+  }
+
+  /// 🆕 Cancel all meal reminders
+  Future<void> cancelAllMealReminders() async {
+    try {
+      await _notifications.cancel(breakfastReminderId);
+      await _notifications.cancel(lunchReminderId);
+      await _notifications.cancel(snackReminderId);
+      await _notifications.cancel(dinnerReminderId);
+      debugPrint('✅ All meal reminders cancelled');
+    } catch (e) {
+      debugPrint('❌ Error cancelling meal reminders: $e');
+    }
+  }
+
+  /// 🆕 Schedule milestone reminder at custom time
+  Future<void> scheduleMilestoneReminderAt(int hour, int minute) async {
+    if (!_isInitialized) {
+      debugPrint('⚠️ NotificationService not initialized');
+      return;
+    }
+
+    try {
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledTime = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+        0,
+      );
+
+      // If time has passed today, schedule for tomorrow
+      if (scheduledTime.isBefore(now)) {
+        scheduledTime = scheduledTime.add(const Duration(days: 1));
+      }
+
+      const AndroidNotificationDetails androidDetails =
+      AndroidNotificationDetails(
+        'milestone_reminder_channel',
+        'Milestone Reminders',
+        channelDescription: 'Daily reminders to add milestone photos',
+        importance: Importance.high,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+        visibility: NotificationVisibility.public,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _notifications.zonedSchedule(
+        eveningReminderId,
+        '📸 Milestone Reminder',
+        "Don't forget to add your milestone photo today!",
+        scheduledTime,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: 'milestone_reminder',
+      );
+
+      debugPrint(
+          '✅ Scheduled milestone reminder at ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}');
+    } catch (e) {
+      debugPrint('❌ Error scheduling milestone reminder: $e');
+    }
+  }
+
+  /// Schedule daily meal reminders at default times (ORIGINAL METHOD - PRESERVED)
   Future<void> scheduleDailyMealReminders() async {
     if (!_isInitialized) {
       debugPrint('⚠️ NotificationService not initialized');
@@ -316,17 +617,20 @@ class NotificationService {
 
       for (final reminder in mealReminders) {
         // Get image path for this meal
-        final String? imagePath = await _getAssetImagePath(reminder['asset'] as String);
+        final String? imagePath =
+        await _getAssetImagePath(reminder['asset'] as String);
 
         // Create action button
-        const AndroidNotificationAction logNowAction = AndroidNotificationAction(
+        const AndroidNotificationAction logNowAction =
+        AndroidNotificationAction(
           'log_now',
           'Log Now',
           showsUserInterface: true,
         );
 
         // Configure notification with image
-        final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
           'meal_reminder_channel',
           'Meal Reminders',
           channelDescription: 'Daily reminders to log your meals',
@@ -336,12 +640,15 @@ class NotificationService {
           playSound: true,
           visibility: NotificationVisibility.public,
           icon: '@mipmap/ic_launcher',
-          largeIcon: imagePath != null ? FilePathAndroidBitmap(imagePath) : null,
+          largeIcon:
+          imagePath != null ? FilePathAndroidBitmap(imagePath) : null,
           styleInformation: imagePath != null
               ? BigPictureStyleInformation(
             FilePathAndroidBitmap(imagePath),
-            contentTitle: '${reminder['emoji']} Time for ${reminder['meal']}!',
-            summaryText: "Don't forget to log your ${reminder['meal']} in FitCheck!",
+            contentTitle:
+            '${reminder['emoji']} Time for ${reminder['meal']}!',
+            summaryText:
+            "Don't forget to log your ${reminder['meal']} in FitCheck!",
             hideExpandedLargeIcon: false,
           )
               : null,
@@ -353,7 +660,9 @@ class NotificationService {
           presentBadge: true,
           presentSound: true,
           attachments: imagePath != null
-              ? <DarwinNotificationAttachment>[DarwinNotificationAttachment(imagePath)]
+              ? <DarwinNotificationAttachment>[
+            DarwinNotificationAttachment(imagePath)
+          ]
               : null,
           categoryIdentifier: 'meal_reminder_category',
         );
@@ -403,13 +712,13 @@ class NotificationService {
     }
   }
 
-  /// Reschedule meal reminders
+  /// Reschedule meal reminders (ORIGINAL METHOD - PRESERVED)
   Future<void> rescheduleOnReboot() async {
     debugPrint('🔄 Rescheduling meal reminders after reboot...');
-    await scheduleDailyMealReminders();
+    await _loadAndApplySavedSettings();
   }
 
-  /// Cancel all meal reminders
+  /// Cancel all meal reminders (ORIGINAL METHOD - PRESERVED)
   Future<void> cancelMealReminders() async {
     try {
       await _notifications.cancel(breakfastReminderId);
@@ -422,7 +731,7 @@ class NotificationService {
     }
   }
 
-  /// Legacy: Schedule daily milestone reminders
+  /// Schedule daily milestone reminders (ORIGINAL METHOD - PRESERVED)
   Future<void> scheduleDailyMilestoneReminders() async {
     if (!_isInitialized) {
       debugPrint('⚠️ NotificationService not initialized');
@@ -518,6 +827,8 @@ class NotificationService {
     }
   }
 
+  // ALL ORIGINAL METHODS BELOW ARE PRESERVED ✅
+
   Future<void> showReminderNotification() async {
     await showInstantNotification(
       title: '📸 Milestone Reminder',
@@ -544,19 +855,40 @@ class NotificationService {
     );
   }
 
+  /// 🆕 UPDATED: Save notification to Firestore
   Future<void> showMilestoneSavedNotification() async {
     await showInstantNotification(
       title: '✅ Milestone Saved!',
       body: 'Great job! Your progress has been recorded.',
       payload: 'milestone_saved',
     );
+
+    // Save to Firestore
+    await NotificationStorageService.saveNotification(
+      type: NotificationStorageService.typeMilestonePhoto,
+      title: 'Milestone Photo Added',
+      description: 'Great progress! Your milestone photo has been saved.',
+      iconName: 'camera_alt',
+      iconColor: 0xFFE91E63,
+    );
   }
 
+  /// 🆕 UPDATED: Save notification to Firestore
   Future<void> showMealLoggedNotification(String mealType) async {
     await showInstantNotification(
       title: '✅ $mealType Logged!',
       body: 'Great job tracking your nutrition!',
       payload: 'meal_logged_${mealType.toLowerCase()}',
+    );
+
+    // Save to Firestore
+    await NotificationStorageService.saveNotification(
+      type: NotificationStorageService.typeMealLogged,
+      title: 'Meal Logged Successfully',
+      description: 'You have logged your $mealType. Keep up the great work!',
+      iconName: 'restaurant',
+      iconColor: 0xFFFF9800,
+      metadata: {'mealType': mealType},
     );
   }
 
@@ -590,5 +922,4 @@ class NotificationService {
       debugPrint('  - ID: ${notification.id}, Title: ${notification.title}');
     }
   }
-
 }

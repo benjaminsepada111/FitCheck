@@ -8,6 +8,8 @@ import 'package:capstone_project/services/user_time_tracker.dart';
 import 'package:capstone_project/models/user_data.dart';
 import 'package:capstone_project/services/notification_service.dart';
 import 'package:capstone_project/achievements_page.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -73,14 +75,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _logout(BuildContext context) async {
+    final r = context.responsive;
     try {
       // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(r.size(16)),
           ),
           content: Row(
             mainAxisSize: MainAxisSize.min,
@@ -88,8 +91,8 @@ class _ProfilePageState extends State<ProfilePage> {
               CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
               ),
-              const SizedBox(width: 20),
-              const Text('Signing out...'),
+              ResponsiveGap(20, vertical: false),
+              Text('Signing out...', style: TextStyle(fontSize: r.font(14, min: 12, max: 18))),
             ],
           ),
         ),
@@ -116,11 +119,12 @@ class _ProfilePageState extends State<ProfilePage> {
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to sign out. Please try again.'),
+            content: Text('Failed to sign out. Please try again.',
+              style: TextStyle(fontSize: r.font(14, min: 12, max: 18))),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(r.size(10)),
             ),
           ),
         );
@@ -129,20 +133,21 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final r = context.responsive;
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(r.size(20)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: r.padding(all: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: r.padding(all: 16),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     shape: BoxShape.circle,
@@ -150,66 +155,66 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Icon(
                     Icons.logout,
                     color: Colors.red.shade600,
-                    size: 32,
+                    size: r.size(32),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
+                ResponsiveGap(20),
+                Text(
                   'Sign Out',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: r.font(22, min: 18, max: 26), fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 12),
+                ResponsiveGap(12),
                 Text(
                   'Are you sure you want to sign out of your account?',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: r.font(15, min: 13, max: 18),
                     color: Colors.grey.shade600,
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 24),
+                ResponsiveGap(24),
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: r.paddingSymmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(r.size(12)),
                           ),
                         ),
                         child: Text(
                           'Cancel',
                           style: TextStyle(
                             color: Colors.grey.shade600,
-                            fontSize: 16,
+                            fontSize: r.font(16, min: 14, max: 20),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    ResponsiveGap(12, vertical: false),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pop();
+                          Navigator.of(dialogContext).pop();
                           _logout(context);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red.shade600,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: r.paddingSymmetric(vertical: 14),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(r.size(12)),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Sign Out',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: r.font(16, min: 14, max: 20),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -288,6 +293,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -295,7 +301,7 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: r.padding(all: 16),
               children: [
                 // Enhanced Profile Card - Now Clickable
                 GestureDetector(
@@ -316,48 +322,49 @@ class _ProfilePageState extends State<ProfilePage> {
                         end: Alignment.bottomRight,
                         colors: [
                           AppColors.secondary,
-                          AppColors.secondary.withOpacity(0.8),
+                          AppColors.secondary.withValues(alpha: 0.8),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(r.size(16)),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.secondary.withOpacity(0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: AppColors.secondary.withValues(alpha: 0.3),
+                          blurRadius: r.size(12),
+                          offset: Offset(0, r.size(4)),
                         ),
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: r.padding(all: 20),
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(3),
+                            padding: r.padding(all: 3),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 2,
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: r.size(2),
                               ),
                             ),
                             child:
                                 _userData?.profilePictureUrl != null &&
                                     _userData!.profilePictureUrl!.isNotEmpty
                                 ? CircleAvatar(
-                                    radius: 30,
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.2,
+                                    radius: r.size(30),
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.2,
                                     ),
                                     child: ClipOval(
                                       child: Image.network(
                                         _userData!.profilePictureUrl!,
                                         fit: BoxFit.cover,
-                                        width: 60,
-                                        height: 60,
+                                        width: r.size(60),
+                                        height: r.size(60),
                                         loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
+                                          if (loadingProgress == null) {
                                             return child;
+                                          }
                                           return Center(
                                             child: CircularProgressIndicator(
                                               value:
@@ -369,7 +376,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                                         loadingProgress
                                                             .expectedTotalBytes!
                                                   : null,
-                                              strokeWidth: 2,
+                                              strokeWidth: r.size(2),
                                               valueColor:
                                                   const AlwaysStoppedAnimation<
                                                     Color
@@ -381,9 +388,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                             (context, error, stackTrace) {
                                               return Text(
                                                 _getInitials(),
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 20,
+                                                  fontSize: r.font(20, min: 16, max: 24),
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               );
@@ -392,21 +399,21 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ),
                                   )
                                 : CircleAvatar(
-                                    radius: 30,
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.2,
+                                    radius: r.size(30),
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.2,
                                     ),
                                     child: Text(
                                       _getInitials(),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 20,
+                                        fontSize: r.font(20, min: 16, max: 24),
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
                           ),
-                          const SizedBox(width: 16),
+                          ResponsiveGap(16, vertical: false),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,33 +422,33 @@ class _ProfilePageState extends State<ProfilePage> {
                                   _userData?.name ??
                                       user?.displayName ??
                                       'User',
-                                  style: const TextStyle(
-                                    fontSize: 18,
+                                  style: TextStyle(
+                                    fontSize: r.font(18, min: 16, max: 22),
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                ResponsiveGap(6),
                                 Text(
                                   user?.email ?? "No email",
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: r.font(14, min: 12, max: 18),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: r.padding(all: 8),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(r.size(10)),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.edit,
                               color: Colors.white,
-                              size: 20,
+                              size: r.size(20),
                             ),
                           ),
                         ],
@@ -450,20 +457,20 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                ResponsiveGap(16),
 
                 // Statistics and Badges Section
-                _buildStatisticsAndBadgesCard(),
+                _buildStatisticsAndBadgesCard(r),
 
-                const SizedBox(height: 24),
+                ResponsiveGap(24),
 
                 // Section Header
                 Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  padding: r.padding(left: 4, bottom: 12),
                   child: Text(
                     'Account Settings',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: r.font(16, min: 14, max: 20),
                       fontWeight: FontWeight.w700,
                       color: Colors.grey.shade700,
                     ),
@@ -471,9 +478,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
 
                 // Account Settings (Personal Info removed)
-                _buildSection([
+                _buildSection(r, [
                   _buildListTile(
                     context,
+                    r,
                     Icons.vpn_key_outlined,
                     "Change Password",
                     "Update your password",
@@ -484,17 +492,19 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildListTile(
                     context,
+                    r,
                     Icons.shield_outlined,
                     "Two Factor Authentication",
                     "Add extra security",
                     null,
                   ),
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildListTile(
                     context,
+                    r,
                     Icons.fingerprint,
                     "Biometric Login",
                     "Use fingerprint or face ID",
@@ -502,31 +512,33 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ]),
 
-                const SizedBox(height: 24),
+                ResponsiveGap(24),
 
                 // Account Information Section
                 Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  padding: r.padding(left: 4, bottom: 12),
                   child: Text(
                     'Account Information',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: r.font(16, min: 14, max: 20),
                       fontWeight: FontWeight.w700,
                       color: Colors.grey.shade700,
                     ),
                   ),
                 ),
 
-                _buildSection([
+                _buildSection(r, [
                   _buildInfoTile(
+                    r,
                     Icons.calendar_today_outlined,
                     "Account Created",
                     _accountCreationDate != null
                         ? _formatDate(_accountCreationDate!)
                         : "Loading...",
                   ),
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildInfoTile(
+                    r,
                     Icons.access_time_outlined,
                     "Account Age",
                     _accountAgeDays > 0
@@ -534,15 +546,17 @@ class _ProfilePageState extends State<ProfilePage> {
                         : "Loading...",
                   ),
                   if (_userStartDate != null) ...[
-                    const Divider(height: 1, indent: 60),
+                    Divider(height: r.size(1), indent: r.size(60)),
                     _buildInfoTile(
+                      r,
                       Icons.flag_outlined,
                       "Journey Started",
                       _formatDate(_userStartDate!),
                     ),
                   ],
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildInfoTile(
+                    r,
                     Icons.verified_user_outlined,
                     "Email Verified",
                     FirebaseAuth.instance.currentUser?.emailVerified == true
@@ -551,15 +565,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ]),
 
-                const SizedBox(height: 24),
+                ResponsiveGap(24),
 
                 // Section Header
                 Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  padding: r.padding(left: 4, bottom: 12),
                   child: Text(
                     'Preferences',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: r.font(16, min: 14, max: 20),
                       fontWeight: FontWeight.w700,
                       color: Colors.grey.shade700,
                     ),
@@ -567,25 +581,28 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
 
                 // Preferences
-                _buildSection([
+                _buildSection(r, [
                   _buildSwitchTile(
                     context,
+                    r,
                     Icons.dark_mode_outlined,
                     "Dark Mode",
                     "Switch to dark theme",
                     false,
                   ),
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildListTile(
                     context,
+                    r,
                     Icons.notifications_outlined,
                     "Notifications",
                     "Manage notification settings",
                     null,
                   ),
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildListTile(
                     context,
+                    r,
                     Icons.language_outlined,
                     "Language",
                     "Choose your preferred language",
@@ -593,15 +610,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ]),
 
-                const SizedBox(height: 24),
+                ResponsiveGap(24),
 
                 // Section Header
                 Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  padding: r.padding(left: 4, bottom: 12),
                   child: Text(
                     'More',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: r.font(16, min: 14, max: 20),
                       fontWeight: FontWeight.w700,
                       color: Colors.grey.shade700,
                     ),
@@ -609,17 +626,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
 
                 // More Options
-                _buildSection([
+                _buildSection(r, [
                   _buildListTile(
                     context,
+                    r,
                     Icons.help_outline,
                     "Help & Support",
                     "Get help with the app",
                     null,
                   ),
-                  const Divider(height: 1, indent: 60),
+                  Divider(height: r.size(1), indent: r.size(60)),
                   _buildListTile(
                     context,
+                    r,
                     Icons.info_outline,
                     "About",
                     "Learn more about this app",
@@ -627,37 +646,37 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ]),
 
-                const SizedBox(height: 24),
+                ResponsiveGap(24),
 
                 // Logout Button
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.red.shade200, width: 1.5),
+                    borderRadius: BorderRadius.circular(r.size(16)),
+                    border: Border.all(color: Colors.red.shade200, width: r.size(1.5)),
                   ),
                   child: ListTile(
                     onTap: () => _showLogoutDialog(context),
-                    contentPadding: const EdgeInsets.symmetric(
+                    contentPadding: r.paddingSymmetric(
                       horizontal: 20,
                       vertical: 8,
                     ),
                     leading: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: r.padding(all: 10),
                       decoration: BoxDecoration(
                         color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(r.size(12)),
                       ),
                       child: Icon(
                         Icons.logout,
                         color: Colors.red.shade600,
-                        size: 22,
+                        size: r.size(22),
                       ),
                     ),
                     title: Text(
                       "Log Out",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: r.font(16, min: 14, max: 20),
                         fontWeight: FontWeight.w600,
                         color: Colors.red.shade600,
                       ),
@@ -665,7 +684,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     trailing: Icon(
                       Icons.arrow_forward_ios,
                       color: Colors.red.shade400,
-                      size: 18,
+                      size: r.size(18),
                     ),
                   ),
                 ),
@@ -674,7 +693,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatisticsAndBadgesCard() {
+  Widget _buildStatisticsAndBadgesCard(Responsive r) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -683,25 +702,25 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: r.paddingSymmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              Colors.amber.shade100.withOpacity(0.15),
-              Colors.amber.shade100.withOpacity(0.25),
+              Colors.amber.shade100.withValues(alpha: 0.15),
+              Colors.amber.shade100.withValues(alpha: 0.25),
             ],
             stops: const [0.0, 0.6, 1.0],
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200, width: 1),
+          borderRadius: BorderRadius.circular(r.size(16)),
+          border: Border.all(color: Colors.grey.shade200, width: r.size(1)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: r.size(12),
+              offset: Offset(0, r.size(3)),
             ),
           ],
         ),
@@ -710,14 +729,14 @@ class _ProfilePageState extends State<ProfilePage> {
             // Badge icon with Star image
             Image.asset(
               'assets/images/achievements/Star.png',
-              width: 70,
-              height: 70,
+              width: r.size(70),
+              height: r.size(70),
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 // Fallback to icon if image fails
                 return Container(
-                  width: 70,
-                  height: 70,
+                  width: r.size(70),
+                  height: r.size(70),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
@@ -726,38 +745,38 @@ class _ProfilePageState extends State<ProfilePage> {
                       colors: [Colors.amber.shade400, Colors.amber.shade600],
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.workspace_premium,
                     color: Colors.white,
-                    size: 38,
+                    size: r.size(38),
                   ),
                 );
               },
             ),
-            const SizedBox(width: 12),
+            ResponsiveGap(12, vertical: false),
             // Text content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Achievements",
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: r.font(15, min: 13, max: 18),
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  ResponsiveGap(3),
                   Text(
                     "View your progress and milestones",
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: r.font(13, min: 11, max: 16), color: Colors.grey.shade600),
                   ),
                 ],
               ),
             ),
             // Arrow
-            Icon(Icons.chevron_right, color: Colors.amber.shade700, size: 26),
+            Icon(Icons.chevron_right, color: Colors.amber.shade700, size: r.size(26)),
           ],
         ),
       ),
@@ -766,6 +785,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   static Widget _buildListTile(
     BuildContext context,
+    Responsive r,
     IconData icon,
     String title,
     String subtitle,
@@ -773,37 +793,38 @@ class _ProfilePageState extends State<ProfilePage> {
   ) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      contentPadding: r.paddingSymmetric(horizontal: 20, vertical: 8),
       leading: Container(
-        padding: const EdgeInsets.all(10),
+        padding: r.padding(all: 10),
         decoration: BoxDecoration(
-          color: AppColors.secondary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.secondary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(r.size(12)),
         ),
-        child: Icon(icon, color: AppColors.secondary, size: 22),
+        child: Icon(icon, color: AppColors.secondary, size: r.size(22)),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
+        style: TextStyle(
+          fontSize: r.font(15, min: 13, max: 18),
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+        style: TextStyle(fontSize: r.font(13, min: 11, max: 16), color: Colors.grey.shade600),
       ),
       trailing: Icon(
         Icons.arrow_forward_ios,
         color: Colors.grey.shade400,
-        size: 16,
+        size: r.size(16),
       ),
     );
   }
 
   static Widget _buildSwitchTile(
     BuildContext context,
+    Responsive r,
     IconData icon,
     String title,
     String subtitle,
@@ -812,48 +833,48 @@ class _ProfilePageState extends State<ProfilePage> {
     return SwitchListTile(
       value: value,
       onChanged: (_) {},
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      contentPadding: r.paddingSymmetric(horizontal: 20, vertical: 8),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
+        style: TextStyle(
+          fontSize: r.font(15, min: 13, max: 18),
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+        style: TextStyle(fontSize: r.font(13, min: 11, max: 16), color: Colors.grey.shade600),
       ),
       secondary: Container(
-        padding: const EdgeInsets.all(10),
+        padding: r.padding(all: 10),
         decoration: BoxDecoration(
-          color: AppColors.secondary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.secondary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(r.size(12)),
         ),
-        child: Icon(icon, color: AppColors.secondary, size: 22),
+        child: Icon(icon, color: AppColors.secondary, size: r.size(22)),
       ),
-      activeColor: AppColors.secondary,
-      activeTrackColor: AppColors.secondary.withOpacity(0.3),
+      activeThumbColor: AppColors.secondary,
+      activeTrackColor: AppColors.secondary.withValues(alpha: 0.3),
       controlAffinity: ListTileControlAffinity.trailing,
     );
   }
 
-  static Widget _buildInfoTile(IconData icon, String title, String value) {
+  static Widget _buildInfoTile(Responsive r, IconData icon, String title, String value) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      contentPadding: r.paddingSymmetric(horizontal: 20, vertical: 8),
       leading: Container(
-        padding: const EdgeInsets.all(10),
+        padding: r.padding(all: 10),
         decoration: BoxDecoration(
-          color: AppColors.secondary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.secondary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(r.size(12)),
         ),
-        child: Icon(icon, color: AppColors.secondary, size: 22),
+        child: Icon(icon, color: AppColors.secondary, size: r.size(22)),
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
+        style: TextStyle(
+          fontSize: r.font(15, min: 13, max: 18),
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
@@ -861,7 +882,7 @@ class _ProfilePageState extends State<ProfilePage> {
       trailing: Text(
         value,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: r.font(14, min: 12, max: 18),
           fontWeight: FontWeight.w500,
           color: Colors.grey.shade700,
         ),
@@ -869,16 +890,16 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  static Widget _buildSection(List<Widget> children) {
+  static Widget _buildSection(Responsive r, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(r.size(16)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: r.size(10),
+            offset: Offset(0, r.size(2)),
           ),
         ],
       ),

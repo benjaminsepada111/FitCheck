@@ -10,6 +10,8 @@ import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/notification_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 import '../app_text_styles.dart';
 
 class MilestoneJourney extends StatefulWidget {
@@ -192,18 +194,19 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
   }
 
   void _showNoChallengeMessage() {
+    final r = context.responsive;
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r.size(24))),
         child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(24)),
+          padding: EdgeInsets.all(r.size(28)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(r.size(24))),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(r.size(20)),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -211,73 +214,73 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                     end: Alignment.bottomRight,
                     colors: [
                       AppColors.secondary,
-                      AppColors.secondary.withOpacity(0.7),
+                      AppColors.secondary.withValues(alpha: 0.7),
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.secondary.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+                      color: AppColors.secondary.withValues(alpha: 0.3),
+                      blurRadius: r.size(20),
+                      offset: Offset(0, r.size(8)),
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.flag_outlined,
                   color: Colors.white,
-                  size: 40,
+                  size: r.size(40),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
+              ResponsiveGap(24),
+              Text(
                 'Start Your Journey',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: r.font(24, min: 20, max: 28),
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              ResponsiveGap(12),
               Text(
                 'Create a challenge to begin tracking your milestone progress and celebrate your achievements!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: r.font(15, min: 13, max: 17),
                   color: Colors.grey.shade600,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              ResponsiveGap(24),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(r.size(16)),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.secondary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(r.size(16)),
                   border: Border.all(
-                    color: AppColors.secondary.withOpacity(0.2),
-                    width: 1,
+                    color: AppColors.secondary.withValues(alpha: 0.2),
+                    width: r.size(1),
                   ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(r.size(8)),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppColors.secondary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(r.size(8)),
                       ),
                       child: Icon(
                         Icons.photo_camera_outlined,
                         color: AppColors.secondary,
-                        size: 20,
+                        size: r.size(20),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    ResponsiveGap.horizontal(12),
                     Expanded(
                       child: Text(
                         'Track your transformation with milestone photos',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: r.font(13, min: 12, max: 15),
                           color: Colors.grey.shade700,
                           height: 1.4,
                         ),
@@ -286,29 +289,30 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                   ],
                 ),
               ),
-              const SizedBox(height: 28),
+              ResponsiveGap(28),
               Row(
                 children: [
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: EdgeInsets.symmetric(vertical: r.size(16)),
+                        minimumSize: Size(r.tapTarget(44), r.tapTarget(44)),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(r.size(12)),
                         ),
                       ),
                       child: Text(
                         'Later',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 16,
+                          fontSize: r.font(16, min: 14, max: 18),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  ResponsiveGap.horizontal(12),
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
@@ -321,17 +325,18 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: EdgeInsets.symmetric(vertical: r.size(16)),
+                        minimumSize: Size(r.tapTarget(44), r.tapTarget(44)),
                         elevation: 0,
-                        shadowColor: AppColors.secondary.withOpacity(0.4),
+                        shadowColor: AppColors.secondary.withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(r.size(12)),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Create',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: r.font(16, min: 14, max: 18),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -379,6 +384,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    final r = context.responsive;
     final hasToday = _hasTodayMilestone();
     final hasActiveChallenge = widget.currentChallenge != null;
 
@@ -416,45 +422,49 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                 backgroundColor: _milestones.isEmpty
                     ? Colors.grey.shade200
                     : AppColors.secondary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                padding: EdgeInsets.symmetric(
+                  horizontal: r.size(16),
+                  vertical: r.size(12),
                 ),
-                minimumSize: const Size(100, 48),
+                minimumSize: Size(r.size(100), r.tapTarget(48)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(r.size(12)),
                 ),
               ),
               icon: SvgPicture.asset(
                 "assets/icons/play.svg",
-                height: 20,
-                width: 20,
-                color: _milestones.isEmpty ? Colors.grey : Colors.white,
+                height: r.size(20),
+                width: r.size(20),
+                colorFilter: ColorFilter.mode(
+                  _milestones.isEmpty ? Colors.grey : Colors.white,
+                  BlendMode.srcIn,
+                ),
               ),
               label: Text(
                 "Preview",
                 style: TextStyle(
                   color: _milestones.isEmpty ? Colors.grey : Colors.white,
+                  fontSize: r.font(14, min: 12, max: 16),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        ResponsiveGap(6),
         if (_isLoading)
-          SizedBox(
+          ResponsiveSizedBox(
             height: 180,
             child: Center(
               child: FitCheckLoader(),
             ),
           )
         else
-          SizedBox(
+          ResponsiveSizedBox(
             height: 180,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _milestones.length + (hasToday ? 0 : 1),
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
+              separatorBuilder: (context, index) => ResponsiveGap.horizontal(12),
               itemBuilder: (context, index) {
                 if (!hasToday && index == 0) {
                   return GestureDetector(
@@ -483,9 +493,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(20),
+                            top: Radius.circular(r.size(20)),
                           ),
                         ),
                         builder: (context) => AddMilestoneSheet(
@@ -499,18 +509,18 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                     }
                         : _showNoChallengeMessage,
                     child: Container(
-                      width: 120,
+                      width: r.size(120),
                       decoration: BoxDecoration(
                         color: hasActiveChallenge
                             ? Colors.grey.shade100
                             : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(r.size(12)),
                         border: hasActiveChallenge
                             ? null
                             : Border.all(
                           color: Colors.grey.shade400,
                           style: BorderStyle.solid,
-                          width: 1,
+                          width: r.size(1),
                         ),
                       ),
                       child: Stack(
@@ -521,12 +531,12 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                               children: [
                                 Icon(
                                   Icons.add,
-                                  size: 30,
+                                  size: r.size(30),
                                   color: hasActiveChallenge
                                       ? Colors.grey
                                       : Colors.grey.shade500,
                                 ),
-                                const SizedBox(height: 5),
+                                ResponsiveGap(5),
                                 Text(
                                   hasActiveChallenge
                                       ? "Add Image"
@@ -535,7 +545,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                                     color: hasActiveChallenge
                                         ? Colors.grey
                                         : Colors.grey.shade600,
-                                    fontSize: hasActiveChallenge ? 14 : 12,
+                                    fontSize: r.font(hasActiveChallenge ? 14 : 12, min: 11, max: 16),
                                     fontWeight: hasActiveChallenge
                                         ? FontWeight.normal
                                         : FontWeight.w500,
@@ -543,12 +553,12 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                                   textAlign: TextAlign.center,
                                 ),
                                 if (!hasActiveChallenge) ...[
-                                  const SizedBox(height: 4),
+                                  ResponsiveGap(4),
                                   Text(
                                     "First",
                                     style: TextStyle(
                                       color: Colors.grey.shade600,
-                                      fontSize: 12,
+                                      fontSize: r.font(12, min: 11, max: 14),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -560,8 +570,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                             Positioned.fill(
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(r.size(12)),
                                 ),
                               ),
                             ),
@@ -573,9 +583,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
 
                 final milestone = _milestones[index - (hasToday ? 0 : 1)];
                 return Container(
-                  width: 120,
+                  width: r.size(120),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(r.size(12)),
                     color: Colors.grey.shade200,
                   ),
                   child: Stack(
@@ -584,7 +594,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                       // Image layer with error handling
                       if (milestone.imageUrl != null)
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(r.size(12)),
                           child: Image.network(
                             milestone.imageUrl!,
                             fit: BoxFit.cover,
@@ -605,7 +615,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                                       child: Icon(
                                         Icons.broken_image_outlined,
                                         color: Colors.grey.shade400,
-                                        size: 40,
+                                        size: r.size(40),
                                       ),
                                     );
                                   },
@@ -615,7 +625,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                                 child: Icon(
                                   Icons.broken_image_outlined,
                                   color: Colors.grey.shade400,
-                                  size: 40,
+                                  size: r.size(40),
                                 ),
                               );
                             },
@@ -623,7 +633,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                         )
                       else if (milestone.imagePath != null)
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(r.size(12)),
                           child: Image.file(
                             File(milestone.imagePath!),
                             fit: BoxFit.cover,
@@ -632,7 +642,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                                 child: Icon(
                                   Icons.broken_image_outlined,
                                   color: Colors.grey.shade400,
-                                  size: 40,
+                                  size: r.size(40),
                                 ),
                               );
                             },
@@ -643,7 +653,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                           child: Icon(
                             Icons.photo_outlined,
                             color: Colors.grey.shade400,
-                            size: 40,
+                            size: r.size(40),
                           ),
                         ),
                       // Date label overlay
@@ -651,21 +661,21 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                         alignment: Alignment.bottomCenter,
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 6,
+                          padding: EdgeInsets.symmetric(
+                            vertical: r.size(4),
+                            horizontal: r.size(6),
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(12),
+                            color: Colors.black.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(r.size(12)),
                             ),
                           ),
                           child: Text(
                             _formatDate(milestone.date),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 12,
+                              fontSize: r.font(12, min: 11, max: 14),
                               fontWeight: FontWeight.w500,
                             ),
                             maxLines: 1,

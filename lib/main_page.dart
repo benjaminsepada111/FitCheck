@@ -15,8 +15,8 @@ import 'WorkoutPage/workout_history_page.dart';
 import 'services/user_data_service.dart';
 import 'services/user_time_tracker.dart';
 import 'services/login_tracker_service.dart';
-import 'services/user_achievement_service.dart';
 import 'services/weekly_checkin_service.dart';
+import 'services/user_achievement_service.dart';
 import 'UserInputFile/onboarding_wizard.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'MainPage/weekly_checkin_wizard.dart';
@@ -719,7 +719,19 @@ class _MainPageState extends State<MainPage> {
                   ),
 
                   const SizedBox(width: 40),
-
+                  NotificationIconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationPage(),
+                        ),
+                      );
+                    },
+                    iconColor: Colors.black87,
+                    badgeColor: Colors.red,
+                  ),
+                  const SizedBox(width: 10),
                   // Challenge Selector Dropdown
                   Flexible(
                     child: PopupMenuButton<String>(
@@ -784,21 +796,10 @@ class _MainPageState extends State<MainPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-
-                  NotificationIconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationPage(),
-                        ),
-                      );
-                    },
-                    iconColor: Colors.black87,
-                    badgeColor: Colors.red,
-                  ),
                   const SizedBox(width: 3),
+
+
+
                 ],
               ),
             ),

@@ -6,6 +6,8 @@ import 'package:capstone_project/services/workout_service.dart';
 import 'package:capstone_project/services/workout_service_v2.dart';
 import '../app_text_styles.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -215,7 +217,8 @@ class TrackersState extends State<Trackers>
   }
 
   // Build the main calorie overview card with enhanced design
-  Widget _buildCalorieOverviewCard() {
+  Widget _buildCalorieOverviewCard(BuildContext context) {
+    final r = context.responsive;
     final netCalories = (_currentCalories - _caloriesBurned)
         .clamp(0, double.infinity)
         .toInt();
@@ -224,11 +227,11 @@ class TrackersState extends State<Trackers>
     final isOverGoal = netCalories > _calorieGoal;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
-      padding: const EdgeInsets.all(20),
+      margin: r.paddingSymmetric(vertical: 5, horizontal: 4),
+      padding: r.padding(all: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF06111D),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(r.size(16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,16 +246,17 @@ class TrackersState extends State<Trackers>
                   animation: _progressAnimation,
                   builder: (context, child) {
                     return CustomPaint(
-                      size: const Size(120, 120),
+                      size: Size(r.size(120), r.size(120)),
                       painter: _CircularProgressPainter(
                         consumedProgress: consumedProgress * _progressAnimation.value,
                         burnedProgress: burnedProgress * _progressAnimation.value,
                         isOverGoal: isOverGoal,
                         backgroundColor: Colors.grey.shade700,
+                        strokeWidth: r.size(12),
                       ),
                       child: SizedBox(
-                        width: 120,
-                        height: 120,
+                        width: r.size(120),
+                        height: r.size(120),
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -260,17 +264,17 @@ class TrackersState extends State<Trackers>
                               Text(
                                 netCalories.toString(),
                                 style: TextStyle(
-                                  fontSize: 36,
+                                  fontSize: r.font(36, min: 24, max: 48),
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                   height: 1.0,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              ResponsiveGap.vertical(2),
                               Text(
                                 '/ $_calorieGoal',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: r.font(14, min: 12, max: 18),
                                   color: Colors.grey.shade400,
                                   height: 1.0,
                                 ),
@@ -283,14 +287,14 @@ class TrackersState extends State<Trackers>
                   },
                 ),
               ),
-              const SizedBox(width: 20),
+              ResponsiveGap.horizontal(20),
               // Vertical divider line
               Container(
-                width: 1,
-                height: 100,
+                width: r.size(1),
+                height: r.size(100),
                 color: Colors.grey.shade600,
               ),
-              const SizedBox(width: 20),
+              ResponsiveGap.horizontal(20),
               // Right Side - Stats Column
               Expanded(
                 flex: 3,
@@ -298,13 +302,15 @@ class TrackersState extends State<Trackers>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildStatRow(
+                      context: context,
                       icon: Icons.restaurant_rounded,
                       label: 'Calories Consumed',
                       value: _currentCalories.toString(),
                       color: Colors.red,
                     ),
-                    const SizedBox(height: 12),
+                    ResponsiveGap.vertical(12),
                     _buildStatRow(
+                      context: context,
                       icon: Icons.local_fire_department_rounded,
                       label: 'Calories Burned',
                       value: _caloriesBurned.toString(),
@@ -321,27 +327,29 @@ class TrackersState extends State<Trackers>
   }
 
   Widget _buildStatRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
     required Color color,
   }) {
+    final r = context.responsive;
     return Row(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: r.tapTarget(32),
+          height: r.tapTarget(32),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(r.size(8)),
           ),
           child: Icon(
             icon,
-            size: 18,
+            size: r.size(18),
             color: color,
           ),
         ),
-        const SizedBox(width: 12),
+        ResponsiveGap.horizontal(12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,14 +357,14 @@ class TrackersState extends State<Trackers>
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: r.font(12, min: 11, max: 14),
                   color: Colors.grey.shade400,
                 ),
               ),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: r.font(24, min: 20, max: 28),
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -370,24 +378,26 @@ class TrackersState extends State<Trackers>
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
+
     // Loading state
     if (_isLoading) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Calorie Overview", style: AppTextStyles.heading2),
-          const SizedBox(height: 16),
+          ResponsiveGap.vertical(16),
           Container(
-            height: 200,
-            padding: const EdgeInsets.all(20),
+            height: r.size(200),
+            padding: r.padding(all: 20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(r.size(16)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  blurRadius: r.size(10),
+                  offset: Offset(0, r.size(2)),
                 ),
               ],
             ),
@@ -402,43 +412,46 @@ class TrackersState extends State<Trackers>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Calorie Overview",
             style: TextStyle(
-              fontSize: 20,
+              fontSize: r.font(20, min: 18, max: 24),
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A1A),
+              color: const Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 16),
+          ResponsiveGap.vertical(16),
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: r.padding(all: 24),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(r.size(16)),
+              border: Border.all(color: Colors.grey.shade300, width: r.size(1)),
             ),
             child: Column(
               children: [
                 Icon(
                   Icons.timeline_outlined,
-                  size: 48,
+                  size: r.tapTarget(48),
                   color: Colors.grey.shade400,
                 ),
-                const SizedBox(height: 16),
+                ResponsiveGap.vertical(16),
                 Text(
                   "No Active Challenge",
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: r.font(18, min: 16, max: 22),
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade600,
                   ),
                 ),
-                const SizedBox(height: 8),
+                ResponsiveGap.vertical(8),
                 Text(
                   "Create a challenge to start tracking your progress",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: r.font(14, min: 13, max: 16),
+                    color: Colors.grey.shade500,
+                  ),
                 ),
               ],
             ),
@@ -452,13 +465,13 @@ class TrackersState extends State<Trackers>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Title
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: Text("Calorie Overview", style: AppTextStyles.heading2),
+        Padding(
+          padding: r.padding(bottom: 12),
+          child: const Text("Calorie Overview", style: AppTextStyles.heading2),
         ),
 
         // Main calorie overview card with circular progress
-        _buildCalorieOverviewCard(),
+        _buildCalorieOverviewCard(context),
       ],
     );
   }
@@ -470,19 +483,20 @@ class _CircularProgressPainter extends CustomPainter {
   final double burnedProgress;
   final bool isOverGoal;
   final Color backgroundColor;
+  final double strokeWidth;
 
   _CircularProgressPainter({
     required this.consumedProgress,
     required this.burnedProgress,
     required this.isOverGoal,
     required this.backgroundColor,
+    required this.strokeWidth,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - 8;
-    const strokeWidth = 12.0;
+    final radius = math.min(size.width, size.height) / 2 - strokeWidth * 0.67;
 
     // Arc configuration - 270 degrees with gap at top
     const startAngle = math.pi * 0.75; // Start from bottom-left

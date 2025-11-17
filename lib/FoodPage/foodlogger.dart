@@ -4,6 +4,8 @@ import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 
 class FoodLogger extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -84,12 +86,13 @@ class FoodLoggerState extends State<FoodLogger> {
           _isLoading = false;
         });
 
+        final r = context.responsive;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to load calorie data. Please check your connection.'),
             backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r.size(8))),
           ),
         );
       }
@@ -119,21 +122,23 @@ class FoodLoggerState extends State<FoodLogger> {
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
+
     if (_isLoading) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Food Logger",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: r.font(18, min: 16, max: 22), fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 12),
+          ResponsiveGap(12),
           Container(
-            height: 140,
-            padding: const EdgeInsets.all(16),
+            height: r.size(140),
+            padding: EdgeInsets.all(r.size(16)),
             decoration: BoxDecoration(
               border: Border.all(color: AppColors.secondary),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(r.size(16)),
             ),
             child: const Center(
               child: FitCheckLoader(),
@@ -146,21 +151,21 @@ class FoodLoggerState extends State<FoodLogger> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Food Logger",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: r.font(18, min: 16, max: 22), fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 12),
+        ResponsiveGap(12),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(r.size(20)),
           decoration: BoxDecoration(
             border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(r.size(16)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                blurRadius: r.size(8),
+                offset: Offset(0, r.size(2)),
               ),
             ],
           ),
@@ -178,8 +183,8 @@ class FoodLoggerState extends State<FoodLogger> {
                     icon: Icons.flag_outlined,
                   ),
                   Container(
-                    width: 1,
-                    height: 40,
+                    width: r.size(1),
+                    height: r.size(40),
                     color: AppColors.secondary.withValues(alpha: 0.3),
                   ),
                   _LoggerItem(
@@ -189,8 +194,8 @@ class FoodLoggerState extends State<FoodLogger> {
                     icon: Icons.restaurant,
                   ),
                   Container(
-                    width: 1,
-                    height: 40,
+                    width: r.size(1),
+                    height: r.size(40),
                     color: AppColors.secondary.withValues(alpha: 0.3),
                   ),
                   _LoggerItem(
@@ -204,7 +209,7 @@ class FoodLoggerState extends State<FoodLogger> {
                 ],
               ),
 
-              const SizedBox(height: 24),
+              ResponsiveGap(24),
 
               // Progress Section
               Column(
@@ -216,16 +221,16 @@ class FoodLoggerState extends State<FoodLogger> {
                         children: [
                           Icon(
                             Icons.local_fire_department,
-                            size: 18,
+                            size: r.size(18),
                             color: AppColors.secondary,
                           ),
-                          const SizedBox(width: 6),
-                          const Text(
+                          ResponsiveGap.horizontal(6),
+                          Text(
                             "Calories",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
-                              fontSize: 16,
+                              fontSize: r.font(16, min: 14, max: 18),
                             ),
                           ),
                         ],
@@ -235,27 +240,27 @@ class FoodLoggerState extends State<FoodLogger> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.secondary,
-                          fontSize: 16,
+                          fontSize: r.font(16, min: 14, max: 18),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  ResponsiveGap(8),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(r.size(10)),
                     child: LinearProgressIndicator(
                       value: _progress,
                       backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
                       valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-                      minHeight: 12,
+                      minHeight: r.size(12),
                     ),
                   ),
                   if (_statusText.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    ResponsiveGap(8),
                     Text(
                       _statusText,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: r.font(14, min: 12, max: 16),
                         fontWeight: FontWeight.w500,
                         color: AppColors.secondary,
                       ),
@@ -264,14 +269,14 @@ class FoodLoggerState extends State<FoodLogger> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              ResponsiveGap(16),
 
               if (!_hasPersonalizedGoal)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: r.paddingSymmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(r.size(8)),
                     border: Border.all(color: AppColors.secondary),
                   ),
                   child: Row(
@@ -279,15 +284,15 @@ class FoodLoggerState extends State<FoodLogger> {
                     children: [
                       Icon(
                         Icons.info_outline,
-                        size: 16,
+                        size: r.size(16),
                         color: AppColors.secondary,
                       ),
-                      const SizedBox(width: 6),
+                      ResponsiveGap.horizontal(6),
                       Flexible(
                         child: Text(
                           "Complete your profile for a personalized calorie goal",
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: r.font(11, min: 10, max: 13),
                             color: AppColors.secondary,
                             fontWeight: FontWeight.w500,
                           ),
@@ -320,29 +325,30 @@ class _LoggerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
     return Expanded(
       child: Column(
         children: [
           Icon(
             icon,
-            size: 20,
+            size: r.size(20),
             color: color,
           ),
-          const SizedBox(height: 6),
+          ResponsiveGap(6),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: r.font(12, min: 10, max: 14),
               color: color,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          ResponsiveGap(4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: r.font(22, min: 18, max: 26),
               fontWeight: FontWeight.bold,
               color: color,
             ),

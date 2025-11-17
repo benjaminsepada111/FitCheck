@@ -10,6 +10,8 @@ import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 
 class FoodPage extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -137,23 +139,24 @@ class _FoodPageState extends State<FoodPage>
     }
 
     if (mounted) {
+      final r = context.responsive;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: EdgeInsets.all(r.size(4)),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, color: Colors.white, size: 16),
+                child: Icon(Icons.check, color: Colors.white, size: r.size(16)),
               ),
-              const SizedBox(width: 12),
+              ResponsiveGap.horizontal(12),
               Expanded(
                 child: Text(
                   'Challenge "${challenge.title}" created!',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: r.font(14, min: 12, max: 16)),
                 ),
               ),
             ],
@@ -161,7 +164,7 @@ class _FoodPageState extends State<FoodPage>
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(r.size(12)),
           ),
           duration: const Duration(seconds: 3),
         ),
@@ -217,16 +220,19 @@ class _FoodPageState extends State<FoodPage>
                 });
               }
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Failed to pick image'),
-                  backgroundColor: Colors.red.shade600,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              if (context.mounted) {
+                final r = context.responsive;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to pick image', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
+                    backgroundColor: Colors.red.shade600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(r.size(12)),
+                    ),
                   ),
-                ),
-              );
+                );
+              }
             }
           }
 
@@ -241,14 +247,15 @@ class _FoodPageState extends State<FoodPage>
             if (isLoading) return;
 
             final gramsText = gramsController.text.trim();
+            final r = context.responsive;
             if (gramsText.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Please enter the amount in grams'),
+                  content: Text('Please enter the amount in grams', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(r.size(12)),
                   ),
                 ),
               );
@@ -259,13 +266,14 @@ class _FoodPageState extends State<FoodPage>
             if (grams == null || grams <= 0) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text(
+                  content: Text(
                     'Please enter a valid amount greater than 0',
+                    style: TextStyle(fontSize: r.font(14, min: 12, max: 16)),
                   ),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(r.size(12)),
                   ),
                 ),
               );
@@ -275,13 +283,14 @@ class _FoodPageState extends State<FoodPage>
             if (grams > 5000) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text(
+                  content: Text(
                     'Amount seems too large. Please enter a reasonable amount.',
+                    style: TextStyle(fontSize: r.font(14, min: 12, max: 16)),
                   ),
                   backgroundColor: Colors.red.shade600,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(r.size(12)),
                   ),
                 ),
               );
@@ -307,15 +316,17 @@ class _FoodPageState extends State<FoodPage>
 
                 if (uploadedImageUrl == null) {
                   if (context.mounted) {
+                    final r = context.responsive;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text(
+                        content: Text(
                           'Failed to upload image. Food will be saved without photo.',
+                          style: TextStyle(fontSize: r.font(14, min: 12, max: 16)),
                         ),
                         backgroundColor: Colors.orange.shade600,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(r.size(12)),
                         ),
                       ),
                     );
@@ -339,15 +350,17 @@ class _FoodPageState extends State<FoodPage>
               });
 
               if (context.mounted) {
+                final r = context.responsive;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: const Text(
+                    content: Text(
                       'Failed to add food. Please try again.',
+                      style: TextStyle(fontSize: r.font(14, min: 12, max: 16)),
                     ),
                     backgroundColor: Colors.red.shade600,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(r.size(12)),
                     ),
                   ),
                 );
@@ -355,13 +368,14 @@ class _FoodPageState extends State<FoodPage>
             }
           }
 
+          final r = context.responsive;
           return Container(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.85,
             ),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(r.size(24))),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -369,10 +383,10 @@ class _FoodPageState extends State<FoodPage>
                 Flexible(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.only(
-                      left: 24,
-                      right: 24,
-                      top: 24,
-                      bottom: 24,
+                      left: r.size(24),
+                      right: r.size(24),
+                      top: r.size(24),
+                      bottom: r.size(24),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,20 +400,20 @@ class _FoodPageState extends State<FoodPage>
                               child: Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.all(10),
+                                    padding: EdgeInsets.all(r.size(10)),
                                     decoration: BoxDecoration(
                                       color: AppColors.secondary.withValues(
                                         alpha: 0.1,
                                       ),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(r.size(12)),
                                     ),
                                     child: Icon(
                                       Icons.restaurant_menu,
                                       color: AppColors.secondary,
-                                      size: 24,
+                                      size: r.size(24),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
+                                  ResponsiveGap.horizontal(12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
@@ -407,10 +421,10 @@ class _FoodPageState extends State<FoodPage>
                                       children: [
                                         Text(
                                           foodName,
-                                          style: const TextStyle(
-                                            fontSize: 18,
+                                          style: TextStyle(
+                                            fontSize: r.font(18, min: 16, max: 20),
                                             fontWeight: FontWeight.w700,
-                                            color: Color(0xFF1A1A1A),
+                                            color: const Color(0xFF1A1A1A),
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -418,7 +432,7 @@ class _FoodPageState extends State<FoodPage>
                                         Text(
                                           'Add to $mealType',
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: r.font(13, min: 12, max: 14),
                                             color: Colors.grey.shade600,
                                           ),
                                         ),
@@ -430,19 +444,23 @@ class _FoodPageState extends State<FoodPage>
                             ),
                             IconButton(
                               onPressed: () => Navigator.pop(context),
-                              icon: const Icon(
+                              constraints: BoxConstraints(
+                                minWidth: r.tapTarget(44),
+                                minHeight: r.tapTarget(44),
+                              ),
+                              icon: Icon(
                                 Icons.close,
-                                color: Color(0xFF666666),
-                                size: 24,
+                                color: const Color(0xFF666666),
+                                size: r.size(24),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
+                        ResponsiveGap.vertical(24),
 
                         // Calories info
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.all(r.size(16)),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
@@ -450,33 +468,33 @@ class _FoodPageState extends State<FoodPage>
                                 AppColors.secondary.withValues(alpha: 0.05),
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(r.size(12)),
                             border: Border.all(
                               color: AppColors.secondary.withValues(alpha: 0.3),
-                              width: 1.5,
+                              width: r.size(1.5),
                             ),
                           ),
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(8),
+                                padding: EdgeInsets.all(r.size(8)),
                                 decoration: BoxDecoration(
                                   color: AppColors.secondary.withValues(
                                     alpha: 0.15,
                                   ),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(r.size(8)),
                                 ),
                                 child: Icon(
                                   Icons.local_fire_department,
                                   color: AppColors.secondary,
-                                  size: 20,
+                                  size: r.size(20),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              ResponsiveGap.horizontal(12),
                               Text(
                                 '$caloriesPer100g cal per 100g',
                                 style: TextStyle(
-                                  fontSize: 15,
+                                  fontSize: r.font(15, min: 13, max: 17),
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.secondary,
                                 ),
@@ -484,49 +502,58 @@ class _FoodPageState extends State<FoodPage>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        ResponsiveGap.vertical(24),
 
                         // Grams input
                         Text(
                           'Enter Amount',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: r.font(15, min: 13, max: 17),
                             fontWeight: FontWeight.w600,
                             color: Colors.grey.shade800,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        ResponsiveGap.vertical(10),
                         TextField(
                           controller: gramsController,
                           keyboardType: TextInputType.number,
                           onChanged: (value) => setModalState(() {}),
+                          style: TextStyle(fontSize: r.font(16, min: 14, max: 18)),
                           decoration: InputDecoration(
                             hintText: "Enter amount in grams",
-                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: r.font(16, min: 14, max: 18),
+                            ),
                             suffixText: 'grams',
                             suffixStyle: TextStyle(
                               color: AppColors.secondary,
                               fontWeight: FontWeight.w600,
+                              fontSize: r.font(14, min: 12, max: 16),
                             ),
                             filled: true,
                             fillColor: Colors.grey.shade50,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: r.size(16),
+                              vertical: r.size(16),
+                            ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(r.size(12)),
                               borderSide: BorderSide(
                                 color: Colors.grey.shade300,
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(r.size(12)),
                               borderSide: BorderSide(
                                 color: Colors.grey.shade300,
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(r.size(12)),
                               borderSide: BorderSide(
                                 color: AppColors.secondary,
-                                width: 2,
+                                width: r.size(2),
                               ),
                             ),
                           ),
@@ -534,20 +561,21 @@ class _FoodPageState extends State<FoodPage>
 
                         // Calorie preview
                         if (gramsController.text.isNotEmpty) ...[
-                          const SizedBox(height: 16),
+                          ResponsiveGap.vertical(16),
                           Builder(
                             builder: (context) {
                               final grams = double.tryParse(
                                 gramsController.text,
                               );
-                              if (grams == null || grams <= 0)
+                              if (grams == null || grams <= 0) {
                                 return const SizedBox.shrink();
+                              }
 
                               final totalCalories =
                                   ((caloriesPer100g / 100) * grams).round();
 
                               return Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: EdgeInsets.all(r.size(16)),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
@@ -559,31 +587,31 @@ class _FoodPageState extends State<FoodPage>
                                       ),
                                     ],
                                   ),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(r.size(12)),
                                   border: Border.all(
                                     color: AppColors.secondary.withValues(
                                       alpha: 0.3,
                                     ),
-                                    width: 1.5,
+                                    width: r.size(1.5),
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.all(10),
+                                      padding: EdgeInsets.all(r.size(10)),
                                       decoration: BoxDecoration(
                                         color: AppColors.secondary.withValues(
                                           alpha: 0.15,
                                         ),
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(r.size(10)),
                                       ),
                                       child: Icon(
                                         Icons.local_fire_department,
                                         color: AppColors.secondary,
-                                        size: 24,
+                                        size: r.size(24),
                                       ),
                                     ),
-                                    const SizedBox(width: 14),
+                                    ResponsiveGap.horizontal(14),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -592,40 +620,40 @@ class _FoodPageState extends State<FoodPage>
                                           Text(
                                             'Total Calories',
                                             style: TextStyle(
-                                              fontSize: 13,
+                                              fontSize: r.font(13, min: 12, max: 14),
                                               color: Colors.grey.shade600,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          ResponsiveGap.vertical(4),
                                           Text(
                                             '$totalCalories cal',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: AppColors.secondary,
-                                              fontSize: 24,
+                                              fontSize: r.font(24, min: 20, max: 26),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: r.size(12),
+                                        vertical: r.size(6),
                                       ),
                                       decoration: BoxDecoration(
                                         color: AppColors.secondary.withValues(
                                           alpha: 0.15,
                                         ),
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(r.size(8)),
                                       ),
                                       child: Text(
                                         '${grams.toStringAsFixed(0)}g',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.secondary,
-                                          fontSize: 14,
+                                          fontSize: r.font(14, min: 12, max: 16),
                                         ),
                                       ),
                                     ),
@@ -636,18 +664,18 @@ class _FoodPageState extends State<FoodPage>
                           ),
                         ],
 
-                        const SizedBox(height: 24),
+                        ResponsiveGap.vertical(24),
 
                         // Image upload section
                         Text(
                           'Food Photo (Optional)',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: r.font(15, min: 13, max: 17),
                             fontWeight: FontWeight.w600,
                             color: Colors.grey.shade800,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        ResponsiveGap.vertical(10),
 
                         if (selectedImage == null) ...[
                           Row(
@@ -656,8 +684,8 @@ class _FoodPageState extends State<FoodPage>
                                 child: OutlinedButton.icon(
                                   onPressed: () =>
                                       pickImage(ImageSource.camera),
-                                  icon: const Icon(Icons.camera_alt, size: 20),
-                                  label: const Text('Camera'),
+                                  icon: Icon(Icons.camera_alt, size: r.size(20)),
+                                  label: Text('Camera', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.secondary,
                                     side: BorderSide(
@@ -665,25 +693,26 @@ class _FoodPageState extends State<FoodPage>
                                         alpha: 0.5,
                                       ),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: r.size(12),
                                     ),
+                                    minimumSize: Size(double.infinity, r.tapTarget(44)),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(r.size(12)),
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              ResponsiveGap.horizontal(12),
                               Expanded(
                                 child: OutlinedButton.icon(
                                   onPressed: () =>
                                       pickImage(ImageSource.gallery),
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.photo_library,
-                                    size: 20,
+                                    size: r.size(20),
                                   ),
-                                  label: const Text('Gallery'),
+                                  label: Text('Gallery', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.secondary,
                                     side: BorderSide(
@@ -691,11 +720,12 @@ class _FoodPageState extends State<FoodPage>
                                         alpha: 0.5,
                                       ),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: r.size(12),
                                     ),
+                                    minimumSize: Size(double.infinity, r.tapTarget(44)),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(r.size(12)),
                                     ),
                                   ),
                                 ),
@@ -706,31 +736,35 @@ class _FoodPageState extends State<FoodPage>
                           Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(r.size(12)),
                                 child: Image.file(
                                   selectedImage!,
-                                  height: 150,
+                                  height: r.size(150),
                                   width: double.infinity,
                                   fit: BoxFit.cover,
                                 ),
                               ),
                               Positioned(
-                                top: 8,
-                                right: 8,
+                                top: r.size(8),
+                                right: r.size(8),
                                 child: GestureDetector(
                                   onTap: removeImage,
                                   child: Container(
-                                    padding: const EdgeInsets.all(6),
+                                    padding: EdgeInsets.all(r.size(6)),
+                                    constraints: BoxConstraints(
+                                      minWidth: r.tapTarget(44),
+                                      minHeight: r.tapTarget(44),
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.black.withValues(
                                         alpha: 0.6,
                                       ),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.close,
                                       color: Colors.white,
-                                      size: 18,
+                                      size: r.size(18),
                                     ),
                                   ),
                                 ),
@@ -745,10 +779,10 @@ class _FoodPageState extends State<FoodPage>
                 // Action buttons - outside scroll view
                 Padding(
                   padding: EdgeInsets.only(
-                    left: 24,
-                    right: 24,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                    top: 16,
+                    left: r.size(24),
+                    right: r.size(24),
+                    bottom: MediaQuery.of(context).viewInsets.bottom + r.size(24),
+                    top: r.size(16),
                   ),
                   child: Row(
                     children: [
@@ -758,24 +792,25 @@ class _FoodPageState extends State<FoodPage>
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
                               color: Colors.grey.shade300,
-                              width: 1.5,
+                              width: r.size(1.5),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(vertical: r.size(16)),
+                            minimumSize: Size(double.infinity, r.tapTarget(44)),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(r.size(12)),
                             ),
                           ),
                           child: Text(
                             'Cancel',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: r.font(16, min: 14, max: 18),
                               fontWeight: FontWeight.w600,
                               color: Colors.grey.shade700,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      ResponsiveGap.horizontal(12),
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
@@ -783,10 +818,11 @@ class _FoodPageState extends State<FoodPage>
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.secondary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(vertical: r.size(16)),
+                            minimumSize: Size(double.infinity, r.tapTarget(44)),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(r.size(12)),
                             ),
                             disabledBackgroundColor: AppColors.secondary
                                 .withValues(alpha: 0.6),
@@ -795,20 +831,20 @@ class _FoodPageState extends State<FoodPage>
                             ),
                           ),
                           child: isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
+                              ? SizedBox(
+                                  height: r.size(20),
+                                  width: r.size(20),
+                                  child: const CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                       Colors.white,
                                     ),
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   'Add Food',
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: r.font(16, min: 14, max: 18),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -871,30 +907,31 @@ class _FoodPageState extends State<FoodPage>
 
         // Show success feedback after refresh
         if (mounted) {
+          final r = context.responsive;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: EdgeInsets.all(r.size(4)),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check,
                       color: Colors.white,
-                      size: 16,
+                      size: r.size(16),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('Successfully added!'),
+                  ResponsiveGap.horizontal(12),
+                  Text('Successfully added!', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
                 ],
               ),
               backgroundColor: Colors.green.shade600,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(r.size(12)),
               ),
               duration: const Duration(seconds: 2),
             ),
@@ -902,13 +939,14 @@ class _FoodPageState extends State<FoodPage>
         }
       } else {
         if (mounted) {
+          final r = context.responsive;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to add $foodName. Please try again.'),
+              content: Text('Failed to add $foodName. Please try again.', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
               backgroundColor: Colors.red.shade600,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(r.size(12)),
               ),
             ),
           );
@@ -916,13 +954,14 @@ class _FoodPageState extends State<FoodPage>
       }
     } catch (e) {
       if (mounted) {
+        final r = context.responsive;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error adding $foodName. Please try again.'),
+            content: Text('Error adding $foodName. Please try again.', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(r.size(12)),
             ),
           ),
         );
@@ -940,6 +979,7 @@ class _FoodPageState extends State<FoodPage>
   }
 
   Widget _buildNoChallengeUI() {
+    final r = context.responsive;
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -958,7 +998,7 @@ class _FoodPageState extends State<FoodPage>
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            padding: EdgeInsets.symmetric(horizontal: r.size(24.0)),
             child: Column(
               children: [
                 const Spacer(flex: 2),
@@ -971,8 +1011,8 @@ class _FoodPageState extends State<FoodPage>
                       child: ScaleTransition(
                         scale: _scaleAnimation,
                         child: Container(
-                          width: 200,
-                          height: 200,
+                          width: r.size(200),
+                          height: r.size(200),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
@@ -985,9 +1025,9 @@ class _FoodPageState extends State<FoodPage>
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.secondary.withValues(alpha: 0.25),
-                                blurRadius: 40,
-                                spreadRadius: 5,
-                                offset: const Offset(0, 10),
+                                blurRadius: r.size(40),
+                                spreadRadius: r.size(5),
+                                offset: Offset(0, r.size(10)),
                               ),
                             ],
                           ),
@@ -995,19 +1035,19 @@ class _FoodPageState extends State<FoodPage>
                             alignment: Alignment.center,
                             children: [
                               Container(
-                                width: 160,
-                                height: 160,
+                                width: r.size(160),
+                                height: r.size(160),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: AppColors.secondary.withValues(alpha: 0.3),
-                                    width: 2,
+                                    width: r.size(2),
                                   ),
                                 ),
                               ),
                               Container(
-                                width: 120,
-                                height: 120,
+                                width: r.size(120),
+                                height: r.size(120),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
@@ -1019,7 +1059,7 @@ class _FoodPageState extends State<FoodPage>
                                 ),
                                 child: Icon(
                                   Icons.restaurant_menu_rounded,
-                                  size: 60,
+                                  size: r.size(60),
                                   color: AppColors.secondary,
                                 ),
                               ),
@@ -1031,7 +1071,7 @@ class _FoodPageState extends State<FoodPage>
                   },
                 ),
 
-                const SizedBox(height: 48),
+                ResponsiveGap.vertical(48),
 
                 SlideTransition(
                   position: _slideAnimation,
@@ -1043,21 +1083,21 @@ class _FoodPageState extends State<FoodPage>
                           'Start Your\nNutrition Journey',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 32,
+                            fontSize: r.font(32, min: 24, max: 36),
                             fontWeight: FontWeight.w800,
                             color: Colors.grey.shade800,
                             height: 1.2,
-                            letterSpacing: -0.5,
+                            letterSpacing: r.size(-0.5),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        ResponsiveGap.vertical(16),
                         Container(
-                          constraints: const BoxConstraints(maxWidth: 320),
+                          constraints: BoxConstraints(maxWidth: r.size(320)),
                           child: Text(
                             'Create a challenge to unlock food logging, personalized recommendations, and meal tracking!',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: r.font(16, min: 14, max: 18),
                               color: Colors.grey.shade600,
                               height: 1.6,
                               fontWeight: FontWeight.w400,
@@ -1076,12 +1116,12 @@ class _FoodPageState extends State<FoodPage>
                   child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(r.size(16)),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.secondary.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          blurRadius: r.size(20),
+                          offset: Offset(0, r.size(8)),
                         ),
                       ],
                     ),
@@ -1090,9 +1130,10 @@ class _FoodPageState extends State<FoodPage>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        padding: EdgeInsets.symmetric(vertical: r.size(18)),
+                        minimumSize: Size(double.infinity, r.tapTarget(44)),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(r.size(16)),
                         ),
                         elevation: 0,
                       ),
@@ -1100,24 +1141,24 @@ class _FoodPageState extends State<FoodPage>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: EdgeInsets.all(r.size(6)),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(r.size(8)),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.add_rounded,
-                              size: 20,
+                              size: r.size(20),
                               color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          const Text(
+                          ResponsiveGap.horizontal(12),
+                          Text(
                             'Create Your First Challenge',
                             style: TextStyle(
-                              fontSize: 17,
+                              fontSize: r.font(17, min: 15, max: 19),
                               fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
+                              letterSpacing: r.size(-0.2),
                             ),
                           ),
                         ],
@@ -1126,22 +1167,25 @@ class _FoodPageState extends State<FoodPage>
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                ResponsiveGap.vertical(16),
 
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: TextButton.icon(
                     onPressed: _showChallengeExamples,
+                    style: TextButton.styleFrom(
+                      minimumSize: Size(r.tapTarget(44), r.tapTarget(44)),
+                    ),
                     icon: Icon(
                       Icons.lightbulb_outline_rounded,
-                      size: 18,
+                      size: r.size(18),
                       color: AppColors.secondary,
                     ),
                     label: Text(
                       'View challenge ideas',
                       style: TextStyle(
                         color: AppColors.secondary,
-                        fontSize: 15,
+                        fontSize: r.font(15, min: 13, max: 17),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1158,10 +1202,11 @@ class _FoodPageState extends State<FoodPage>
   }
 
   Widget _buildMainFoodPage() {
+    final r = context.responsive;
     return Container(
       color: Colors.white,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(r.size(20)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1206,57 +1251,58 @@ class _FoodPageState extends State<FoodPage>
   }
 
   void _showChallengeExamples() {
+    final r = context.responsive;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(r.size(24))),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(r.size(24)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
+                width: r.size(40),
+                height: r.size(4),
+                margin: EdgeInsets.only(bottom: r.size(20)),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(r.size(2)),
                 ),
               ),
             ),
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(r.size(10)),
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(r.size(12)),
                   ),
                   child: Icon(
                     Icons.tips_and_updates_outlined,
                     color: AppColors.secondary,
-                    size: 24,
+                    size: r.size(24),
                   ),
                 ),
-                const SizedBox(width: 12),
+                ResponsiveGap.horizontal(12),
                 Text(
                   'Challenge Ideas',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: r.font(24, min: 20, max: 26),
                     fontWeight: FontWeight.w800,
                     color: AppColors.secondary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            ResponsiveGap.vertical(24),
             _buildChallengeExample(
               Icons.water_drop_rounded,
               'Stay Hydrated',
@@ -1281,7 +1327,7 @@ class _FoodPageState extends State<FoodPage>
               'Practice conscious eating habits',
               AppColors.secondary.shade600,
             ),
-            const SizedBox(height: 24),
+            ResponsiveGap.vertical(24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -1292,15 +1338,16 @@ class _FoodPageState extends State<FoodPage>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(vertical: r.size(16)),
+                  minimumSize: Size(double.infinity, r.tapTarget(44)),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(r.size(14)),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
+                child: Text(
                   'Create My Challenge',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: r.font(16, min: 14, max: 18), fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -1317,45 +1364,46 @@ class _FoodPageState extends State<FoodPage>
     String description,
     Color color,
   ) {
+    final r = context.responsive;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: r.size(16)),
+      padding: EdgeInsets.all(r.size(16)),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+        borderRadius: BorderRadius.circular(r.size(16)),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: r.size(1.5)),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: r.size(48),
+            height: r.size(48),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.15)],
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(r.size(12)),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: r.size(24)),
           ),
-          const SizedBox(width: 14),
+          ResponsiveGap.horizontal(14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 16,
+                    fontSize: r.font(16, min: 14, max: 18),
                   ),
                 ),
-                const SizedBox(height: 4),
+                ResponsiveGap.vertical(4),
                 Text(
                   description,
                   style: TextStyle(
                     color: Colors.grey.shade600,
-                    fontSize: 14,
+                    fontSize: r.font(14, min: 12, max: 16),
                     height: 1.3,
                   ),
                 ),

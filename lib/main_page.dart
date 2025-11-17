@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/challenge_service.dart';
-import 'app_text_styles.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 import '../MainPage/milestone_journey.dart';
 import '../MainPage/trackers.dart';
 import '../MainPage/challenge_calendar.dart';
@@ -111,34 +112,41 @@ class _MainPageState extends State<MainPage> {
       await UserAchievementService.trackDailyLogin();
 
       final newlyUnlocked =
-      await UserAchievementService.checkAndUnlockAchievements();
+          await UserAchievementService.checkAndUnlockAchievements();
 
       if (newlyUnlocked.isNotEmpty && mounted) {
         for (final id in newlyUnlocked) {
           final achievement = UserAchievementService.getAchievementWithMetadata(
             id,
           );
+          final r = context.responsive;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
-                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.emoji_events,
+                    color: Colors.amber,
+                    size: r.size(24),
+                  ),
+                  ResponsiveGap.horizontal(12),
                   Expanded(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Achievement Unlocked!',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: r.font(14, min: 12, max: 16),
                           ),
                         ),
                         Text(
                           achievement['title'] as String,
-                          style: const TextStyle(fontSize: 13),
+                          style: TextStyle(
+                            fontSize: r.font(13, min: 11, max: 15),
+                          ),
                         ),
                       ],
                     ),
@@ -148,7 +156,7 @@ class _MainPageState extends State<MainPage> {
               backgroundColor: Colors.green.shade600,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(r.size(12)),
               ),
               duration: const Duration(seconds: 4),
             ),
@@ -164,7 +172,9 @@ class _MainPageState extends State<MainPage> {
   Future<void> _checkWeeklyCheckIn() async {
     try {
       if (_currentChallenge != null) {
-        final needsCheckIn = await WeeklyCheckInService.needsCheckIn(_currentChallenge!);
+        final needsCheckIn = await WeeklyCheckInService.needsCheckIn(
+          _currentChallenge!,
+        );
         if (needsCheckIn && mounted) {
           Navigator.push(
             context,
@@ -259,11 +269,12 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _showCreateChallenge() {
+    final r = context.responsive;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(r.size(20))),
       ),
       builder: (context) =>
           CreateChallengeSheet(onChallengeCreated: _onChallengeCreated),
@@ -355,23 +366,29 @@ class _MainPageState extends State<MainPage> {
     _loadChallengeData();
     _refreshTrackers();
 
+    final r = context.responsive;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
+            Icon(Icons.check_circle, color: Colors.white, size: r.size(20)),
+            ResponsiveGap.horizontal(8),
             Expanded(
               child: Text(
                 'Challenge "${challenge.title}" is now active across all tabs!',
-                style: const TextStyle(fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: r.font(14, min: 12, max: 16),
+                ),
               ),
             ),
           ],
         ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(r.size(10)),
+        ),
         duration: const Duration(seconds: 4),
         action: SnackBarAction(
           label: 'View',
@@ -423,7 +440,7 @@ class _MainPageState extends State<MainPage> {
       } else {
         try {
           _currentChallenge = _challengeHistory.firstWhere(
-                (challenge) => challenge.title == challengeTitle,
+            (challenge) => challenge.title == challengeTitle,
           );
         } catch (e) {
           _currentChallenge = null;
@@ -435,6 +452,7 @@ class _MainPageState extends State<MainPage> {
   }
 
   List<PopupMenuEntry<String>> _buildPopupMenuItems() {
+    final r = context.responsive;
     List<PopupMenuEntry<String>> items = [];
 
     if (_currentChallenge == null) {
@@ -444,18 +462,18 @@ class _MainPageState extends State<MainPage> {
           child: Row(
             children: [
               Container(
-                width: 10,
-                height: 10,
+                width: r.size(10),
+                height: r.size(10),
                 decoration: const BoxDecoration(
                   color: Colors.grey,
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 10),
-              const Text(
+              ResponsiveGap.horizontal(10),
+              Text(
                 "No Active Challenge",
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: r.font(14, min: 12, max: 16),
                   fontWeight: FontWeight.w400,
                   color: Colors.black87,
                 ),
@@ -477,8 +495,8 @@ class _MainPageState extends State<MainPage> {
           child: Row(
             children: [
               Container(
-                width: 10,
-                height: 10,
+                width: r.size(10),
+                height: r.size(10),
                 decoration: BoxDecoration(
                   color: challenge.title == _selectedChallenge
                       ? Colors.green
@@ -486,12 +504,12 @@ class _MainPageState extends State<MainPage> {
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 10),
+              ResponsiveGap.horizontal(10),
               Expanded(
                 child: Text(
                   challenge.title,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: r.font(14, min: 12, max: 16),
                     fontWeight: FontWeight.w400,
                     color: Colors.black87,
                   ),
@@ -508,20 +526,20 @@ class _MainPageState extends State<MainPage> {
 
     if (_currentChallenge == null) {
       items.add(
-        const PopupMenuItem(
+        PopupMenuItem(
           value: "Create New Challenge",
           child: Row(
             children: [
               Icon(
                 Icons.add_circle_outline,
                 color: AppColors.secondary,
-                size: 20,
+                size: r.size(20),
               ),
-              SizedBox(width: 10),
+              ResponsiveGap.horizontal(10),
               Text(
                 "Create New Challenge",
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: r.font(14, min: 12, max: 16),
                   fontWeight: FontWeight.w500,
                   color: AppColors.secondary,
                 ),
@@ -532,16 +550,20 @@ class _MainPageState extends State<MainPage> {
       );
     } else {
       items.add(
-        const PopupMenuItem(
+        PopupMenuItem(
           value: "Cancel Challenge",
           child: Row(
             children: [
-              Icon(Icons.cancel_outlined, color: Colors.orange, size: 20),
-              SizedBox(width: 10),
+              Icon(
+                Icons.cancel_outlined,
+                color: Colors.orange,
+                size: r.size(20),
+              ),
+              ResponsiveGap.horizontal(10),
               Text(
                 "Cancel Challenge",
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: r.font(14, min: 12, max: 16),
                   fontWeight: FontWeight.w500,
                   color: Colors.orange,
                 ),
@@ -553,16 +575,16 @@ class _MainPageState extends State<MainPage> {
     }
 
     items.add(
-      const PopupMenuItem(
+      PopupMenuItem(
         value: "View Challenge History",
         child: Row(
           children: [
-            Icon(Icons.history, color: Colors.black54, size: 20),
-            SizedBox(width: 10),
+            Icon(Icons.history, color: Colors.black54, size: r.size(20)),
+            ResponsiveGap.horizontal(10),
             Text(
               "View Challenge History",
               style: TextStyle(
-                fontSize: 14,
+                fontSize: r.font(14, min: 12, max: 16),
                 fontWeight: FontWeight.w500,
                 color: Colors.black,
               ),
@@ -576,64 +598,65 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _getBody() {
+    final r = context.responsive;
     return IndexedStack(
       index: _selectedIndex,
       children: [
         // HOME PAGE
         _currentChallenge == null
             ? EmptyState(
-          type: EmptyStateType.noChallengeHome,
-          onAction: _showCreateChallenge,
-        )
+                type: EmptyStateType.noChallengeHome,
+                onAction: _showCreateChallenge,
+              )
             : SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MilestoneJourney(
-                key: _milestoneKey,
-                currentChallenge: _currentChallenge,
-                onCreateChallenge: _showCreateChallenge,
+                padding: r.paddingSymmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MilestoneJourney(
+                      key: _milestoneKey,
+                      currentChallenge: _currentChallenge,
+                      onCreateChallenge: _showCreateChallenge,
+                    ),
+                    ResponsiveGap.vertical(12),
+                    Trackers(
+                      key: _trackersKey,
+                      currentChallenge: _currentChallenge,
+                      onCaloriesChanged: _onCaloriesChanged,
+                    ),
+                    ResponsiveGap.vertical(12),
+                    ChallengeCalendar(
+                      currentChallenge: _currentChallenge,
+                      onChallengeCreated: _onChallengeCreated,
+                      onChallengeEnded: _onChallengeEnded,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              Trackers(
-                key: _trackersKey,
-                currentChallenge: _currentChallenge,
-                onCaloriesChanged: _onCaloriesChanged,
-              ),
-              const SizedBox(height: 12),
-              ChallengeCalendar(
-                currentChallenge: _currentChallenge,
-                onChallengeCreated: _onChallengeCreated,
-                onChallengeEnded: _onChallengeEnded,
-              ),
-            ],
-          ),
-        ),
 
         // FOOD PAGE
         _currentChallenge == null
             ? EmptyState(
-          type: EmptyStateType.noChallengeFood,
-          onAction: _showCreateChallenge,
-        )
+                type: EmptyStateType.noChallengeFood,
+                onAction: _showCreateChallenge,
+              )
             : FoodPage(
-          key: _foodPageKey,
-          currentChallenge: _currentChallenge,
-          onChallengeCreated: _onChallengeCreated,
-          onCaloriesUpdated: _refreshTrackers,
-        ),
+                key: _foodPageKey,
+                currentChallenge: _currentChallenge,
+                onChallengeCreated: _onChallengeCreated,
+                onCaloriesUpdated: _refreshTrackers,
+              ),
 
         // WORKOUT PAGE
         _currentChallenge == null
             ? EmptyState(
-          type: EmptyStateType.noChallengeWorkout,
-          onAction: _showCreateChallenge,
-        )
+                type: EmptyStateType.noChallengeWorkout,
+                onAction: _showCreateChallenge,
+              )
             : WorkoutHistoryPage(
-          key: _workoutPageKey,
-          currentChallenge: _currentChallenge,
-        ),
+                key: _workoutPageKey,
+                currentChallenge: _currentChallenge,
+              ),
 
         // PROFILE PAGE
         const ProfilePage(),
@@ -643,6 +666,7 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
     // Check if we should show empty state
     bool showEmptyState = _currentChallenge == null;
 
@@ -651,162 +675,164 @@ class _MainPageState extends State<MainPage> {
       body: showEmptyState
           ? _getBody() // Show empty state without AppBar
           : NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              automaticallyImplyLeading: false,
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
-              pinned: true,
-              elevation: 4,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
-              toolbarHeight: 68,
-              title: Row(
-                children: [
-                  // FitCheck Logo with green indicator
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.asset(
-                          'assets/icons/icon.png', // Update this path to match your logo location
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 10),
-
-                  // FitCheck Title with Subtitle
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'FitCheck',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                          height: 1.2,
-                        ),
-                      ),
-                      Text(
-                        'Track & Achieve',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.black54,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(width: 40),
-                  NotificationIconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationPage(),
-                        ),
-                      );
-                    },
-                    iconColor: Colors.black87,
-                    badgeColor: Colors.red,
-                  ),
-                  const SizedBox(width: 10),
-                  // Challenge Selector Dropdown
-                  Flexible(
-                    child: PopupMenuButton<String>(
-                      offset: const Offset(20, 30),
-                      onSelected: (value) {
-                        if (value == "View Challenge History") {
-                          _showChallengeHistory();
-                        } else {
-                          _onChallengeSelected(value);
-                        }
-                      },
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      color: Colors.white,
-                      elevation: 6,
-                      itemBuilder: (context) => _buildPopupMenuItems(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [
+                  SliverAppBar(
+                    automaticallyImplyLeading: false,
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.white,
+                    pinned: true,
+                    elevation: r.size(4),
+                    shadowColor: Colors.black.withValues(alpha: 0.1),
+                    toolbarHeight: r.size(68),
+                    title: Row(
+                      children: [
+                        // FitCheck Logo with green indicator
+                        Stack(
                           children: [
-                            Container(
-                              width: 10,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: _currentChallenge != null
-                                    ? Colors.green
-                                    : Colors.grey,
-                                shape: BoxShape.circle,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(r.size(10)),
+                              child: Image.asset(
+                                'assets/icons/icon.png', // Update this path to match your logo location
+                                width: r.size(40),
+                                height: r.size(40),
+                                fit: BoxFit.cover,
                               ),
                             ),
-                            const SizedBox(width: 5),
-                            Flexible(
-                              child: Text(
-                                _selectedChallenge,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: r.size(10),
+                                height: r.size(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: r.size(2),
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
                               ),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(
-                              Icons.keyboard_arrow_down,
-                              color: Colors.black54,
-                              size: 16,
                             ),
                           ],
                         ),
-                      ),
+                        ResponsiveGap.horizontal(10),
+
+                        // FitCheck Title with Subtitle
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'FitCheck',
+                              style: TextStyle(
+                                fontSize: r.font(19, min: 16, max: 22),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                height: 1.2,
+                              ),
+                            ),
+                            Text(
+                              'Track & Achieve',
+                              style: TextStyle(
+                                fontSize: r.font(11, min: 9, max: 13),
+                                fontWeight: FontWeight.w400,
+                                color: Colors.black54,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        ResponsiveGap.horizontal(40),
+
+                        // Challenge Selector Dropdown
+                        Flexible(
+                          child: PopupMenuButton<String>(
+                            offset: Offset(r.size(20), r.size(30)),
+                            onSelected: (value) {
+                              if (value == "View Challenge History") {
+                                _showChallengeHistory();
+                              } else {
+                                _onChallengeSelected(value);
+                              }
+                            },
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(r.size(12)),
+                            ),
+                            color: Colors.white,
+                            elevation: r.size(6),
+                            itemBuilder: (context) => _buildPopupMenuItems(),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: r.size(8),
+                                vertical: r.size(6),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(r.size(10)),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: r.size(10),
+                                    height: r.size(7),
+                                    decoration: BoxDecoration(
+                                      color: _currentChallenge != null
+                                          ? Colors.green
+                                          : Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  ResponsiveGap.horizontal(5),
+                                  Flexible(
+                                    child: Text(
+                                      _selectedChallenge,
+                                      style: TextStyle(
+                                        fontSize: r.font(13, min: 11, max: 15),
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black87,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                  ResponsiveGap.horizontal(2),
+                                  Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: Colors.black54,
+                                    size: r.size(16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        ResponsiveGap.horizontal(12),
+
+                        NotificationIconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NotificationPage(),
+                              ),
+                            );
+                          },
+                          iconColor: Colors.black87,
+                          badgeColor: Colors.red,
+                        ),
+                        ResponsiveGap.horizontal(3),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 3),
-
-
-
-                ],
-              ),
+                ];
+              },
+              body: _getBody(),
             ),
-          ];
-        },
-        body: _getBody(),
-      ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

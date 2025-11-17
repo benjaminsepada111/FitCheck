@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../LoginPages/login_page.dart';
 import '../color/colors.dart';
 import '../services/user_time_tracker.dart';
+import '../services/auth_service.dart';
 import '../utils/page_transitions.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -17,6 +18,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final AuthService _authService = AuthService();
 
   bool _agreeToTerms = false;
   bool _isLoading = false;
@@ -102,6 +104,20 @@ class _SignUpPageState extends State<SignUpPage> {
       );
 
       if (userCredential.user != null) {
+        // Save initial user data to Firestore
+        try {
+          await _authService.saveUserToFirestore(userCredential.user!.uid, {
+            'email': userCredential.user!.email,
+            'displayName': userCredential.user!.displayName,
+            'photoURL': userCredential.user!.photoURL,
+            'provider': 'email',
+            'createdAt': DateTime.now().toIso8601String(),
+            'isEmailVerified': false,
+          });
+        } catch (e) {
+          // Log error but don't block signup - user document will be created later if needed
+        }
+
         // Send verification email
         await userCredential.user!.sendEmailVerification();
 

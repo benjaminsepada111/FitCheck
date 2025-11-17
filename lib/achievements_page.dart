@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/app_text_styles.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/services/statistics_service.dart';
+import 'package:capstone_project/utils/responsive_utils.dart';
+import 'package:capstone_project/widgets/responsive_widgets.dart';
 
 class AchievementsPage extends StatefulWidget {
   const AchievementsPage({super.key});
@@ -55,20 +57,27 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: r.size(24)),
           onPressed: () => Navigator.pop(context),
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(
+            minWidth: r.tapTarget(44),
+            minHeight: r.tapTarget(44),
+          ),
         ),
-        title: const Text(
+        title: Text(
           'Achievements & Stats',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 20,
+            fontSize: r.font(20, min: 18, max: 24),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -79,7 +88,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
               onRefresh: _refreshData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                padding: EdgeInsets.fromLTRB(r.size(16), r.size(16), r.size(16), r.size(20)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -87,29 +96,31 @@ class _AchievementsPageState extends State<AchievementsPage> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: EdgeInsets.all(r.size(8)),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(r.size(10)),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.bar_chart_rounded,
                             color: Colors.white,
-                            size: 20,
+                            size: r.size(20),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        const Text(
+                        ResponsiveGap.horizontal(12),
+                        Text(
                           'Your Statistics',
-                          style: AppTextStyles.heading2,
+                          style: AppTextStyles.heading2.copyWith(
+                            fontSize: r.font(20, min: 18, max: 24),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    ResponsiveGap(20),
                     _buildStatisticsGrid(),
-                    const SizedBox(height: 32),
+                    ResponsiveGap(32),
 
                     // Achievements Section
                     Row(
@@ -118,7 +129,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: EdgeInsets.all(r.size(8)),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
@@ -126,36 +137,38 @@ class _AchievementsPageState extends State<AchievementsPage> {
                                     Color(0xFFFB8C00),
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(r.size(10)),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.emoji_events_rounded,
                                 color: Colors.white,
-                                size: 20,
+                                size: r.size(20),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            const Text(
+                            ResponsiveGap.horizontal(12),
+                            Text(
                               'Achievements',
-                              style: AppTextStyles.heading2,
+                              style: AppTextStyles.heading2.copyWith(
+                                fontSize: r.font(20, min: 18, max: 24),
+                              ),
                             ),
                           ],
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: r.size(12),
+                            vertical: r.size(6),
                           ),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFFFFA726), Color(0xFFFB8C00)],
                             ),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(r.size(20)),
                           ),
                           child: Text(
                             '${_achievements.where((a) => a['unlocked'] == true).length}/${_achievements.length}',
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: r.font(14, min: 12, max: 16),
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               fontFamily: 'Sen',
@@ -164,7 +177,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    ResponsiveGap(16),
                     _buildAchievementsList(),
                   ],
                 ),
@@ -174,6 +187,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
   }
 
   Widget _buildStatisticsGrid() {
+    final r = context.responsive;
+
     // Extract stats from Firebase user stats
     final totalCaloriesConsumed = _userStats['total_calories_consumed'] ?? 0;
     final totalLoginDays = _userStats['total_login_days'] ?? 0;
@@ -183,8 +198,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
+      crossAxisSpacing: r.size(16),
+      mainAxisSpacing: r.size(16),
       childAspectRatio: 1.8,
       children: [
         _buildStatCard(
@@ -235,6 +250,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
     required IconData icon,
     required List<Color> gradientColors,
   }) {
+    final r = context.responsive;
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -242,12 +259,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(r.size(20)),
         boxShadow: [
           BoxShadow(
-            color: gradientColors[0].withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: gradientColors[0].withValues(alpha: 0.3),
+            blurRadius: r.size(12),
+            offset: Offset(0, r.size(6)),
             spreadRadius: 0,
           ),
         ],
@@ -255,10 +272,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(r.size(20)),
           onTap: () {}, // Could add navigation to detailed stats in future
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: EdgeInsets.symmetric(horizontal: r.size(16), vertical: r.size(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -269,14 +286,14 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   children: [
                     // Icon
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(r.size(8)),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(r.size(10)),
                       ),
-                      child: Icon(icon, color: Colors.white, size: 20),
+                      child: Icon(icon, color: Colors.white, size: r.size(20)),
                     ),
-                    const SizedBox(width: 10),
+                    ResponsiveGap.horizontal(10),
                     // Value and Unit
                     Expanded(
                       child: Row(
@@ -285,8 +302,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
                           Flexible(
                             child: Text(
                               value,
-                              style: const TextStyle(
-                                fontSize: 28,
+                              style: TextStyle(
+                                fontSize: r.font(28, min: 20, max: 32),
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 fontFamily: 'Sen',
@@ -295,15 +312,15 @@ class _AchievementsPageState extends State<AchievementsPage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 4),
+                          ResponsiveGap.horizontal(4),
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
+                            padding: EdgeInsets.only(bottom: r.size(2)),
                             child: Text(
                               unit,
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: r.font(13, min: 11, max: 15),
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontFamily: 'Sen',
                               ),
                             ),
@@ -313,13 +330,13 @@ class _AchievementsPageState extends State<AchievementsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                ResponsiveGap(10),
                 // Row 2: Label
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.9),
+                    fontSize: r.font(13, min: 11, max: 15),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Sen',
                   ),
@@ -335,14 +352,19 @@ class _AchievementsPageState extends State<AchievementsPage> {
   }
 
   Widget _buildAchievementsList() {
+    final r = context.responsive;
+
     if (_achievements.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32.0),
+          padding: EdgeInsets.all(r.size(32)),
           child: Text(
             'No achievements available yet.\nComplete activities to unlock achievements!',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: r.font(14, min: 12, max: 16),
+            ),
           ),
         ),
       );
@@ -361,9 +383,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     // Dynamic calculation for perfect symmetry
     final screenWidth = MediaQuery.of(context).size.width;
-    const horizontalPadding =
-        16.0; // Page padding (already applied by parent ScrollView)
-    const gap = 8.0; // Reduced gap for tighter spacing between badges
+    final horizontalPadding = r.size(16); // Page padding (already applied by parent ScrollView)
+    final gap = r.size(8); // Reduced gap for tighter spacing between badges
 
     // Formula: availableWidth = gap + badgeWidth + gap + badgeWidth + gap
     // This creates symmetric spacing: [gap][badge][gap][badge][gap]
@@ -378,12 +399,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
         0.92; // Increased to 92% of card width for larger, more prominent badges
     final cardHeight =
         badgeImageSize +
-        88; // Badge + text space (increased for larger text and no overflow)
+        r.size(88); // Badge + text space (increased for larger text and no overflow)
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: gap,
       ), // Creates [gap][badge][gap][badge][gap]
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -432,6 +453,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
     required int threshold,
     required double badgeSize,
   }) {
+    final r = context.responsive;
+
     return GestureDetector(
       onTap: () => _showAchievementDetail(
         title: title,
@@ -447,12 +470,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(r.size(16)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
+            ResponsiveGap(4),
             // Badge Image
             SizedBox(
               width: badgeSize,
@@ -502,14 +525,14 @@ class _AchievementsPageState extends State<AchievementsPage> {
                       ),
                     ),
             ),
-            const SizedBox(height: 8),
+            ResponsiveGap(8),
             // Title
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: EdgeInsets.symmetric(horizontal: r.size(4)),
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: r.font(14, min: 12, max: 16),
                   fontWeight: FontWeight.bold,
                   color: unlocked ? Colors.black : Colors.grey.shade600,
                   fontFamily: 'Sen',
@@ -519,14 +542,14 @@ class _AchievementsPageState extends State<AchievementsPage> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 5),
+            ResponsiveGap(5),
             // Progress indicator
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: EdgeInsets.symmetric(horizontal: r.size(4)),
               child: Text(
                 unlocked ? 'Unlocked!' : '$currentValue/$threshold',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: r.font(12, min: 10, max: 14),
                   fontWeight: FontWeight.w600,
                   color: unlocked ? color : Colors.grey.shade500,
                   fontFamily: 'Sen',
@@ -534,7 +557,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                 textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: 4),
+            ResponsiveGap(4),
           ],
         ),
       ),
@@ -554,224 +577,229 @@ class _AchievementsPageState extends State<AchievementsPage> {
   }) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: Colors.white,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Large Badge
-              SizedBox(
-                width: 180,
-                height: 180,
-                child: imagePath != null
-                    ? ColorFiltered(
-                        colorFilter: unlocked
-                            ? const ColorFilter.mode(
-                                Colors.transparent,
-                                BlendMode.multiply,
-                              )
-                            : const ColorFilter.matrix(<double>[
-                                0.2126, 0.7152, 0.0722, 0, 0, // Red channel
-                                0.2126, 0.7152, 0.0722, 0, 0, // Green channel
-                                0.2126, 0.7152, 0.0722, 0, 0, // Blue channel
-                                0, 0, 0, 1, 0, // Alpha channel
-                              ]),
-                        child: Image.asset(
-                          imagePath,
-                          width: 180,
-                          height: 180,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(icon, color: Colors.white, size: 90),
-                            );
-                          },
+      builder: (dialogContext) {
+        final r = dialogContext.responsive;
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(r.size(24))),
+          child: Container(
+            padding: EdgeInsets.all(r.size(24)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(r.size(24)),
+              color: Colors.white,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Large Badge
+                ResponsiveSizedBox(
+                  width: 180,
+                  height: 180,
+                  child: imagePath != null
+                      ? ColorFiltered(
+                          colorFilter: unlocked
+                              ? const ColorFilter.mode(
+                                  Colors.transparent,
+                                  BlendMode.multiply,
+                                )
+                              : const ColorFilter.matrix(<double>[
+                                  0.2126, 0.7152, 0.0722, 0, 0, // Red channel
+                                  0.2126, 0.7152, 0.0722, 0, 0, // Green channel
+                                  0.2126, 0.7152, 0.0722, 0, 0, // Blue channel
+                                  0, 0, 0, 1, 0, // Alpha channel
+                                ]),
+                          child: Image.asset(
+                            imagePath,
+                            width: r.size(180),
+                            height: r.size(180),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(icon, color: Colors.white, size: r.size(90)),
+                              );
+                            },
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: Colors.white, size: r.size(90)),
                         ),
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(icon, color: Colors.white, size: 90),
-                      ),
-              ),
-              const SizedBox(height: 20),
-              // Title
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                  fontFamily: 'Sen',
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              // Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: unlocked
-                      ? color.withOpacity(0.15)
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  unlocked ? 'UNLOCKED' : 'LOCKED',
+                ResponsiveGap(20),
+                // Title
+                Text(
+                  title,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: r.font(24, min: 20, max: 28),
                     fontWeight: FontWeight.bold,
-                    color: unlocked ? color : Colors.grey.shade600,
+                    color: color,
                     fontFamily: 'Sen',
-                    letterSpacing: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                ResponsiveGap(12),
+                // Status Badge
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: r.size(16),
+                    vertical: r.size(6),
+                  ),
+                  decoration: BoxDecoration(
+                    color: unlocked
+                        ? color.withValues(alpha: 0.15)
+                        : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(r.size(20)),
+                  ),
+                  child: Text(
+                    unlocked ? 'UNLOCKED' : 'LOCKED',
+                    style: TextStyle(
+                      fontSize: r.font(12, min: 10, max: 14),
+                      fontWeight: FontWeight.bold,
+                      color: unlocked ? color : Colors.grey.shade600,
+                      fontFamily: 'Sen',
+                      letterSpacing: 1.2,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Description
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.flag_outlined,
-                          size: 18,
-                          color: Colors.grey.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Mission',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
-                            fontFamily: 'Sen',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade700,
-                        fontFamily: 'Sen',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!unlocked) ...[
-                const SizedBox(height: 20),
-                // Progress Section
+                ResponsiveGap(20),
+                // Description
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(r.size(16)),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: color.withOpacity(0.2)),
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(r.size(12)),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Icon(
+                            Icons.flag_outlined,
+                            size: r.size(18),
+                            color: Colors.grey.shade700,
+                          ),
+                          ResponsiveGap.horizontal(8),
                           Text(
-                            'Progress',
+                            'Mission',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: r.font(14, min: 12, max: 16),
                               fontWeight: FontWeight.bold,
                               color: Colors.grey.shade700,
                               fontFamily: 'Sen',
                             ),
                           ),
-                          Text(
-                            '$currentValue / $threshold',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: color,
-                              fontFamily: 'Sen',
-                            ),
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(color),
-                          minHeight: 8,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      ResponsiveGap(8),
                       Text(
-                        '${(progress * 100).toStringAsFixed(0)}% Complete',
+                        description,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: color,
-                          fontWeight: FontWeight.w600,
+                          fontSize: r.font(14, min: 12, max: 16),
+                          color: Colors.grey.shade700,
                           fontFamily: 'Sen',
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 24),
-              // Close Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                if (!unlocked) ...[
+                  ResponsiveGap(20),
+                  // Progress Section
+                  Container(
+                    padding: EdgeInsets.all(r.size(16)),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(r.size(12)),
+                      border: Border.all(color: color.withValues(alpha: 0.2)),
                     ),
-                    elevation: 0,
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progress',
+                              style: TextStyle(
+                                fontSize: r.font(14, min: 12, max: 16),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                                fontFamily: 'Sen',
+                              ),
+                            ),
+                            Text(
+                              '$currentValue / $threshold',
+                              style: TextStyle(
+                                fontSize: r.font(16, min: 14, max: 18),
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                                fontFamily: 'Sen',
+                              ),
+                            ),
+                          ],
+                        ),
+                        ResponsiveGap(12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(r.size(8)),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                            minHeight: r.size(8),
+                          ),
+                        ),
+                        ResponsiveGap(8),
+                        Text(
+                          '${(progress * 100).toStringAsFixed(0)}% Complete',
+                          style: TextStyle(
+                            fontSize: r.font(12, min: 10, max: 14),
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Sen',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Text(
-                    'Close',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Sen',
+                ],
+                ResponsiveGap(24),
+                // Close Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: r.size(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(r.size(12)),
+                      ),
+                      elevation: 0,
+                      minimumSize: Size(double.infinity, r.tapTarget(44)),
+                    ),
+                    child: Text(
+                      'Close',
+                      style: TextStyle(
+                        fontSize: r.font(16, min: 14, max: 18),
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Sen',
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

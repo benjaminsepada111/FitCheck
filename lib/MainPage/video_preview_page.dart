@@ -1002,11 +1002,13 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                     );
                   },
                 ),
-                // Playhead indicator
-                if (_isInitialized && videoDuration.inMilliseconds > 0)
+                // Playhead indicator - SYNCED WITH VIDEO
+                if (_isInitialized && videoDuration.inMilliseconds > 0 && reversedMilestones.isNotEmpty)
                   Positioned(
+                    // Calculate actual visual timeline width: (thumbnail width * count) + (gap width * gaps between)
+                    // For 3 items: (80 * 3) + (4 * 2) = 240 + 8 = 248px
                     left: (currentPosition.inMilliseconds / videoDuration.inMilliseconds) *
-                        (milestones.length * 84 - 4),
+                        (reversedMilestones.length * 80.0 + (reversedMilestones.length - 1) * 4.0),
                     top: 0,
                     bottom: 0,
                     child: Container(

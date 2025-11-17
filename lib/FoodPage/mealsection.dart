@@ -96,12 +96,12 @@ class MealsSectionState extends State<MealsSection> {
   }
 
   void _onFoodAdded(
-    String foodName,
-    int calories,
-    String mealType, {
-    double? grams,
-    String? imageUrl,
-  }) async {
+      String foodName,
+      int calories,
+      String mealType, {
+        double? grams,
+        String? imageUrl,
+      }) async {
     try {
       // Create new food entry
       final foodEntry = FoodEntry(
@@ -365,7 +365,7 @@ class MealsSectionState extends State<MealsSection> {
 
         const SizedBox(height: 12),
         ...meals.map(
-          (meal) => _MealCard(
+              (meal) => _MealCard(
             name: meal["name"] as String,
             calories: meal["calories"] as String,
             iconPath: meal["icon"] as String,
@@ -413,11 +413,11 @@ class _MealCard extends StatefulWidget {
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
   final Function(
-    String foodName,
-    int calories, {
-    double? grams,
-    String? imageUrl,
-  })
+      String foodName,
+      int calories, {
+      double? grams,
+      String? imageUrl,
+      })
   onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
   final String? challengeId;
@@ -478,7 +478,9 @@ class _MealCardState extends State<_MealCard> {
           width: widget.isRecommended ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
+        color: widget.isRecommended
+            ? Colors.red.withOpacity(0.08)
+            : Colors.white,
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -604,136 +606,136 @@ class _MealCardState extends State<_MealCard> {
                       children: widget.foodEntries
                           .map(
                             (entry) => Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Show image thumbnail or default icon
-                                  if (entry.imageUrl != null &&
-                                      entry.imageUrl!.isNotEmpty)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Image.network(
-                                        entry.imageUrl!,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              // Show image thumbnail or default icon
+                              if (entry.imageUrl != null &&
+                                  entry.imageUrl!.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.network(
+                                    entry.imageUrl!,
+                                    width: 60,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) {
+                                      return Container(
                                         width: 60,
                                         height: 80,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              return Container(
-                                                width: 60,
-                                                height: 80,
-                                                color: Colors.grey.shade300,
-                                                child: Icon(
-                                                  Icons.broken_image,
-                                                  color: Colors.grey.shade500,
-                                                ),
-                                              );
-                                            },
-                                        loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
-                                            return child;
-                                          return Container(
-                                            width: 60,
-                                            height: 80,
-                                            color: Colors.grey.shade200,
-                                            child: Center(
-                                              child: CircularProgressIndicator(
-                                                value:
-                                                    loadingProgress
-                                                            .expectedTotalBytes !=
-                                                        null
-                                                    ? loadingProgress
-                                                              .cumulativeBytesLoaded /
-                                                          loadingProgress
-                                                              .expectedTotalBytes!
-                                                    : null,
-                                                strokeWidth: 2,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    )
-                                  else
-                                    Container(
-                                      width: 60,
-                                      height: 80,
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.secondary.withOpacity(
-                                          0.1,
+                                        color: Colors.grey.shade300,
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          color: Colors.grey.shade500,
                                         ),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Icon(
-                                        Icons.restaurant,
-                                        color: AppColors.secondary,
-                                        size: 24,
-                                      ),
-                                    ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          entry.foodName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14,
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null)
+                                        return child;
+                                      return Container(
+                                        width: 60,
+                                        height: 80,
+                                        color: Colors.grey.shade200,
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            value:
+                                            loadingProgress
+                                                .expectedTotalBytes !=
+                                                null
+                                                ? loadingProgress
+                                                .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes!
+                                                : null,
+                                            strokeWidth: 2,
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              '${entry.totalCalories.round()} cal',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                            if (entry.servingSize > 0) ...[
-                                              const Text(
-                                                ' • ',
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                              Text(
-                                                '${entry.servingSize.toStringAsFixed(0)}g',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
+                                      );
+                                    },
+                                  ),
+                                )
+                              else
+                                Container(
+                                  width: 60,
+                                  height: 80,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary.withOpacity(
+                                      0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Icons.restaurant,
+                                    color: AppColors.secondary,
+                                    size: 24,
+                                  ),
+                                ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      entry.foodName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '${entry.totalCalories.round()} cal',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
                                         ),
+                                        if (entry.servingSize > 0) ...[
+                                          const Text(
+                                            ' • ',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${entry.servingSize.toStringAsFixed(0)}g',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () =>
-                                        _confirmRemoveFood(context, entry),
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                    ),
-                                    color: Colors.red.shade400,
-                                    iconSize: 20,
-                                    tooltip: 'Remove food',
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          )
+                              IconButton(
+                                onPressed: () =>
+                                    _confirmRemoveFood(context, entry),
+                                icon: const Icon(
+                                  Icons.remove_circle_outline,
+                                ),
+                                color: Colors.red.shade400,
+                                iconSize: 20,
+                                tooltip: 'Remove food',
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
                           .toList(),
                     ),
                   ] else ...[

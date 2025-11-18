@@ -9,6 +9,7 @@ import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
+import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
@@ -895,6 +896,13 @@ class _FoodPageState extends State<FoodPage>
       );
 
       if (success && mounted) {
+        // Track meal logging and calories for achievements
+        try {
+          await UserAchievementService.trackMealLogging(calories: calories);
+        } catch (e) {
+          // Don't block the success flow if achievement tracking fails
+        }
+
         // Refresh the meal section to show updates
         await _mealsSectionKey.currentState?.loadMealData();
 

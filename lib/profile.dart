@@ -599,51 +599,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     "Manage notification settings",
                     null,
                   ),
-                  Divider(height: r.size(1), indent: r.size(60)),
-                  _buildListTile(
-                    context,
-                    r,
-                    Icons.language_outlined,
-                    "Language",
-                    "Choose your preferred language",
-                    null,
-                  ),
-                ]),
-
-                ResponsiveGap(24),
-
-                // Section Header
-                Padding(
-                  padding: r.padding(left: 4, bottom: 12),
-                  child: Text(
-                    'More',
-                    style: TextStyle(
-                      fontSize: r.font(16, min: 14, max: 20),
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                ),
-
-                // More Options
-                _buildSection(r, [
-                  _buildListTile(
-                    context,
-                    r,
-                    Icons.help_outline,
-                    "Help & Support",
-                    "Get help with the app",
-                    null,
-                  ),
-                  Divider(height: r.size(1), indent: r.size(60)),
-                  _buildListTile(
-                    context,
-                    r,
-                    Icons.info_outline,
-                    "About",
-                    "Learn more about this app",
-                    null,
-                  ),
                 ]),
 
                 ResponsiveGap(24),

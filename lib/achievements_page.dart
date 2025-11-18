@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/app_text_styles.dart';
+import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
-import 'package:capstone_project/services/statistics_service.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
 
@@ -14,9 +14,7 @@ class AchievementsPage extends StatefulWidget {
 
 class _AchievementsPageState extends State<AchievementsPage> {
   bool _isLoading = true;
-  Map<String, dynamic> _userStats = {};
   List<Map<String, dynamic>> _achievements = [];
-  int _totalMealsLogged = 0;
 
   @override
   void initState() {
@@ -27,18 +25,15 @@ class _AchievementsPageState extends State<AchievementsPage> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load user stats, achievements, and total meals from Firebase in parallel
-      final results = await Future.wait([
-        UserAchievementService.getUserStats(),
-        UserAchievementService.getAllAchievementsWithDetails(),
-        StatisticsService.getMealsLogged(),
-      ]);
+      // Check and unlock achievements based on current stats
+      await UserAchievementService.checkAndUnlockAchievements();
+
+      // Load achievements from Firebase
+      final achievements = await UserAchievementService.getAllAchievementsWithDetails();
 
       if (mounted) {
         setState(() {
-          _userStats = results[0] as Map<String, dynamic>;
-          _achievements = results[1] as List<Map<String, dynamic>>;
-          _totalMealsLogged = results[2] as int;
+          _achievements = achievements;
           _isLoading = false;
         });
       }
@@ -74,55 +69,22 @@ class _AchievementsPageState extends State<AchievementsPage> {
           ),
         ),
         title: Text(
-          'Achievements & Stats',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: r.font(20, min: 18, max: 24),
-            fontWeight: FontWeight.bold,
-          ),
+          'Achievements',
+          style: AppTextStyles.heading2,
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: AppColors.secondary))
           : RefreshIndicator(
+              color: AppColors.secondary,
               onRefresh: _refreshData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(r.size(16), r.size(16), r.size(16), r.size(20)),
+                padding: EdgeInsets.fromLTRB(r.size(16), r.size(12), r.size(16), r.size(16)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Statistics Section
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(r.size(8)),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
-                            ),
-                            borderRadius: BorderRadius.circular(r.size(10)),
-                          ),
-                          child: Icon(
-                            Icons.bar_chart_rounded,
-                            color: Colors.white,
-                            size: r.size(20),
-                          ),
-                        ),
-                        ResponsiveGap.horizontal(12),
-                        Text(
-                          'Your Statistics',
-                          style: AppTextStyles.heading2.copyWith(
-                            fontSize: r.font(20, min: 18, max: 24),
-                          ),
-                        ),
-                      ],
-                    ),
-                    ResponsiveGap(20),
-                    _buildStatisticsGrid(),
-                    ResponsiveGap(32),
-
-                    // Achievements Section
+                    // Achievements Section Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -131,12 +93,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                             Container(
                               padding: EdgeInsets.all(r.size(8)),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFFA726),
-                                    Color(0xFFFB8C00),
-                                  ],
-                                ),
+                                color: AppColors.secondary,
                                 borderRadius: BorderRadius.circular(r.size(10)),
                               ),
                               child: Icon(
@@ -148,9 +105,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
                             ResponsiveGap.horizontal(12),
                             Text(
                               'Achievements',
-                              style: AppTextStyles.heading2.copyWith(
-                                fontSize: r.font(20, min: 18, max: 24),
-                              ),
+                              style: AppTextStyles.heading2,
                             ),
                           ],
                         ),
@@ -160,194 +115,25 @@ class _AchievementsPageState extends State<AchievementsPage> {
                             vertical: r.size(6),
                           ),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFA726), Color(0xFFFB8C00)],
-                            ),
+                            color: AppColors.secondary,
                             borderRadius: BorderRadius.circular(r.size(20)),
                           ),
                           child: Text(
                             '${_achievements.where((a) => a['unlocked'] == true).length}/${_achievements.length}',
-                            style: TextStyle(
+                            style: AppTextStyles.button.copyWith(
                               fontSize: r.font(14, min: 12, max: 16),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontFamily: 'Sen',
                             ),
                           ),
                         ),
                       ],
                     ),
-                    ResponsiveGap(16),
+                    ResponsiveGap(12),
+                    // Achievements List
                     _buildAchievementsList(),
                   ],
                 ),
               ),
             ),
-    );
-  }
-
-  Widget _buildStatisticsGrid() {
-    final r = context.responsive;
-
-    // Extract stats from Firebase user stats
-    final totalCaloriesConsumed = _userStats['total_calories_consumed'] ?? 0;
-    final totalLoginDays = _userStats['total_login_days'] ?? 0;
-    final totalWorkouts = _userStats['total_workouts'] ?? 0;
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: r.size(16),
-      mainAxisSpacing: r.size(16),
-      childAspectRatio: 1.8,
-      children: [
-        _buildStatCard(
-          label: 'Total Calories',
-          value: _formatNumber(totalCaloriesConsumed),
-          unit: 'kcal',
-          icon: Icons.local_fire_department,
-          gradientColors: [const Color(0xFFFF6B6B), const Color(0xFFFF8E53)],
-        ),
-        _buildStatCard(
-          label: 'Login Streak',
-          value: totalLoginDays.toString(),
-          unit: 'days',
-          icon: Icons.calendar_today_rounded,
-          gradientColors: [const Color(0xFF4E54C8), const Color(0xFF8F94FB)],
-        ),
-        _buildStatCard(
-          label: 'Workouts',
-          value: totalWorkouts.toString(),
-          unit: 'sessions',
-          icon: Icons.fitness_center_rounded,
-          gradientColors: [const Color(0xFF11998E), const Color(0xFF38EF7D)],
-        ),
-        _buildStatCard(
-          label: 'Meals Logged',
-          value: _totalMealsLogged.toString(),
-          unit: 'meals',
-          icon: Icons.restaurant_rounded,
-          gradientColors: [const Color(0xFFFA8BFF), const Color(0xFF2BD2FF)],
-        ),
-      ],
-    );
-  }
-
-  String _formatNumber(int number) {
-    if (number >= 1000000) {
-      return '${(number / 1000000).toStringAsFixed(1)}M';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}K';
-    }
-    return number.toString();
-  }
-
-  Widget _buildStatCard({
-    required String label,
-    required String value,
-    required String unit,
-    required IconData icon,
-    required List<Color> gradientColors,
-  }) {
-    final r = context.responsive;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(r.size(20)),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors[0].withValues(alpha: 0.3),
-            blurRadius: r.size(12),
-            offset: Offset(0, r.size(6)),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(r.size(20)),
-          onTap: () {}, // Could add navigation to detailed stats in future
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: r.size(16), vertical: r.size(14)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Row 1: Icon and Data (value + unit)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Icon
-                    Container(
-                      padding: EdgeInsets.all(r.size(8)),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(r.size(10)),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: r.size(20)),
-                    ),
-                    ResponsiveGap.horizontal(10),
-                    // Value and Unit
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              value,
-                              style: TextStyle(
-                                fontSize: r.font(28, min: 20, max: 32),
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontFamily: 'Sen',
-                                height: 1.0,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          ResponsiveGap.horizontal(4),
-                          Padding(
-                            padding: EdgeInsets.only(bottom: r.size(2)),
-                            child: Text(
-                              unit,
-                              style: TextStyle(
-                                fontSize: r.font(13, min: 11, max: 15),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontFamily: 'Sen',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                ResponsiveGap(10),
-                // Row 2: Label
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: r.font(13, min: 11, max: 15),
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Sen',
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -361,7 +147,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
           child: Text(
             'No achievements available yet.\nComplete activities to unlock achievements!',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: AppTextStyles.body.copyWith(
               color: Colors.grey,
               fontSize: r.font(14, min: 12, max: 16),
             ),
@@ -384,7 +170,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
     // Dynamic calculation for perfect symmetry
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = r.size(16); // Page padding (already applied by parent ScrollView)
-    final gap = r.size(8); // Reduced gap for tighter spacing between badges
+    final gap = r.size(6); // Reduced gap for tighter spacing between badges
 
     // Formula: availableWidth = gap + badgeWidth + gap + badgeWidth + gap
     // This creates symmetric spacing: [gap][badge][gap][badge][gap]
@@ -396,10 +182,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
     // Add space for title (2 lines max ~34px) + progress text (~18px) + spacing (~36px)
     final badgeImageSize =
         badgeWidth *
-        0.92; // Increased to 92% of card width for larger, more prominent badges
+        0.90; // Slightly smaller for tighter layout
     final cardHeight =
         badgeImageSize +
-        r.size(88); // Badge + text space (increased for larger text and no overflow)
+        r.size(72); // Reduced text space for compact layout
 
     return GridView.builder(
       shrinkWrap: true,
@@ -475,7 +261,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            ResponsiveGap(4),
+            ResponsiveGap(2),
             // Badge Image
             SizedBox(
               width: badgeSize,
@@ -525,39 +311,37 @@ class _AchievementsPageState extends State<AchievementsPage> {
                       ),
                     ),
             ),
-            ResponsiveGap(8),
+            ResponsiveGap(4),
             // Title
             Padding(
               padding: EdgeInsets.symmetric(horizontal: r.size(4)),
               child: Text(
                 title,
-                style: TextStyle(
-                  fontSize: r.font(14, min: 12, max: 16),
+                style: AppTextStyles.body.copyWith(
+                  fontSize: r.font(13, min: 11, max: 15),
                   fontWeight: FontWeight.bold,
                   color: unlocked ? Colors.black : Colors.grey.shade600,
-                  fontFamily: 'Sen',
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            ResponsiveGap(5),
+            ResponsiveGap(2),
             // Progress indicator
             Padding(
               padding: EdgeInsets.symmetric(horizontal: r.size(4)),
               child: Text(
                 unlocked ? 'Unlocked!' : '$currentValue/$threshold',
-                style: TextStyle(
-                  fontSize: r.font(12, min: 10, max: 14),
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: r.font(11, min: 10, max: 13),
                   fontWeight: FontWeight.w600,
                   color: unlocked ? color : Colors.grey.shade500,
-                  fontFamily: 'Sen',
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
-            ResponsiveGap(4),
+            ResponsiveGap(2),
           ],
         ),
       ),
@@ -636,11 +420,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
                 // Title
                 Text(
                   title,
-                  style: TextStyle(
+                  style: AppTextStyles.heading1.copyWith(
                     fontSize: r.font(24, min: 20, max: 28),
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                    fontFamily: 'Sen',
+                    color: AppColors.secondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -653,17 +435,16 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   ),
                   decoration: BoxDecoration(
                     color: unlocked
-                        ? color.withValues(alpha: 0.15)
+                        ? AppColors.secondary.withValues(alpha: 0.15)
                         : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(r.size(20)),
                   ),
                   child: Text(
                     unlocked ? 'UNLOCKED' : 'LOCKED',
-                    style: TextStyle(
+                    style: AppTextStyles.caption.copyWith(
                       fontSize: r.font(12, min: 10, max: 14),
                       fontWeight: FontWeight.bold,
-                      color: unlocked ? color : Colors.grey.shade600,
-                      fontFamily: 'Sen',
+                      color: unlocked ? AppColors.secondary : Colors.grey.shade600,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -689,11 +470,10 @@ class _AchievementsPageState extends State<AchievementsPage> {
                           ResponsiveGap.horizontal(8),
                           Text(
                             'Mission',
-                            style: TextStyle(
+                            style: AppTextStyles.body.copyWith(
                               fontSize: r.font(14, min: 12, max: 16),
                               fontWeight: FontWeight.bold,
                               color: Colors.grey.shade700,
-                              fontFamily: 'Sen',
                             ),
                           ),
                         ],
@@ -701,10 +481,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
                       ResponsiveGap(8),
                       Text(
                         description,
-                        style: TextStyle(
+                        style: AppTextStyles.body.copyWith(
                           fontSize: r.font(14, min: 12, max: 16),
                           color: Colors.grey.shade700,
-                          fontFamily: 'Sen',
                         ),
                       ),
                     ],
@@ -716,9 +495,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   Container(
                     padding: EdgeInsets.all(r.size(16)),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.05),
+                      color: AppColors.secondary.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(r.size(12)),
-                      border: Border.all(color: color.withValues(alpha: 0.2)),
+                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
                     ),
                     child: Column(
                       children: [
@@ -727,20 +506,18 @@ class _AchievementsPageState extends State<AchievementsPage> {
                           children: [
                             Text(
                               'Progress',
-                              style: TextStyle(
+                              style: AppTextStyles.body.copyWith(
                                 fontSize: r.font(14, min: 12, max: 16),
                                 fontWeight: FontWeight.bold,
                                 color: Colors.grey.shade700,
-                                fontFamily: 'Sen',
                               ),
                             ),
                             Text(
                               '$currentValue / $threshold',
-                              style: TextStyle(
+                              style: AppTextStyles.subtitle.copyWith(
                                 fontSize: r.font(16, min: 14, max: 18),
                                 fontWeight: FontWeight.bold,
-                                color: color,
-                                fontFamily: 'Sen',
+                                color: AppColors.secondary,
                               ),
                             ),
                           ],
@@ -751,18 +528,17 @@ class _AchievementsPageState extends State<AchievementsPage> {
                           child: LinearProgressIndicator(
                             value: progress,
                             backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
                             minHeight: r.size(8),
                           ),
                         ),
                         ResponsiveGap(8),
                         Text(
                           '${(progress * 100).toStringAsFixed(0)}% Complete',
-                          style: TextStyle(
+                          style: AppTextStyles.caption.copyWith(
                             fontSize: r.font(12, min: 10, max: 14),
-                            color: color,
+                            color: AppColors.secondary,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Sen',
                           ),
                         ),
                       ],
@@ -776,9 +552,9 @@ class _AchievementsPageState extends State<AchievementsPage> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(dialogContext),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
+                      backgroundColor: AppColors.secondary,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: r.size(14)),
+                      padding: EdgeInsets.symmetric(vertical: r.size(16)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(r.size(12)),
                       ),
@@ -787,10 +563,8 @@ class _AchievementsPageState extends State<AchievementsPage> {
                     ),
                     child: Text(
                       'Close',
-                      style: TextStyle(
+                      style: AppTextStyles.button.copyWith(
                         fontSize: r.font(16, min: 14, max: 18),
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Sen',
                       ),
                     ),
                   ),

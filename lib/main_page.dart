@@ -680,65 +680,33 @@ class _MainPageState extends State<MainPage> {
               pinned: true,
               elevation: r.size(4),
               shadowColor: Colors.black.withValues(alpha: 0.1),
-              toolbarHeight: r.size(68),
+              toolbarHeight: r.size(56),
               title: Row(
                 children: [
-                  // FitCheck Logo with green indicator
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(r.size(10)),
-                        child: Image.asset(
-                          'assets/icons/icon.png', // Update this path to match your logo location
-                          width: r.size(40),
-                          height: r.size(40),
-                          fit: BoxFit.cover,
-                        ),
+                  // FitCheck Title - Splash Screen Style
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: r.font(40, min: 36, max: 44),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -2.0,
+                        height: 1.0,
                       ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: r.size(10),
-                          height: r.size(10),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: r.size(2),
-                            ),
+                      children: const [
+                        TextSpan(
+                          text: 'Fit',
+                          style: TextStyle(
+                            color: Colors.black87,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  ResponsiveGap.horizontal(10),
-
-                  // FitCheck Title with Subtitle
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'FitCheck',
-                        style: TextStyle(
-                          fontSize: r.font(19, min: 16, max: 22),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                          height: 1.2,
+                        TextSpan(
+                          text: 'Check',
+                          style: TextStyle(
+                            color: AppColors.secondary,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Track & Achieve',
-                        style: TextStyle(
-                          fontSize: r.font(11, min: 9, max: 13),
-                          fontWeight: FontWeight.w400,
-                          color: Colors.black54,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   const Spacer(),
@@ -776,8 +744,8 @@ class _MainPageState extends State<MainPage> {
                     itemBuilder: (context) => _buildPopupMenuItems(),
                     child: Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: r.size(8),
-                        vertical: r.size(6),
+                        horizontal: r.size(14),
+                        vertical: r.size(10),
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -789,7 +757,7 @@ class _MainPageState extends State<MainPage> {
                         children: [
                           Container(
                             width: r.size(10),
-                            height: r.size(7),
+                            height: r.size(10),
                             decoration: BoxDecoration(
                               color: _currentChallenge != null
                                   ? Colors.green
@@ -797,22 +765,22 @@ class _MainPageState extends State<MainPage> {
                               shape: BoxShape.circle,
                             ),
                           ),
-                          ResponsiveGap.horizontal(5),
+                          ResponsiveGap.horizontal(8),
                           Text(
                             _selectedChallenge,
                             style: TextStyle(
-                              fontSize: r.font(13, min: 11, max: 15),
+                              fontSize: r.font(15, min: 13, max: 17),
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
                             ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
-                          ResponsiveGap.horizontal(2),
+                          ResponsiveGap.horizontal(6),
                           Icon(
                             Icons.keyboard_arrow_down,
                             color: Colors.black54,
-                            size: r.size(16),
+                            size: r.size(20),
                           ),
                         ],
                       ),

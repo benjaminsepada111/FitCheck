@@ -667,172 +667,165 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
-    // Check if we should show empty state
-    bool showEmptyState = _currentChallenge == null;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: showEmptyState
-          ? _getBody() // Show empty state without AppBar
-          : NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) {
-                return [
-                  SliverAppBar(
-                    automaticallyImplyLeading: false,
-                    backgroundColor: Colors.white,
-                    surfaceTintColor: Colors.white,
-                    pinned: true,
-                    elevation: r.size(4),
-                    shadowColor: Colors.black.withValues(alpha: 0.1),
-                    toolbarHeight: r.size(68),
-                    title: Row(
-                      children: [
-                        // FitCheck Logo with green indicator
-                        Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(r.size(10)),
-                              child: Image.asset(
-                                'assets/icons/icon.png', // Update this path to match your logo location
-                                width: r.size(40),
-                                height: r.size(40),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: r.size(10),
-                                height: r.size(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: r.size(2),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              pinned: true,
+              elevation: r.size(4),
+              shadowColor: Colors.black.withValues(alpha: 0.1),
+              toolbarHeight: r.size(68),
+              title: Row(
+                children: [
+                  // FitCheck Logo with green indicator
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(r.size(10)),
+                        child: Image.asset(
+                          'assets/icons/icon.png', // Update this path to match your logo location
+                          width: r.size(40),
+                          height: r.size(40),
+                          fit: BoxFit.cover,
                         ),
-                        ResponsiveGap.horizontal(10),
-
-                        // FitCheck Title with Subtitle
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'FitCheck',
-                              style: TextStyle(
-                                fontSize: r.font(19, min: 16, max: 22),
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                                height: 1.2,
-                              ),
-                            ),
-                            Text(
-                              'Track & Achieve',
-                              style: TextStyle(
-                                fontSize: r.font(11, min: 9, max: 13),
-                                fontWeight: FontWeight.w400,
-                                color: Colors.black54,
-                                height: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        ResponsiveGap.horizontal(40),
-
-                        // Challenge Selector Dropdown
-                        Flexible(
-                          child: PopupMenuButton<String>(
-                            offset: Offset(r.size(20), r.size(30)),
-                            onSelected: (value) {
-                              if (value == "View Challenge History") {
-                                _showChallengeHistory();
-                              } else {
-                                _onChallengeSelected(value);
-                              }
-                            },
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(r.size(12)),
-                            ),
-                            color: Colors.white,
-                            elevation: r.size(6),
-                            itemBuilder: (context) => _buildPopupMenuItems(),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: r.size(8),
-                                vertical: r.size(6),
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(r.size(10)),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: r.size(10),
-                                    height: r.size(7),
-                                    decoration: BoxDecoration(
-                                      color: _currentChallenge != null
-                                          ? Colors.green
-                                          : Colors.grey,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  ResponsiveGap.horizontal(5),
-                                  Flexible(
-                                    child: Text(
-                                      _selectedChallenge,
-                                      style: TextStyle(
-                                        fontSize: r.font(13, min: 11, max: 15),
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.black87,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                  ResponsiveGap.horizontal(2),
-                                  Icon(
-                                    Icons.keyboard_arrow_down,
-                                    color: Colors.black54,
-                                    size: r.size(16),
-                                  ),
-                                ],
-                              ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: r.size(10),
+                          height: r.size(10),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: r.size(2),
                             ),
                           ),
                         ),
-                        ResponsiveGap.horizontal(12),
+                      ),
+                    ],
+                  ),
+                  ResponsiveGap.horizontal(10),
 
-                        NotificationIconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const NotificationPage(),
-                              ),
-                            );
-                          },
-                          iconColor: Colors.black87,
-                          badgeColor: Colors.red,
+                  // FitCheck Title with Subtitle
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'FitCheck',
+                        style: TextStyle(
+                          fontSize: r.font(19, min: 16, max: 22),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          height: 1.2,
                         ),
-                        ResponsiveGap.horizontal(3),
-                      ],
+                      ),
+                      Text(
+                        'Track & Achieve',
+                        style: TextStyle(
+                          fontSize: r.font(11, min: 9, max: 13),
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black54,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Notification Icon
+                  NotificationIconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationPage(),
+                        ),
+                      );
+                    },
+                    iconColor: Colors.black87,
+                    badgeColor: Colors.red,
+                  ),
+                  ResponsiveGap.horizontal(12),
+
+                  // Challenge Selector Dropdown
+                  PopupMenuButton<String>(
+                    offset: Offset(r.size(20), r.size(30)),
+                    onSelected: (value) {
+                      if (value == "View Challenge History") {
+                        _showChallengeHistory();
+                      } else {
+                        _onChallengeSelected(value);
+                      }
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(r.size(12)),
+                    ),
+                    color: Colors.white,
+                    elevation: r.size(6),
+                    itemBuilder: (context) => _buildPopupMenuItems(),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: r.size(8),
+                        vertical: r.size(6),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(r.size(10)),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: r.size(10),
+                            height: r.size(7),
+                            decoration: BoxDecoration(
+                              color: _currentChallenge != null
+                                  ? Colors.green
+                                  : Colors.grey,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          ResponsiveGap.horizontal(5),
+                          Text(
+                            _selectedChallenge,
+                            style: TextStyle(
+                              fontSize: r.font(13, min: 11, max: 15),
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          ResponsiveGap.horizontal(2),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.black54,
+                            size: r.size(16),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ];
-              },
-              body: _getBody(),
+                  ResponsiveGap.horizontal(3),
+                ],
+              ),
             ),
+          ];
+        },
+        body: _getBody(),
+      ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

@@ -228,7 +228,7 @@ class TrackersState extends State<Trackers>
 
     return Container(
       margin: r.paddingSymmetric(vertical: 5, horizontal: 4),
-      padding: r.padding(all: 20),
+      padding: r.paddingSymmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF06111D),
         borderRadius: BorderRadius.circular(r.size(16)),
@@ -308,7 +308,7 @@ class TrackersState extends State<Trackers>
                       value: _currentCalories.toString(),
                       color: Colors.red,
                     ),
-                    ResponsiveGap.vertical(12),
+                    ResponsiveGap.vertical(10),
                     _buildStatRow(
                       context: context,
                       icon: Icons.local_fire_department_rounded,
@@ -337,36 +337,40 @@ class TrackersState extends State<Trackers>
     return Row(
       children: [
         Container(
-          width: r.tapTarget(32),
-          height: r.tapTarget(32),
+          width: r.tapTarget(28),
+          height: r.tapTarget(28),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(r.size(8)),
+            borderRadius: BorderRadius.circular(r.size(7)),
           ),
           child: Icon(
             icon,
-            size: r.size(18),
+            size: r.size(16),
             color: color,
           ),
         ),
-        ResponsiveGap.horizontal(12),
+        ResponsiveGap.horizontal(10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
                 style: TextStyle(
-                  fontSize: r.font(12, min: 11, max: 14),
+                  fontSize: r.font(11, min: 10, max: 12),
                   color: Colors.grey.shade400,
                 ),
               ),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: r.font(24, min: 20, max: 28),
+                  fontSize: r.font(22, min: 18, max: 24),
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
+                  height: 1.2,
                 ),
               ),
             ],

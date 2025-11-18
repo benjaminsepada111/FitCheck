@@ -173,33 +173,31 @@ class _EmptyStateState extends State<EmptyState> {
 
   // CAROUSEL VIEW (Home Page)
   Widget _buildCarouselView(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-
     return Column(
       children: [
-        SizedBox(height: topPadding + 16),
+        const SizedBox(height: 12),
 
         Padding(
-          padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
           child: Column(
             children: [
               const Text(
                 "Start Your Fitness Journey",
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 "Create a challenge to unlock milestone tracking, daily logs, and progress photos",
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   color: Colors.grey.shade600,
-                  height: 1.4,
+                  height: 1.3,
                 ),
-
               ),
             ],
           ),
@@ -215,14 +213,14 @@ class _EmptyStateState extends State<EmptyState> {
             itemCount: _slides.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _buildSlideCard(_slides[index]),
               );
             },
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
         // Page indicators
         Row(
@@ -232,8 +230,8 @@ class _EmptyStateState extends State<EmptyState> {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              height: 8,
-              width: isActive ? 24 : 8,
+              height: 7,
+              width: isActive ? 20 : 7,
               decoration: BoxDecoration(
                 color: isActive ? AppColors.secondary : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(4),
@@ -242,29 +240,29 @@ class _EmptyStateState extends State<EmptyState> {
           }),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
 
         // Action button
         if (widget.onAction != null)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 52,
               child: ElevatedButton(
                 onPressed: widget.onAction,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   elevation: 0,
                 ),
                 child: const Text(
                   "Create Challenge",
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -272,7 +270,7 @@ class _EmptyStateState extends State<EmptyState> {
             ),
           ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -398,11 +396,9 @@ class _EmptyStateState extends State<EmptyState> {
 
   // EXPLORE GRID VIEW (Food & Workout Pages)
   Widget _buildExploreView(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-
     return Column(
       children: [
-        SizedBox(height: topPadding + 16),
+        const SizedBox(height: 12),
 
         // Header section
         Padding(
@@ -413,29 +409,28 @@ class _EmptyStateState extends State<EmptyState> {
               const Text(
                 "Start Your Fitness Journey",
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 "Get started with a challenge to unlock personalized tracking",
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   color: Colors.grey.shade600,
-                  height: 1.4,
+                  height: 1.3,
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 10),
-
+        const SizedBox(height: 16),
 
         Expanded(
-          child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,27 +438,28 @@ class _EmptyStateState extends State<EmptyState> {
                 const Text(
                   "Popular Routines",
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
+                const SizedBox(height: 12),
 
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.75,
+                Expanded(
+                  child: GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.85,
+                    ),
+                    itemCount: _exploreCards.length,
+                    itemBuilder: (context, index) {
+                      return _buildExploreCard(_exploreCards[index]);
+                    },
                   ),
-                  itemCount: _exploreCards.length,
-                  itemBuilder: (context, index) {
-                    return _buildExploreCard(_exploreCards[index]);
-                  },
                 ),
-                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -472,20 +468,20 @@ class _EmptyStateState extends State<EmptyState> {
         // CTA Button
         if (widget.onAction != null)
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
+                  blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
               ],
             ),
             child: SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: ElevatedButton(
                 onPressed: widget.onAction,
                 style: ElevatedButton.styleFrom(
@@ -499,7 +495,7 @@ class _EmptyStateState extends State<EmptyState> {
                 child: const Text(
                   "Create Challenge to Get Started",
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

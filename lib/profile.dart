@@ -809,7 +809,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         child: Icon(icon, color: AppColors.secondary, size: r.size(22)),
       ),
-      activeThumbColor: AppColors.secondary,
+      activeColor: AppColors.secondary,
       activeTrackColor: AppColors.secondary.withValues(alpha: 0.3),
       controlAffinity: ListTileControlAffinity.trailing,
     );

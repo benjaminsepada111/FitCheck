@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/api_service.dart';
+import 'package:capstone_project/services/text_overlay_service.dart';
 import 'video_preview_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gal/gal.dart';
@@ -52,24 +53,43 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   // Cache the generated video URL
   String? _cachedVideoUrl;
 
+  // ⭐ NEW: Text overlay settings
+  Map<int, String> _textOverlays = {}; // Index -> custom text
+  String _textAnimation = 'fadein'; // Default animation
+  String _textPosition = 'bottom'; // Default position
+  String _textColor = 'white'; // Default color
+  int _fontSize = 48; // Default font size
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    _loadCachedVideoUrl(); // Load cached URL when page opens
+    _loadCachedVideoUrl();
+    _initializeDefaultTextOverlays(); // ⭐ Initialize text overlays
+  }
+
+  // ⭐ NEW: Initialize default text overlays from milestone notes
+  void _initializeDefaultTextOverlays() {
+    for (int i = 0; i < widget.milestones.length; i++) {
+      final milestone = widget.milestones[i];
+      // Use TextOverlayService to generate default text
+      final defaultText = TextOverlayService.generateShortSummary(
+        milestone,
+        dayNumber: i + 1,
+      );
+      _textOverlays[i] = defaultText;
+    }
   }
 
   // ======================
   // PERSISTENT VIDEO CACHE
   // ======================
 
-  /// Generate a unique cache key based on challenge ID and milestone count
   String _getCacheKey() {
     return 'video_cache_${widget.challengeId}_${widget.milestones.length}';
   }
 
-  /// Load cached video URL from SharedPreferences
   Future<void> _loadCachedVideoUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -86,7 +106,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     }
   }
 
-  /// Save video URL to SharedPreferences
   Future<void> _saveCachedVideoUrl(String url) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -97,7 +116,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     }
   }
 
-  /// Clear cached video URL from SharedPreferences
   Future<void> _clearCachedVideoUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -138,7 +156,450 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   void _stopSlideshow() => setState(() => _isSlideshow = false);
 
   // ======================
-  // EXPORT TO VIDEO (WITH VIDEO CACHING)
+  // ⭐ NEW: TEXT OVERLAY CUSTOMIZATION
+  // ======================
+
+  Future<void> _showTextCustomizationDialog() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.text_fields, color: Colors.white, size: 24),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Customize Text Overlays',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Expanded(
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    // Animation Style
+                    _buildSectionTitle('Text Animation'),
+                    _buildAnimationSelector(),
+                    const SizedBox(height: 24),
+
+                    // Text Position
+                    _buildSectionTitle('Text Position'),
+                    _buildPositionSelector(),
+                    const SizedBox(height: 24),
+
+                    // Text Color
+                    _buildSectionTitle('Text Color'),
+                    _buildColorSelector(),
+                    const SizedBox(height: 24),
+
+                    // Font Size
+                    _buildSectionTitle('Font Size'),
+                    _buildFontSizeSlider(),
+                    const SizedBox(height: 24),
+
+                    // Individual Text Overlays
+                    _buildSectionTitle('Edit Text for Each Milestone'),
+                    const SizedBox(height: 12),
+                    ...List.generate(widget.milestones.length, (index) {
+                      return _buildTextInputCard(index);
+                    }),
+                  ],
+                ),
+              ),
+
+              // Action Buttons
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF202020),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _initializeDefaultTextOverlays();
+                          Navigator.pop(context);
+                          setState(() {});
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Reset to Default',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _exportMilestones();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Generate Video',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildAnimationSelector() {
+    final animations = [
+      {'value': 'fadein', 'label': 'Fade In', 'icon': Icons.light_mode},
+      {'value': 'fadeout', 'label': 'Fade Out', 'icon': Icons.dark_mode},
+      {'value': 'fadeinout', 'label': 'Fade In/Out', 'icon': Icons.animation},
+      {'value': 'typewriter', 'label': 'Typewriter', 'icon': Icons.keyboard},
+      {'value': 'slidein', 'label': 'Slide In', 'icon': Icons.arrow_upward},
+      {'value': 'slideout', 'label': 'Slide Out', 'icon': Icons.arrow_downward},
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: animations.map((anim) {
+        final isSelected = _textAnimation == anim['value'];
+        return GestureDetector(
+          onTap: () {
+            setState(() => _textAnimation = anim['value'] as String);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.secondary : const Color(0xFF2A2A2A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? AppColors.secondary : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  anim['icon'] as IconData,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  anim['label'] as String,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.white70,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPositionSelector() {
+    final positions = [
+      {'value': 'top', 'label': 'Top', 'icon': Icons.vertical_align_top},
+      {'value': 'center', 'label': 'Center', 'icon': Icons.vertical_align_center},
+      {'value': 'bottom', 'label': 'Bottom', 'icon': Icons.vertical_align_bottom},
+    ];
+
+    return Row(
+      children: positions.map((pos) {
+        final isSelected = _textPosition == pos['value'];
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _textPosition = pos['value'] as String);
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.secondary : const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? AppColors.secondary : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    pos['icon'] as IconData,
+                    color: isSelected ? Colors.white : Colors.white70,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    pos['label'] as String,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildColorSelector() {
+    final colors = [
+      {'value': 'white', 'color': Colors.white},
+      {'value': 'black', 'color': Colors.black},
+      {'value': 'red', 'color': Colors.red},
+      {'value': 'blue', 'color': Colors.blue},
+      {'value': 'green', 'color': Colors.green},
+      {'value': 'yellow', 'color': Colors.yellow},
+    ];
+
+    return Wrap(
+      spacing: 12,
+      children: colors.map((colorOption) {
+        final isSelected = _textColor == colorOption['value'];
+        return GestureDetector(
+          onTap: () {
+            setState(() => _textColor = colorOption['value'] as String);
+          },
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: colorOption['color'] as Color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? AppColors.secondary : Colors.white24,
+                width: isSelected ? 3 : 1,
+              ),
+            ),
+            child: isSelected
+                ? const Icon(Icons.check, color: Colors.black)
+                : null,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildFontSizeSlider() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Size',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            Text(
+              '$_fontSize px',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderThemeData(
+            activeTrackColor: AppColors.secondary,
+            inactiveTrackColor: const Color(0xFF2A2A2A),
+            thumbColor: AppColors.secondary,
+            overlayColor: AppColors.secondary.withOpacity(0.3),
+          ),
+          child: Slider(
+            value: _fontSize.toDouble(),
+            min: 24,
+            max: 72,
+            divisions: 24,
+            onChanged: (value) {
+              setState(() => _fontSize = value.toInt());
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextInputCard(int index) {
+    final milestone = widget.milestones[index];
+    final controller = TextEditingController(text: _textOverlays[index] ?? '');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image preview and date
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: _buildImageWidget(milestone),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Milestone ${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('MMM dd, yyyy').format(milestone.date),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.auto_awesome,
+                    color: AppColors.secondary,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    // Auto-generate text
+                    final autoText = TextOverlayService.generateShortSummary(
+                      milestone,
+                      dayNumber: index + 1,
+                    );
+                    controller.text = autoText;
+                    setState(() => _textOverlays[index] = autoText);
+                  },
+                  tooltip: 'Auto-generate',
+                ),
+              ],
+            ),
+          ),
+          // Text input
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 2,
+              maxLength: 100,
+              decoration: InputDecoration(
+                hintText: 'Enter text overlay...',
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                filled: true,
+                fillColor: const Color(0xFF1A1A1A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                counterStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+              ),
+              onChanged: (value) {
+                setState(() => _textOverlays[index] = value);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ======================
+  // EXPORT TO VIDEO (WITH TEXT OVERLAYS)
   // ======================
   Future<void> _exportMilestones() async {
     if (widget.milestones.isEmpty) {
@@ -150,7 +611,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
       _showSnackBar('Opening existing video...');
 
-      // Navigate directly to video preview
+      // Navigate directly to video preview with current text settings
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -159,6 +620,11 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             videoTitle: 'Milestone Journey',
             milestones: widget.milestones,
             slideshowInterval: _slideshowInterval,
+            textOverlays: _textOverlays.values.toList(),
+            textAnimation: _textAnimation,
+            textPosition: _textPosition,
+            textColor: _textColor,
+            fontSize: _fontSize,
           ),
         ),
       );
@@ -172,15 +638,19 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
       final List<String> notes = [];
+      final List<String> textOverlays = [];
 
       // Show loading dialog
       if (!mounted) return;
       _showLoadingDialog('Preparing images...');
 
-      // Prepare files
+      // Prepare files and text overlays
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
         notes.add(m.notes ?? '');
+
+        // Add text overlay for this image
+        textOverlays.add(_textOverlays[i] ?? '');
 
         // Priority 1: Use local imagePath if exists
         if (m.imagePath != null) {
@@ -222,19 +692,24 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       // Update loading message
       if (mounted) {
         Navigator.pop(context);
-        _showLoadingDialog('Uploading ${filesToUpload.length} images...');
+        _showLoadingDialog('Uploading ${filesToUpload.length} images with text overlays...');
       }
 
-      // Call API to generate video WITHOUT MUSIC
+      // ⭐ Call API with text overlay parameters
       final response = await ApiService.generateVideo(
         images: filesToUpload,
         notes: notes,
+        textOverlays: textOverlays, // NEW
+        textAnimation: _textAnimation, // NEW
+        textPosition: _textPosition, // NEW
+        textColor: _textColor, // NEW
+        fontSize: _fontSize, // NEW
         musicFile: null,
         musicUrl: null,
         durationPerImage: _slideshowInterval.inSeconds,
       );
 
-      // Extract render ID correctly from Shotstack response
+      // Extract render ID correctly from response
       String? renderId;
       if (response['success'] == true) {
         final data = response['data'];
@@ -298,7 +773,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       if (mounted) Navigator.pop(context);
 
       if (resultUrl != null && resultUrl.isNotEmpty) {
-        // CACHE THE VIDEO URL (in memory and persistent storage)
+        // CACHE THE VIDEO URL
         setState(() {
           _cachedVideoUrl = resultUrl;
           _isExporting = false;
@@ -359,14 +834,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           title: const Text('Creating Video'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              const FitCheckLoader(),
-              const SizedBox(height: 20),
-              const Text(
-                'Please wait while we create your milestone video...',
+            children: const [
+              FitCheckLoader(),
+              SizedBox(height: 20),
+              Text(
+                'Please wait while we create your milestone video with text overlays...',
                 textAlign: TextAlign.center,
               ),
-
             ],
           ),
         ),
@@ -454,7 +928,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Your milestone journey is ready',
+                      'Your milestone journey with text overlays is ready',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 15,
@@ -477,7 +951,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     _buildFeatureItem(
                       icon: Icons.video_library_rounded,
                       title: 'Preview & Edit',
-                      description: 'Review your video and customize it with background music',
+                      description: 'Review your video and customize text animations',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFeatureItem(
+                      icon: Icons.text_fields,
+                      title: 'Text Overlays',
+                      description: 'Your custom text with ${_textAnimation} animation',
                     ),
                     const SizedBox(height: 16),
                     _buildFeatureItem(
@@ -523,6 +1003,11 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                                     videoTitle: 'Milestone Journey',
                                     milestones: widget.milestones,
                                     slideshowInterval: _slideshowInterval,
+                                    textOverlays: _textOverlays.values.toList(),
+                                    textAnimation: _textAnimation,
+                                    textPosition: _textPosition,
+                                    textColor: _textColor,
+                                    fontSize: _fontSize,
                                   ),
                                 ),
                               );
@@ -566,7 +1051,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     );
   }
 
-// Helper widget for feature items
   Widget _buildFeatureItem({
     required IconData icon,
     required String title,
@@ -791,6 +1275,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               ),
               const PopupMenuDivider(),
               PopupMenuItem(
+                value: 'customize_text',
+                child: Row(
+                  children: [
+                    Icon(Icons.text_fields, size: 20, color: AppColors.secondary),
+                    const SizedBox(width: 12),
+                    Text('Customize Text', style: TextStyle(color: AppColors.secondary)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
                 value: 'export',
                 enabled: !_isExporting,
                 child: Row(
@@ -915,24 +1410,34 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                           ),
                         ),
                       ),
-                    if (milestone.notes != null && milestone.notes!.isNotEmpty)
+                    // ⭐ PREVIEW TEXT OVERLAY
+                    if (_textOverlays[index] != null && _textOverlays[index]!.isNotEmpty)
                       Positioned(
-                        bottom: 110,
+                        bottom: _textPosition == 'bottom' ? 110 : null,
+                        top: _textPosition == 'top' ? 110 : null,
                         left: 20,
                         right: 20,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            milestone.notes!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            textAlign: TextAlign.center,
+                            child: Text(
+                              _textOverlays[index]!,
+                              style: TextStyle(
+                                color: _textColor == 'white' ? Colors.white :
+                                _textColor == 'black' ? Colors.black :
+                                _textColor == 'red' ? Colors.red :
+                                _textColor == 'blue' ? Colors.blue :
+                                _textColor == 'green' ? Colors.green :
+                                Colors.yellow,
+                                fontSize: (_fontSize / 3).toDouble(), // Scale down for preview
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
                       ),
@@ -988,8 +1493,11 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       case 'delete_image':
         _deleteCurrentImage();
         break;
+      case 'customize_text':
+        _showTextCustomizationDialog();
+        break;
       case 'export':
-        _exportMilestones();
+        _showTextCustomizationDialog(); // Show text customization before export
         break;
     }
   }
@@ -1061,7 +1569,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     Navigator.pop(context);
 
     try {
-      // ⭐ ADD PERMISSION HANDLING
+      // Permission handling
       if (source == ImageSource.camera) {
         var status = await Permission.camera.request();
         if (!status.isGranted) {
@@ -1072,17 +1580,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           return;
         }
       } else if (source == ImageSource.gallery) {
-        // Request photo permission for gallery
         PermissionStatus status;
 
         if (Platform.isAndroid) {
           final androidInfo = await DeviceInfoPlugin().androidInfo;
 
           if (androidInfo.version.sdkInt >= 33) {
-            // Android 13+ - Use photos permission
             status = await Permission.photos.request();
           } else {
-            // Android 12 and below - Use storage permission
             status = await Permission.storage.request();
           }
 
@@ -1096,7 +1601,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         }
       }
 
-      // Now pick the image after permission is granted
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
@@ -1116,10 +1620,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         if (success) {
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
-            // CLEAR CACHED VIDEO since images changed
             _cachedVideoUrl = null;
           });
-          // Clear persistent cache
           await _clearCachedVideoUrl();
 
           widget.onMilestonesChanged?.call();
@@ -1178,7 +1680,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
-          // CLEAR CACHED VIDEO since images changed
           _cachedVideoUrl = null;
 
           if (widget.milestones.isEmpty) {
@@ -1191,7 +1692,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 curve: Curves.easeInOut);
           }
         });
-        // Clear persistent cache
         await _clearCachedVideoUrl();
 
         widget.onMilestonesChanged?.call();

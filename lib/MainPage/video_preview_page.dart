@@ -11,10 +11,12 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/api_service.dart';
+import 'package:capstone_project/services/text_overlay_service.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:intl/intl.dart';
 
 // ============================================================================
 // MAIN VIDEO EDITOR PAGE
@@ -26,12 +28,24 @@ class VideoEditorPage extends StatefulWidget {
   final List<Milestone>? milestones;
   final Duration? slideshowInterval;
 
+  // ⭐ NEW: Text overlay parameters
+  final List<String>? textOverlays;
+  final String? textAnimation;
+  final String? textPosition;
+  final String? textColor;
+  final int? fontSize;
+
   const VideoEditorPage({
     required this.videoUrl,
     this.videoTitle,
     this.thumbnailUrl,
     this.milestones,
     this.slideshowInterval,
+    this.textOverlays,
+    this.textAnimation,
+    this.textPosition,
+    this.textColor,
+    this.fontSize,
     super.key,
   });
 
@@ -55,6 +69,13 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   String? _selectedMusicUrl;
   late String _currentVideoUrl;
 
+  // ⭐ NEW: Text overlay state
+  Map<int, String> _textOverlays = {};
+  String _textAnimation = 'fadein';
+  String _textPosition = 'bottom';
+  String _textColor = 'white';
+  int _fontSize = 48;
+
   // Active tool
   String? _activeTool;
 
@@ -67,6 +88,18 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   void initState() {
     super.initState();
     _currentVideoUrl = widget.videoUrl;
+
+    // ⭐ Initialize text overlay settings from widget
+    if (widget.textOverlays != null) {
+      for (int i = 0; i < widget.textOverlays!.length; i++) {
+        _textOverlays[i] = widget.textOverlays![i];
+      }
+    }
+    _textAnimation = widget.textAnimation ?? 'fadein';
+    _textPosition = widget.textPosition ?? 'bottom';
+    _textColor = widget.textColor ?? 'white';
+    _fontSize = widget.fontSize ?? 48;
+
     _initializeVideo();
   }
 
@@ -79,11 +112,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final androidInfo = await DeviceInfoPlugin().androidInfo;
 
       if (androidInfo.version.sdkInt >= 33) {
-        // Android 13+ - request audio permission
         final status = await Permission.audio.request();
 
         if (status.isDenied) {
-          // Show dialog to explain why permission is needed
           final shouldOpenSettings = await _showPermissionExplanationDialog(
             'Audio Access Required',
             'This app needs access to your audio files to add music to your video.',
@@ -101,7 +132,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
         return status.isGranted;
       } else {
-        // Android 12 and below - request storage permission
         final status = await Permission.storage.request();
 
         if (status.isDenied) {
@@ -123,7 +153,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         return status.isGranted;
       }
     }
-    return true; // iOS doesn't need this permission for file picker
+    return true;
   }
 
   Future<bool> _showPermissionExplanationDialog(String title, String message) async {
@@ -222,6 +252,194 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   }
 
   // ============================================================================
+  // ⭐ NEW: TEXT OVERLAY EDITING
+  // ============================================================================
+  Future<void> _editTextOverlays() async {
+    setState(() => _activeTool = 'text');
+
+    if (widget.milestones == null || widget.milestones!.isEmpty) {
+      _showSnackBar('Cannot edit text: No milestone data available');
+      return;
+    }
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _TextEditBottomSheet(
+        milestones: widget.milestones!,
+        textOverlays: _textOverlays,
+        textAnimation: _textAnimation,
+        textPosition: _textPosition,
+        textColor: _textColor,
+        fontSize: _fontSize,
+        onUpdate: (overlays, animation, position, color, size) {
+          setState(() {
+            _textOverlays = overlays;
+            _textAnimation = animation;
+            _textPosition = position;
+            _textColor = color;
+            _fontSize = size;
+          });
+        },
+      ),
+    );
+
+    if (result == true) {
+      // User wants to re-render with new text settings
+      await _reRenderVideoWithNewText();
+    }
+  }
+
+  Future<void> _reRenderVideoWithNewText() async {
+    if (widget.milestones == null || widget.milestones!.isEmpty) {
+      _showSnackBar('Cannot re-render: No milestone data available');
+      return;
+    }
+
+    setState(() => _isReRendering = true);
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final List<File> filesToUpload = [];
+      final List<String> notes = [];
+      final List<String> textOverlays = [];
+
+      _showLoadingDialog('Preparing to re-render video with new text...');
+
+      for (int i = 0; i < widget.milestones!.length; i++) {
+        final m = widget.milestones![i];
+        notes.add(m.notes ?? '');
+        textOverlays.add(_textOverlays[i] ?? '');
+
+        if (m.imagePath != null) {
+          final f = File(m.imagePath!);
+          if (await f.exists()) {
+            filesToUpload.add(f);
+            continue;
+          }
+        }
+
+        if (m.imageUrl != null) {
+          try {
+            final resp = await http
+                .get(Uri.parse(m.imageUrl!), headers: {'Accept': 'image/*'})
+                .timeout(const Duration(seconds: 15));
+
+            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+              final ext = _getImageExtensionFromUrl(m.imageUrl!) ?? '.jpg';
+              final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
+              await saved.writeAsBytes(resp.bodyBytes);
+              filesToUpload.add(saved);
+            }
+          } catch (e) {
+            // Error downloading image
+          }
+        }
+      }
+
+      if (filesToUpload.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        _showSnackBar('No image files available');
+        setState(() => _isReRendering = false);
+        return;
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        _showLoadingDialog('Re-rendering video with updated text...');
+      }
+
+      // ⭐ Call API with updated text settings
+      final response = await ApiService.generateVideo(
+        images: filesToUpload,
+        notes: notes,
+        textOverlays: textOverlays,
+        textAnimation: _textAnimation,
+        textPosition: _textPosition,
+        textColor: _textColor,
+        fontSize: _fontSize,
+        musicFile: _selectedMusicFile,
+        musicUrl: _selectedMusicUrl,
+        durationPerImage: widget.slideshowInterval?.inSeconds ?? 2,
+      );
+
+      String? renderId;
+      if (response['success'] == true) {
+        final data = response['data'];
+        if (data is Map) {
+          final responseObj = data['response'];
+          if (responseObj is Map && responseObj['id'] != null) {
+            renderId = responseObj['id'].toString();
+          }
+        }
+      }
+
+      if (renderId == null || renderId.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        throw Exception('Could not get render ID from response');
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        _showRenderProgressDialog(renderId);
+      }
+
+      String? resultUrl;
+      int maxAttempts = 90;
+      int attempt = 0;
+
+      while (attempt < maxAttempts && mounted) {
+        await Future.delayed(const Duration(seconds: 3));
+        attempt++;
+
+        try {
+          final statusResp = await ApiService.checkRenderStatus(renderId);
+
+          if (statusResp['success'] == true) {
+            final data = statusResp['data'];
+            if (data is Map) {
+              final responseObj = data['response'];
+              if (responseObj is Map) {
+                final status = responseObj['status']?.toString();
+                final url = responseObj['url']?.toString();
+
+                if (status == 'done' && url != null && url.isNotEmpty) {
+                  resultUrl = url;
+                  break;
+                } else if (status == 'failed') {
+                  final error = responseObj['error'] ?? 'Unknown error';
+                  throw Exception('Render failed: $error');
+                }
+              }
+            }
+          }
+        } catch (e) {
+          if (attempt >= maxAttempts - 1) {
+            throw Exception('Failed to check render status: $e');
+          }
+        }
+      }
+
+      if (mounted) Navigator.pop(context);
+
+      if (resultUrl != null && resultUrl.isNotEmpty) {
+        setState(() => _isReRendering = false);
+        _currentVideoUrl = resultUrl;
+        await _initializeVideoWithUrl(resultUrl, autoPlay: true);
+        _showSnackBar('✅ Video updated successfully!');
+      } else {
+        _showSnackBar('Render timeout. Please try again.');
+      }
+    } catch (e) {
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+      _showSnackBar('Failed to update video: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isReRendering = false);
+    }
+  }
+
+  // ============================================================================
   // MUSIC SELECTION
   // ============================================================================
   Future<void> _addMusicToVideo() async {
@@ -246,12 +464,14 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
       final List<String> notes = [];
+      final List<String> textOverlays = [];
 
       _showLoadingDialog('Preparing to re-render video with music...');
 
       for (int i = 0; i < widget.milestones!.length; i++) {
         final m = widget.milestones![i];
         notes.add(m.notes ?? '');
+        textOverlays.add(_textOverlays[i] ?? '');
 
         if (m.imagePath != null) {
           final f = File(m.imagePath!);
@@ -294,6 +514,11 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final response = await ApiService.generateVideo(
         images: filesToUpload,
         notes: notes,
+        textOverlays: textOverlays,
+        textAnimation: _textAnimation,
+        textPosition: _textPosition,
+        textColor: _textColor,
+        fontSize: _fontSize,
         musicFile: _selectedMusicFile,
         musicUrl: _selectedMusicUrl,
         durationPerImage: widget.slideshowInterval?.inSeconds ?? 2,
@@ -411,7 +636,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                       ? Icon(Icons.check_circle, color: AppColors.secondary)
                       : null,
                   onTap: () async {
-                    // Check permission ONLY when user clicks "Upload Music File"
                     final hasPermission = await _requestAudioPermission();
                     if (!hasPermission) {
                       _showSnackBar('Storage permission is required to select music files');
@@ -501,16 +725,13 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     if (_isDownloading) return;
 
     try {
-      // ⭐ REQUEST STORAGE PERMISSION FIRST
       if (Platform.isAndroid) {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
         PermissionStatus status;
 
         if (androidInfo.version.sdkInt >= 33) {
-          // Android 13+ - Request video permission
           status = await Permission.videos.request();
         } else {
-          // Android 12 and below - Request storage permission
           status = await Permission.storage.request();
         }
 
@@ -621,7 +842,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       });
     } catch (e) {
       _showSnackBar('Share failed: ${e.toString()}');
-      // Fallback: share link
       try {
         await Share.share(
           'Check out my milestone journey video: $_currentVideoUrl',
@@ -750,7 +970,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               const SizedBox(height: 20),
               const Text('Please wait while we process your video...',
                   textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-
             ],
           ),
         ),
@@ -915,7 +1134,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
   Widget _buildGooglePhotosTimeline() {
     final milestones = widget.milestones ?? [];
-    // Reverse the milestones to match video order (3.jpg → 2.jpg → 1.jpg)
     final reversedMilestones = milestones.reversed.toList();
     final videoDuration = _isInitialized ? _videoController.value.duration : Duration.zero;
     final currentPosition = _isInitialized ? _videoController.value.position : Duration.zero;
@@ -930,7 +1148,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       ),
       child: Row(
         children: [
-
           Expanded(
             child: reversedMilestones.isEmpty
                 ? Center(
@@ -954,7 +1171,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
                     return GestureDetector(
                       onTap: () {
-                        // Seek to this milestone's timestamp
                         final seekPosition = slideshowDuration * index;
                         _videoController.seekTo(seekPosition);
                       },
@@ -1002,11 +1218,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                     );
                   },
                 ),
-                // Playhead indicator - SYNCED WITH VIDEO
+                // Playhead indicator
                 if (_isInitialized && videoDuration.inMilliseconds > 0 && reversedMilestones.isNotEmpty)
                   Positioned(
-                    // Calculate actual visual timeline width: (thumbnail width * count) + (gap width * gaps between)
-                    // For 3 items: (80 * 3) + (4 * 2) = 240 + 8 = 248px
                     left: (currentPosition.inMilliseconds / videoDuration.inMilliseconds) *
                         (reversedMilestones.length * 80.0 + (reversedMilestones.length - 1) * 4.0),
                     top: 0,
@@ -1043,8 +1257,19 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       ),
       child: Row(
         children: [
-          // Back button
-
+          // ⭐ Text editing button
+          Container(
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white24, width: 1),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.text_fields, color: Colors.white),
+              onPressed: _editTextOverlays,
+              tooltip: 'Edit Text',
+            ),
+          ),
           const SizedBox(width: 8),
           // Music button
           Container(
@@ -1135,5 +1360,490 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     final minutes = duration.inMinutes.remainder(60);
     final seconds = duration.inSeconds.remainder(60);
     return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+}
+
+// ============================================================================
+// ⭐ TEXT EDIT BOTTOM SHEET
+// ============================================================================
+class _TextEditBottomSheet extends StatefulWidget {
+  final List<Milestone> milestones;
+  final Map<int, String> textOverlays;
+  final String textAnimation;
+  final String textPosition;
+  final String textColor;
+  final int fontSize;
+  final Function(Map<int, String>, String, String, String, int) onUpdate;
+
+  const _TextEditBottomSheet({
+    required this.milestones,
+    required this.textOverlays,
+    required this.textAnimation,
+    required this.textPosition,
+    required this.textColor,
+    required this.fontSize,
+    required this.onUpdate,
+  });
+
+  @override
+  State<_TextEditBottomSheet> createState() => _TextEditBottomSheetState();
+}
+
+class _TextEditBottomSheetState extends State<_TextEditBottomSheet> {
+  late Map<int, String> _textOverlays;
+  late String _textAnimation;
+  late String _textPosition;
+  late String _textColor;
+  late int _fontSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _textOverlays = Map.from(widget.textOverlays);
+    _textAnimation = widget.textAnimation;
+    _textPosition = widget.textPosition;
+    _textColor = widget.textColor;
+    _fontSize = widget.fontSize;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.text_fields, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Edit Text Overlays',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                children: [
+                  // Animation Style
+                  _buildSectionTitle('Text Animation'),
+                  _buildAnimationSelector(),
+                  const SizedBox(height: 24),
+
+                  // Text Position
+                  _buildSectionTitle('Text Position'),
+                  _buildPositionSelector(),
+                  const SizedBox(height: 24),
+
+                  // Text Color
+                  _buildSectionTitle('Text Color'),
+                  _buildColorSelector(),
+                  const SizedBox(height: 24),
+
+                  // Font Size
+                  _buildSectionTitle('Font Size'),
+                  _buildFontSizeSlider(),
+                  const SizedBox(height: 24),
+
+                  // Individual Text Overlays
+                  _buildSectionTitle('Edit Text for Each Milestone'),
+                  const SizedBox(height: 12),
+                  ...List.generate(widget.milestones.length, (index) {
+                    return _buildTextInputCard(index);
+                  }),
+                ],
+              ),
+            ),
+
+            // Action Buttons
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF202020),
+                border: Border(
+                  top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        widget.onUpdate(
+                          _textOverlays,
+                          _textAnimation,
+                          _textPosition,
+                          _textColor,
+                          _fontSize,
+                        );
+                        Navigator.pop(context, true);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Apply Changes',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildAnimationSelector() {
+    final animations = [
+      {'value': 'fadein', 'label': 'Fade In', 'icon': Icons.light_mode},
+      {'value': 'fadeout', 'label': 'Fade Out', 'icon': Icons.dark_mode},
+      {'value': 'fadeinout', 'label': 'Fade In/Out', 'icon': Icons.animation},
+      {'value': 'typewriter', 'label': 'Typewriter', 'icon': Icons.keyboard},
+      {'value': 'slidein', 'label': 'Slide In', 'icon': Icons.arrow_upward},
+      {'value': 'slideout', 'label': 'Slide Out', 'icon': Icons.arrow_downward},
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: animations.map((anim) {
+        final isSelected = _textAnimation == anim['value'];
+        return GestureDetector(
+          onTap: () {
+            setState(() => _textAnimation = anim['value'] as String);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.secondary : const Color(0xFF2A2A2A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? AppColors.secondary : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  anim['icon'] as IconData,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  anim['label'] as String,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.white70,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPositionSelector() {
+    final positions = [
+      {'value': 'top', 'label': 'Top', 'icon': Icons.vertical_align_top},
+      {'value': 'center', 'label': 'Center', 'icon': Icons.vertical_align_center},
+      {'value': 'bottom', 'label': 'Bottom', 'icon': Icons.vertical_align_bottom},
+    ];
+
+    return Row(
+      children: positions.map((pos) {
+        final isSelected = _textPosition == pos['value'];
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _textPosition = pos['value'] as String);
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.secondary : const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? AppColors.secondary : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    pos['icon'] as IconData,
+                    color: isSelected ? Colors.white : Colors.white70,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    pos['label'] as String,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildColorSelector() {
+    final colors = [
+      {'value': 'white', 'color': Colors.white},
+      {'value': 'black', 'color': Colors.black},
+      {'value': 'red', 'color': Colors.red},
+      {'value': 'blue', 'color': Colors.blue},
+      {'value': 'green', 'color': Colors.green},
+      {'value': 'yellow', 'color': Colors.yellow},
+    ];
+
+    return Wrap(
+      spacing: 12,
+      children: colors.map((colorOption) {
+        final isSelected = _textColor == colorOption['value'];
+        return GestureDetector(
+          onTap: () {
+            setState(() => _textColor = colorOption['value'] as String);
+          },
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: colorOption['color'] as Color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? AppColors.secondary : Colors.white24,
+                width: isSelected ? 3 : 1,
+              ),
+            ),
+            child: isSelected
+                ? const Icon(Icons.check, color: Colors.black)
+                : null,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildFontSizeSlider() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Size',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            Text(
+              '$_fontSize px',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderThemeData(
+            activeTrackColor: AppColors.secondary,
+            inactiveTrackColor: const Color(0xFF2A2A2A),
+            thumbColor: AppColors.secondary,
+            overlayColor: AppColors.secondary.withOpacity(0.3),
+          ),
+          child: Slider(
+            value: _fontSize.toDouble(),
+            min: 24,
+            max: 72,
+            divisions: 24,
+            onChanged: (value) {
+              setState(() => _fontSize = value.toInt());
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextInputCard(int index) {
+    final milestone = widget.milestones[index];
+    final controller = TextEditingController(text: _textOverlays[index] ?? '');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image preview and date
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: milestone.imageUrl != null
+                        ? Image.network(milestone.imageUrl!, fit: BoxFit.cover)
+                        : milestone.imagePath != null
+                        ? Image.file(File(milestone.imagePath!), fit: BoxFit.cover)
+                        : Container(color: Colors.grey.shade800),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Milestone ${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('MMM dd, yyyy').format(milestone.date),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.auto_awesome,
+                    color: AppColors.secondary,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    // Auto-generate text
+                    final autoText = TextOverlayService.generateShortSummary(
+                      milestone,
+                      dayNumber: index + 1,
+                    );
+                    controller.text = autoText;
+                    setState(() => _textOverlays[index] = autoText);
+                  },
+                  tooltip: 'Auto-generate',
+                ),
+              ],
+            ),
+          ),
+          // Text input
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 2,
+              maxLength: 100,
+              decoration: InputDecoration(
+                hintText: 'Enter text overlay...',
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                filled: true,
+                fillColor: const Color(0xFF1A1A1A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                counterStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+              ),
+              onChanged: (value) {
+                setState(() => _textOverlays[index] = value);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

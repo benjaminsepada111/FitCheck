@@ -411,9 +411,12 @@ const express = require('express');
 
         /**
          * Wrap text to multiple lines for better readability
+         * Optimized for 720px width video (28 chars per line works well)
          */
-        function wrapText(text, maxCharsPerLine = 35) {
-          const words = text.split(' ');
+        function wrapText(text, maxCharsPerLine = 28) {
+          if (!text || text.trim().length === 0) return '';
+
+          const words = text.trim().split(/\s+/);
           const lines = [];
           let currentLine = '';
 
@@ -441,36 +444,47 @@ const express = require('express');
             lines.push(currentLine);
           }
 
-          return lines.join('\n');
+          // Limit to 3 lines maximum for readability
+          if (lines.length > 3) {
+            lines[2] = lines[2].substring(0, maxCharsPerLine - 3) + '...';
+            return lines.slice(0, 3).join('\\n');
+          }
+
+          return lines.join('\\n');
         }
 
         /**
          * Build text filter for FFmpeg drawtext
          */
         function buildTextFilter(text, startTime, duration, animation, position, color, fontSize, fontFile) {
-          // Wrap text first to handle long lines
-          const wrappedText = wrapText(text, 35);
+          if (!text || text.trim().length === 0) return '';
 
-          // Escape text for FFmpeg
-          const escapedText = wrappedText
-            .replace(/\\/g, '\\\\\\\\')
-            .replace(/'/g, "'\\\\\\''")
-            .replace(/:/g, '\\:')
-            .replace(/\n/g, '\\n');
+          // Wrap text first to handle long lines (using default 28 chars)
+          const wrappedText = wrapText(text);
+          if (!wrappedText) return '';
 
-          // Calculate position
+          // Escape text for FFmpeg - this is critical!
+          // The text already has \\n from wrapText, so we need to handle it carefully
+          let escapedText = wrappedText
+            .replace(/\\/g, '\\\\')     // Escape backslashes first
+            .replace(/'/g, "\\'")        // Escape single quotes
+            .replace(/:/g, '\\:')        // Escape colons
+            .replace(/\[/g, '\\[')       // Escape brackets
+            .replace(/\]/g, '\\]');      // Escape brackets
+
+          // Calculate position with better padding
           let x = '(w-text_w)/2'; // Center horizontally
           let y;
           switch (position) {
             case 'top':
-              y = '50';
+              y = '60';
               break;
             case 'center':
               y = '(h-text_h)/2';
               break;
             case 'bottom':
             default:
-              y = 'h-text_h-80'; // More space from bottom for wrapped text
+              y = 'h-text_h-100'; // More space from bottom for wrapped text
               break;
           }
 
@@ -480,12 +494,12 @@ const express = require('express');
             `fontcolor=${color}`,
             `x=${x}`,
             `y=${y}`,
-            `borderw=2`,
-            `bordercolor=black@0.8`,
+            `borderw=3`,
+            `bordercolor=black@0.9`,
             `box=1`,
-            `boxcolor=black@0.5`,
-            `boxborderw=15`,
-            `line_spacing=5`
+            `boxcolor=black@0.6`,
+            `boxborderw=20`,
+            `line_spacing=8`
           ];
 
           // Add font file if provided
@@ -496,61 +510,62 @@ const express = require('express');
           // Add animation effects
           switch (animation) {
             case 'fadein':
-              // Fade in over 0.5 seconds
-              drawtextOptions.push(`alpha='if(lt(t,0.5),t/0.5,1)'`);
+              // Fade in over 0.6 seconds
+              drawtextOptions.push(`alpha='if(lt(t,0.6),t/0.6,1)'`);
               drawtextOptions.unshift(`text='${escapedText}'`);
               break;
 
             case 'fadeout':
-              // Fade out in last 0.5 seconds
-              drawtextOptions.push(`alpha='if(gt(t,${duration - 0.5}),(${duration}-t)/0.5,1)'`);
+              // Fade out in last 0.6 seconds
+              drawtextOptions.push(`alpha='if(gt(t,${duration - 0.6}),(${duration}-t)/0.6,1)'`);
               drawtextOptions.unshift(`text='${escapedText}'`);
               break;
 
             case 'fadeinout':
-              // Fade in first 0.5s, fade out last 0.5s
-              drawtextOptions.push(`alpha='if(lt(t,0.5),t/0.5,if(gt(t,${duration - 0.5}),(${duration}-t)/0.5,1))'`);
+              // Fade in first 0.6s, fade out last 0.6s
+              drawtextOptions.push(`alpha='if(lt(t,0.6),t/0.6,if(gt(t,${duration - 0.6}),(${duration}-t)/0.6,1))'`);
               drawtextOptions.unshift(`text='${escapedText}'`);
               break;
 
             case 'typewriter':
-              // Typewriter effect using enable parameter
-              // Show progressively more characters over time
-              const totalChars = wrappedText.length;
-              const typewriterDuration = Math.min(2.0, duration * 0.7); // Use 70% of duration for typing
+              // True typewriter effect using box expansion
+              const typewriterDuration = Math.min(1.8, duration * 0.75);
 
-              // Calculate characters to show based on time
-              const charsPerSecond = totalChars / typewriterDuration;
+              // Use box width animation to create typewriter reveal
+              // The box expands from 0 to full width over time
+              const boxWidth = `if(lt(t,${typewriterDuration}),text_w*t/${typewriterDuration},text_w)`;
 
-              // Use textfile approach with temporary writes or use simpler reveal
-              // For simplicity, we'll use a sliding reveal with alpha
-              drawtextOptions.push(`alpha='if(lt(t,${typewriterDuration}),t/${typewriterDuration},1)'`);
+              // Override box settings for typewriter effect
+              drawtextOptions = drawtextOptions.filter(opt =>
+                !opt.startsWith('box=') &&
+                !opt.startsWith('boxborderw=') &&
+                !opt.startsWith('boxcolor=')
+              );
 
-              // Add expansion parameter for dynamic text
-              drawtextOptions.push(`expansion=normal`);
+              drawtextOptions.push(`box=1`);
+              drawtextOptions.push(`boxw=${boxWidth}`);
+              drawtextOptions.push(`boxcolor=black@0.6`);
+              drawtextOptions.push(`boxborderw=20`);
 
-              // Create animated text reveal by controlling width
-              const textReveal = `if(lt(t,${typewriterDuration}),${charsPerSecond}*t,${totalChars})`;
+              // Add fade in during typewriter
+              drawtextOptions.push(`alpha='if(lt(t,0.3),t/0.3,1)'`);
+
               drawtextOptions.unshift(`text='${escapedText}'`);
-
-              // Alternative: use a sliding box reveal (clip the text progressively)
-              // This creates a more authentic typewriter effect
-              const revealWidth = `if(lt(t,${typewriterDuration}),w*t/${typewriterDuration},w)`;
               break;
 
             case 'slidein':
-              // Slide in from bottom over 0.7 seconds
-              const slideInY = position === 'bottom' ? 'h' : (position === 'top' ? '-text_h' : 'h/2');
-              drawtextOptions[3] = `y='if(lt(t,0.7),${slideInY}-(${slideInY}-(${y}))*t/0.7,${y})'`;
-              drawtextOptions.push(`alpha='if(lt(t,0.7),t/0.7,1)'`);
+              // Slide in from bottom over 0.8 seconds
+              const slideInY = position === 'bottom' ? 'h' : (position === 'top' ? '-text_h' : 'h');
+              drawtextOptions[3] = `y='if(lt(t,0.8),${slideInY}-(${slideInY}-(${y}))*t/0.8,${y})'`;
+              drawtextOptions.push(`alpha='if(lt(t,0.8),t/0.8,1)'`);
               drawtextOptions.unshift(`text='${escapedText}'`);
               break;
 
             case 'slideout':
-              // Slide out to top in last 0.7 seconds
-              const slideOutY = position === 'bottom' ? 'h' : (position === 'top' ? '-text_h' : 'h/2');
-              drawtextOptions[3] = `y='if(gt(t,${duration - 0.7}),${y}-(${y}-(${slideOutY}))*(t-(${duration}-0.7))/0.7,${y})'`;
-              drawtextOptions.push(`alpha='if(gt(t,${duration - 0.7}),(${duration}-t)/0.7,1)'`);
+              // Slide out to top in last 0.8 seconds
+              const slideOutY = position === 'bottom' ? 'h' : (position === 'top' ? '-text_h' : 'h');
+              drawtextOptions[3] = `y='if(gt(t,${duration - 0.8}),${y}+(${slideOutY}-(${y}))*(t-(${duration}-0.8))/0.8,${y})'`;
+              drawtextOptions.push(`alpha='if(gt(t,${duration - 0.8}),(${duration}-t)/0.8,1)'`);
               drawtextOptions.unshift(`text='${escapedText}'`);
               break;
 

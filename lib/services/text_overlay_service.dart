@@ -38,7 +38,7 @@ class TextOverlayService {
       parts.add('🔥 $calories cal');
     }
 
-    return parts.join('\n');
+    return parts.join(' ');
   }
 
   /// Generate food summary text for a day
@@ -61,7 +61,7 @@ class TextOverlayService {
       parts.add('Snack: ${meals['snack']!.join(", ")}');
     }
 
-    return parts.join(' | ');
+    return parts.join(' • ');
   }
 
   /// Generate workout summary text
@@ -72,11 +72,22 @@ class TextOverlayService {
     final parts = workouts.map((workout) {
       final name = workout['name'] ?? 'Workout';
       final duration = workout['duration'];
+      final sets = workout['sets'];
+      final reps = workout['reps'];
+
+      final details = <String>[name];
 
       if (duration != null) {
-        return '$name ($duration min)';
+        details.add('${duration} min');
       }
-      return name;
+
+      if (sets != null && reps != null) {
+        details.add('${sets}×${reps}');
+      } else if (sets != null) {
+        details.add('${sets} sets');
+      }
+
+      return details.join(' ');
     }).toList();
 
     return parts.join(' • ');
@@ -109,31 +120,115 @@ class TextOverlayService {
     return lines.join('\n');
   }
 
-  /// Generate simple summary text (short version for video)
-  /// Example: "Day 5 - Lost 2kg 🎉"
+  /// Generate comprehensive summary text for video (story-like version)
+  /// Includes full notes, workout details, and achievements
+  /// Example: "Day 5: Completed 30 min cardio and strength training. Feeling stronger each day! 💪"
   static String generateShortSummary(Milestone milestone, {
     int? dayNumber,
     String? achievement,
+    String? workoutDetails,
+    String? foodDetails,
+    int? caloriesBurned,
   }) {
     final parts = <String>[];
 
+    // Add day number if provided
     if (dayNumber != null) {
       parts.add('Day $dayNumber');
     }
 
+    // Add full notes (no truncation for story-like display)
     if (milestone.notes != null && milestone.notes!.isNotEmpty) {
-      // Truncate to first 50 characters
-      final note = milestone.notes!.length > 50
-          ? '${milestone.notes!.substring(0, 47)}...'
-          : milestone.notes!;
-      parts.add(note);
+      parts.add(milestone.notes!);
     }
 
+    // Add workout details if provided
+    if (workoutDetails != null && workoutDetails.isNotEmpty) {
+      parts.add('💪 $workoutDetails');
+    }
+
+    // Add food details if provided
+    if (foodDetails != null && foodDetails.isNotEmpty) {
+      parts.add('🍽️ $foodDetails');
+    }
+
+    // Add calories burned if provided
+    if (caloriesBurned != null && caloriesBurned > 0) {
+      parts.add('🔥 Burned $caloriesBurned calories');
+    }
+
+    // Add achievement if provided
     if (achievement != null && achievement.isNotEmpty) {
-      parts.add(achievement);
+      parts.add('🎉 $achievement');
     }
 
-    return parts.join(' - ');
+    // Join with spaces for story-like format (server will handle wrapping)
+    return parts.join(' ');
+  }
+
+  /// Generate comprehensive story-like text overlay
+  /// This is the main method for video text generation with full details
+  static String generateComprehensiveOverlay(Milestone milestone, {
+    int? dayNumber,
+    Map<String, dynamic>? workoutData,
+    Map<String, dynamic>? foodData,
+    String? achievement,
+  }) {
+    final parts = <String>[];
+
+    // Add day number with date
+    if (dayNumber != null) {
+      final dateStr = DateFormat('MMM dd').format(milestone.date);
+      parts.add('Day $dayNumber • $dateStr');
+    }
+
+    // Add milestone notes (full text)
+    if (milestone.notes != null && milestone.notes!.isNotEmpty) {
+      parts.add(milestone.notes!);
+    }
+
+    // Add workout information
+    if (workoutData != null) {
+      final workoutParts = <String>[];
+
+      if (workoutData['name'] != null) {
+        workoutParts.add(workoutData['name']);
+      }
+
+      if (workoutData['duration'] != null) {
+        workoutParts.add('${workoutData['duration']} min');
+      }
+
+      if (workoutData['sets'] != null) {
+        workoutParts.add('${workoutData['sets']} sets');
+      }
+
+      if (workoutData['reps'] != null) {
+        workoutParts.add('${workoutData['reps']} reps');
+      }
+
+      if (workoutParts.isNotEmpty) {
+        parts.add('💪 ${workoutParts.join(' • ')}');
+      }
+    }
+
+    // Add food information
+    if (foodData != null) {
+      if (foodData['calories'] != null) {
+        parts.add('🍽️ ${foodData['calories']} cal consumed');
+      }
+
+      if (foodData['protein'] != null) {
+        parts.add('Protein: ${foodData['protein']}g');
+      }
+    }
+
+    // Add achievement
+    if (achievement != null && achievement.isNotEmpty) {
+      parts.add('🎉 $achievement');
+    }
+
+    return parts.join(' ');
   }
 
   /// Generate motivational text based on progress
@@ -156,7 +251,7 @@ class TextOverlayService {
       parts.add('$workoutCount workouts completed ✅');
     }
 
-    return parts.join('\n');
+    return parts.join(' ');
   }
 
   /// Create template text for manual editing
@@ -169,19 +264,18 @@ class TextOverlayService {
   /// Validate text for overlay (check length, special characters)
   static bool isValidOverlayText(String text) {
     if (text.isEmpty) return true; // Empty text is valid (no overlay)
-    if (text.length > 200) return false; // Too long
+    if (text.length > 500) return false; // Increased limit for story-like content
 
-    // Check for problematic characters that might break FFmpeg
-    final problematicChars = RegExp(r'[^\w\s\n.,!?@#$%^&*()_+\-=\[\]{};:"\\|<>\/~`€£¥₹]');
-    return !text.contains(problematicChars);
+    // Allow more characters including emojis
+    return true; // Let server handle text cleaning
   }
 
   /// Clean text for FFmpeg compatibility
   /// Removes or escapes problematic characters
   static String cleanTextForFFmpeg(String text) {
-    return text
-        .replaceAll(RegExp(r'[^\w\s\n.,!?@#$%^&*()_+\-=\[\]{};:"\\|<>\/~`€£¥₹]'), '')
-        .trim();
+    // Keep most characters, only remove truly problematic ones
+    // The server will handle proper escaping
+    return text.trim();
   }
 
   /// Generate text overlays for multiple milestones
@@ -198,18 +292,20 @@ class TextOverlayService {
 
       // Get daily data if available
       final data = dailyData?[date];
-      final foodSummary = data?['foodSummary'] as String?;
-      final workoutSummary = data?['workoutSummary'] as String?;
-      final calories = data?['calories'] as int?;
+      final workoutData = data?['workout'] as Map<String, dynamic>?;
+      final foodData = data?['food'] as Map<String, dynamic>?;
+      final achievement = data?['achievement'] as String?;
 
-      final text = generateMilestoneText(
+      // Generate comprehensive overlay with all details
+      final text = generateComprehensiveOverlay(
         milestone,
-        foodSummary: foodSummary,
-        workoutSummary: workoutSummary,
-        calories: calories,
+        dayNumber: i + 1,
+        workoutData: workoutData,
+        foodData: foodData,
+        achievement: achievement,
       );
 
-      overlays.add(formatForOverlay(cleanTextForFFmpeg(text)));
+      overlays.add(cleanTextForFFmpeg(text));
     }
 
     return overlays;

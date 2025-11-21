@@ -14,10 +14,10 @@ class MilestoneService {
 
   /// Save a milestone (with optional image upload)
   static Future<bool> saveMilestone(
-    Milestone milestone, {
-    File? imageFile,
-    required String challengeId,
-  }) async {
+      Milestone milestone, {
+        File? imageFile,
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -59,11 +59,11 @@ class MilestoneService {
 
   /// Upload image to Firebase Storage using centralized ImageStorageService
   static Future<String?> _uploadImage(
-    String userId,
-    String challengeId,
-    String milestoneId,
-    File imageFile,
-  ) async {
+      String userId,
+      String challengeId,
+      String milestoneId,
+      File imageFile,
+      ) async {
     try {
       final downloadUrl = await ImageStorageService.uploadMilestoneImage(
         imageFile,
@@ -78,9 +78,9 @@ class MilestoneService {
 
   /// Get milestone for a specific date
   static Future<Milestone?> getMilestoneForDate(
-    DateTime date, {
-    required String challengeId,
-  }) async {
+      DateTime date, {
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -111,10 +111,10 @@ class MilestoneService {
 
   /// Get milestones for a date range
   static Future<List<Milestone>> getMilestonesForDateRange(
-    DateTime startDate,
-    DateTime endDate, {
-    required String challengeId,
-  }) async {
+      DateTime startDate,
+      DateTime endDate, {
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -180,9 +180,9 @@ class MilestoneService {
 
   /// Get a specific milestone by ID
   static Future<Milestone?> getMilestone(
-    String milestoneId, {
-    required String challengeId,
-  }) async {
+      String milestoneId, {
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -209,10 +209,10 @@ class MilestoneService {
 
   /// Update a milestone
   static Future<bool> updateMilestone(
-    Milestone milestone, {
-    File? newImageFile,
-    required String challengeId,
-  }) async {
+      Milestone milestone, {
+        File? newImageFile,
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -258,9 +258,9 @@ class MilestoneService {
 
   /// Delete a milestone and its image
   static Future<bool> deleteMilestone(
-    String milestoneId, {
-    required String challengeId,
-  }) async {
+      String milestoneId, {
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -363,10 +363,10 @@ class MilestoneService {
         .limit(limit)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => Milestone.fromJson(doc.data()))
-              .toList();
-        });
+      return snapshot.docs
+          .map((doc) => Milestone.fromJson(doc.data()))
+          .toList();
+    });
   }
 
   /// Generate a unique milestone ID
@@ -381,9 +381,9 @@ class MilestoneService {
 
   /// Get monthly milestone summary (count of milestones per month)
   static Future<Map<String, int>> getMonthlySummary(
-    int year, {
-    required String challengeId,
-  }) async {
+      int year, {
+        required String challengeId,
+      }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {

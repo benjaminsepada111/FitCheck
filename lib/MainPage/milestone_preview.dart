@@ -15,7 +15,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/api_service.dart';
-import 'package:capstone_project/services/text_overlay_service.dart';
 import 'video_preview_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gal/gal.dart';
@@ -53,39 +52,24 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   // Cache the generated video URL
   String? _cachedVideoUrl;
 
-  // Text overlay settings (using defaults only)
-  Map<int, String> _textOverlays = {}; // Index -> custom text
-
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    _loadCachedVideoUrl();
-    _initializeDefaultTextOverlays();
-  }
-
-  // Initialize default text overlays from milestone notes
-  void _initializeDefaultTextOverlays() {
-    for (int i = 0; i < widget.milestones.length; i++) {
-      final milestone = widget.milestones[i];
-      // Use TextOverlayService to generate default text
-      final defaultText = TextOverlayService.generateShortSummary(
-        milestone,
-        dayNumber: i + 1,
-      );
-      _textOverlays[i] = defaultText;
-    }
+    _loadCachedVideoUrl(); // Load cached URL when page opens
   }
 
   // ======================
   // PERSISTENT VIDEO CACHE
   // ======================
 
+  /// Generate a unique cache key based on challenge ID and milestone count
   String _getCacheKey() {
     return 'video_cache_${widget.challengeId}_${widget.milestones.length}';
   }
 
+  /// Load cached video URL from SharedPreferences
   Future<void> _loadCachedVideoUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -102,6 +86,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     }
   }
 
+  /// Save video URL to SharedPreferences
   Future<void> _saveCachedVideoUrl(String url) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -112,6 +97,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     }
   }
 
+  /// Clear cached video URL from SharedPreferences
   Future<void> _clearCachedVideoUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -152,7 +138,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   void _stopSlideshow() => setState(() => _isSlideshow = false);
 
   // ======================
-  // EXPORT TO VIDEO (WITH DEFAULT TEXT OVERLAYS)
+  // EXPORT TO VIDEO (WITH VIDEO CACHING)
   // ======================
   Future<void> _exportMilestones() async {
     if (widget.milestones.isEmpty) {
@@ -164,7 +150,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
       _showSnackBar('Opening existing video...');
 
-      // Navigate directly to video preview with default text settings
+      // Navigate directly to video preview
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -173,37 +159,28 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             videoTitle: 'Milestone Journey',
             milestones: widget.milestones,
             slideshowInterval: _slideshowInterval,
-            textOverlays: _textOverlays.values.toList(),
-            textAnimation: 'fadein', // Default
-            textPosition: 'bottom', // Default
-            textColor: 'white', // Default
-            fontSize: 48, // Default
           ),
         ),
       );
       return;
     }
 
-    // If no video exists, create a new one with default settings
+    // If no video exists, create a new one
     setState(() => _isExporting = true);
 
     try {
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
       final List<String> notes = [];
-      final List<String> textOverlays = [];
 
       // Show loading dialog
       if (!mounted) return;
       _showLoadingDialog('Preparing images...');
 
-      // Prepare files and text overlays
+      // Prepare files
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
         notes.add(m.notes ?? '');
-
-        // Add default text overlay for this image
-        textOverlays.add(_textOverlays[i] ?? '');
 
         // Priority 1: Use local imagePath if exists
         if (m.imagePath != null) {
@@ -245,24 +222,19 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       // Update loading message
       if (mounted) {
         Navigator.pop(context);
-        _showLoadingDialog('Uploading ${filesToUpload.length} images with default text overlays...');
+        _showLoadingDialog('Uploading ${filesToUpload.length} images...');
       }
 
-      // Call API with default text overlay parameters
+      // Call API to generate video WITHOUT MUSIC
       final response = await ApiService.generateVideo(
         images: filesToUpload,
         notes: notes,
-        textOverlays: textOverlays,
-        textAnimation: 'fadein', // Default
-        textPosition: 'bottom', // Default
-        textColor: 'white', // Default
-        fontSize: 48, // Default
         musicFile: null,
         musicUrl: null,
         durationPerImage: _slideshowInterval.inSeconds,
       );
 
-      // Extract render ID correctly from response
+      // Extract render ID correctly from Shotstack response
       String? renderId;
       if (response['success'] == true) {
         final data = response['data'];
@@ -326,7 +298,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       if (mounted) Navigator.pop(context);
 
       if (resultUrl != null && resultUrl.isNotEmpty) {
-        // CACHE THE VIDEO URL
+        // CACHE THE VIDEO URL (in memory and persistent storage)
         setState(() {
           _cachedVideoUrl = resultUrl;
           _isExporting = false;
@@ -387,13 +359,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           title: const Text('Creating Video'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              FitCheckLoader(),
-              SizedBox(height: 20),
-              Text(
+            children: [
+              const FitCheckLoader(),
+              const SizedBox(height: 20),
+              const Text(
                 'Please wait while we create your milestone video...',
                 textAlign: TextAlign.center,
               ),
+
             ],
           ),
         ),
@@ -481,7 +454,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Your milestone journey is ready to watch',
+                      'Your milestone journey is ready',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 15,
@@ -504,19 +477,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     _buildFeatureItem(
                       icon: Icons.video_library_rounded,
                       title: 'Preview & Edit',
-                      description: 'Watch your video and customize text animations',
+                      description: 'Review your video and customize it with background music',
                     ),
                     const SizedBox(height: 16),
                     _buildFeatureItem(
-                      icon: Icons.text_fields,
-                      title: 'Edit Text Overlays',
-                      description: 'Modify text, animations, colors, and positioning',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFeatureItem(
-                      icon: Icons.music_note,
-                      title: 'Add Music',
-                      description: 'Choose background music for your video',
+                      icon: Icons.cloud_done_rounded,
+                      title: 'Auto-Saved',
+                      description: 'Your video is securely stored and accessible anytime',
                     ),
 
                     const SizedBox(height: 28),
@@ -556,11 +523,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                                     videoTitle: 'Milestone Journey',
                                     milestones: widget.milestones,
                                     slideshowInterval: _slideshowInterval,
-                                    textOverlays: _textOverlays.values.toList(),
-                                    textAnimation: 'fadein', // Default
-                                    textPosition: 'bottom', // Default
-                                    textColor: 'white', // Default
-                                    fontSize: 48, // Default
                                   ),
                                 ),
                               );
@@ -581,7 +543,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                                 Icon(Icons.play_circle_filled, size: 20),
                                 SizedBox(width: 8),
                                 Text(
-                                  'Open Video',
+                                  'Preview',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
@@ -604,6 +566,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     );
   }
 
+// Helper widget for feature items
   Widget _buildFeatureItem({
     required IconData icon,
     required String title,
@@ -846,10 +809,10 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     const SizedBox(width: 12),
                     Text(
                       _isExporting
-                          ? 'Creating Video...'
+                          ? 'Exporting...'
                           : _cachedVideoUrl != null
                           ? 'Open Video'
-                          : 'Generate Video',
+                          : 'Export to Video',
                       style: TextStyle(
                         color: _cachedVideoUrl != null ? Colors.green : null,
                         fontWeight: _cachedVideoUrl != null ? FontWeight.w600 : null,
@@ -920,60 +883,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                           : const Icon(Icons.image_not_supported,
                           size: 100, color: Colors.white54),
                     ),
-                    // Display milestone notes at the bottom
-                    if (milestone.notes != null && milestone.notes!.isNotEmpty)
-                      Positioned(
-                        bottom: 110,
-                        left: 20,
-                        right: 20,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.75),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.note_outlined,
-                                    color: AppColors.secondary,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Notes',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                milestone.notes!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  height: 1.4,
-                                ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     if (_isSlideshow)
                       Positioned(
                         top: 20,
@@ -1003,6 +912,27 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                    if (milestone.notes != null && milestone.notes!.isNotEmpty)
+                      Positioned(
+                        bottom: 110,
+                        left: 20,
+                        right: 20,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            milestone.notes!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
@@ -1131,7 +1061,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     Navigator.pop(context);
 
     try {
-      // Permission handling
+      // ⭐ ADD PERMISSION HANDLING
       if (source == ImageSource.camera) {
         var status = await Permission.camera.request();
         if (!status.isGranted) {
@@ -1142,14 +1072,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           return;
         }
       } else if (source == ImageSource.gallery) {
+        // Request photo permission for gallery
         PermissionStatus status;
 
         if (Platform.isAndroid) {
           final androidInfo = await DeviceInfoPlugin().androidInfo;
 
           if (androidInfo.version.sdkInt >= 33) {
+            // Android 13+ - Use photos permission
             status = await Permission.photos.request();
           } else {
+            // Android 12 and below - Use storage permission
             status = await Permission.storage.request();
           }
 
@@ -1163,6 +1096,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         }
       }
 
+      // Now pick the image after permission is granted
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
@@ -1182,8 +1116,10 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         if (success) {
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
+            // CLEAR CACHED VIDEO since images changed
             _cachedVideoUrl = null;
           });
+          // Clear persistent cache
           await _clearCachedVideoUrl();
 
           widget.onMilestonesChanged?.call();
@@ -1242,6 +1178,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
+          // CLEAR CACHED VIDEO since images changed
           _cachedVideoUrl = null;
 
           if (widget.milestones.isEmpty) {
@@ -1254,6 +1191,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 curve: Curves.easeInOut);
           }
         });
+        // Clear persistent cache
         await _clearCachedVideoUrl();
 
         widget.onMilestonesChanged?.call();

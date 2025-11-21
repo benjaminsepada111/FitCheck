@@ -112,7 +112,7 @@ class _MainPageState extends State<MainPage> {
       await UserAchievementService.trackDailyLogin();
 
       final newlyUnlocked =
-          await UserAchievementService.checkAndUnlockAchievements();
+      await UserAchievementService.checkAndUnlockAchievements();
 
       if (newlyUnlocked.isNotEmpty && mounted) {
         for (final id in newlyUnlocked) {
@@ -211,7 +211,7 @@ class _MainPageState extends State<MainPage> {
             _selectedChallenge = _currentChallenge!.title;
           } else {
             _currentChallenge = null;
-            _selectedChallenge = "No Challenge";
+            _selectedChallenge = "No Active Challenge";
           }
         });
       }
@@ -440,7 +440,7 @@ class _MainPageState extends State<MainPage> {
       } else {
         try {
           _currentChallenge = _challengeHistory.firstWhere(
-            (challenge) => challenge.title == challengeTitle,
+                (challenge) => challenge.title == challengeTitle,
           );
         } catch (e) {
           _currentChallenge = null;
@@ -605,58 +605,58 @@ class _MainPageState extends State<MainPage> {
         // HOME PAGE
         _currentChallenge == null
             ? EmptyState(
-                type: EmptyStateType.noChallengeHome,
-                onAction: _showCreateChallenge,
-              )
+          type: EmptyStateType.noChallengeHome,
+          onAction: _showCreateChallenge,
+        )
             : SingleChildScrollView(
-                padding: r.paddingSymmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    MilestoneJourney(
-                      key: _milestoneKey,
-                      currentChallenge: _currentChallenge,
-                      onCreateChallenge: _showCreateChallenge,
-                    ),
-                    ResponsiveGap.vertical(12),
-                    Trackers(
-                      key: _trackersKey,
-                      currentChallenge: _currentChallenge,
-                      onCaloriesChanged: _onCaloriesChanged,
-                    ),
-                    ResponsiveGap.vertical(12),
-                    ChallengeCalendar(
-                      currentChallenge: _currentChallenge,
-                      onChallengeCreated: _onChallengeCreated,
-                      onChallengeEnded: _onChallengeEnded,
-                    ),
-                  ],
-                ),
+          padding: r.paddingSymmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MilestoneJourney(
+                key: _milestoneKey,
+                currentChallenge: _currentChallenge,
+                onCreateChallenge: _showCreateChallenge,
               ),
+              ResponsiveGap.vertical(12),
+              Trackers(
+                key: _trackersKey,
+                currentChallenge: _currentChallenge,
+                onCaloriesChanged: _onCaloriesChanged,
+              ),
+              ResponsiveGap.vertical(12),
+              ChallengeCalendar(
+                currentChallenge: _currentChallenge,
+                onChallengeCreated: _onChallengeCreated,
+                onChallengeEnded: _onChallengeEnded,
+              ),
+            ],
+          ),
+        ),
 
         // FOOD PAGE
         _currentChallenge == null
             ? EmptyState(
-                type: EmptyStateType.noChallengeFood,
-                onAction: _showCreateChallenge,
-              )
+          type: EmptyStateType.noChallengeFood,
+          onAction: _showCreateChallenge,
+        )
             : FoodPage(
-                key: _foodPageKey,
-                currentChallenge: _currentChallenge,
-                onChallengeCreated: _onChallengeCreated,
-                onCaloriesUpdated: _refreshTrackers,
-              ),
+          key: _foodPageKey,
+          currentChallenge: _currentChallenge,
+          onChallengeCreated: _onChallengeCreated,
+          onCaloriesUpdated: _refreshTrackers,
+        ),
 
         // WORKOUT PAGE
         _currentChallenge == null
             ? EmptyState(
-                type: EmptyStateType.noChallengeWorkout,
-                onAction: _showCreateChallenge,
-              )
+          type: EmptyStateType.noChallengeWorkout,
+          onAction: _showCreateChallenge,
+        )
             : WorkoutHistoryPage(
-                key: _workoutPageKey,
-                currentChallenge: _currentChallenge,
-              ),
+          key: _workoutPageKey,
+          currentChallenge: _currentChallenge,
+        ),
 
         // PROFILE PAGE
         const ProfilePage(),
@@ -687,9 +687,9 @@ class _MainPageState extends State<MainPage> {
                   RichText(
                     text: TextSpan(
                       style: TextStyle(
-                        fontSize: r.font(40, min: 36, max: 44),
+                        fontSize: r.font(38, min: 26, max: 45),
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -2.0,
+                        letterSpacing: -1.5,
                         height: 1.0,
                       ),
                       children: const [
@@ -709,8 +709,7 @@ class _MainPageState extends State<MainPage> {
                     ),
                   ),
 
-                  const Spacer(),
-
+                  ResponsiveGap.horizontal(10),
                   // Notification Icon
                   NotificationIconButton(
                     onPressed: () {
@@ -724,69 +723,76 @@ class _MainPageState extends State<MainPage> {
                     iconColor: Colors.black87,
                     badgeColor: Colors.red,
                   ),
-                  ResponsiveGap.horizontal(12),
 
-                  // Challenge Selector Dropdown
-                  PopupMenuButton<String>(
-                    offset: Offset(r.size(20), r.size(30)),
-                    onSelected: (value) {
-                      if (value == "View Challenge History") {
-                        _showChallengeHistory();
-                      } else {
-                        _onChallengeSelected(value);
-                      }
-                    },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(r.size(12)),
-                    ),
-                    color: Colors.white,
-                    elevation: r.size(6),
-                    itemBuilder: (context) => _buildPopupMenuItems(),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: r.size(14),
-                        vertical: r.size(10),
+                  ResponsiveGap.horizontal(6),
+
+                  // Challenge Selector Dropdown - Wrapped in Expanded
+                  Expanded(
+                    child: PopupMenuButton<String>(
+                      offset: Offset(r.size(20), r.size(30)),
+                      onSelected: (value) {
+                        if (value == "View Challenge History") {
+                          _showChallengeHistory();
+                        } else {
+                          _onChallengeSelected(value);
+                        }
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(r.size(12)),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(r.size(10)),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: r.size(10),
-                            height: r.size(10),
-                            decoration: BoxDecoration(
-                              color: _currentChallenge != null
-                                  ? Colors.green
-                                  : Colors.grey,
-                              shape: BoxShape.circle,
+                      color: Colors.white,
+                      elevation: r.size(6),
+                      itemBuilder: (context) => _buildPopupMenuItems(),
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.4,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: r.size(10),
+                          vertical: r.size(6),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(r.size(10)),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: r.size(10),
+                              height: r.size(10),
+                              decoration: BoxDecoration(
+                                color: _currentChallenge != null
+                                    ? Colors.green
+                                    : Colors.grey,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
-                          ResponsiveGap.horizontal(8),
-                          Text(
-                            _selectedChallenge,
-                            style: TextStyle(
-                              fontSize: r.font(15, min: 13, max: 17),
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
+                            ResponsiveGap.horizontal(8),
+                            Flexible(
+                              child: Text(
+                                _selectedChallenge,
+                                style: TextStyle(
+                                  fontSize: r.font(14, min: 12, max: 16),
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          ResponsiveGap.horizontal(6),
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.black54,
-                            size: r.size(20),
-                          ),
-                        ],
+                            ResponsiveGap.horizontal(4),
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.black54,
+                              size: r.size(18),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  ResponsiveGap.horizontal(3),
                 ],
               ),
             ),

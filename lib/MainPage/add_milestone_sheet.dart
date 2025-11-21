@@ -138,10 +138,11 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // --- Header ---
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -463,6 +464,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

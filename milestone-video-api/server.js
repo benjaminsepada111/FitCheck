@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
@@ -59,7 +60,8 @@ app.post(
     try {
       console.log('📥 Received generate-video request');
 
-      const durationPerImage = parseInt(req.body.duration ?? '2', 10) || 2;
+      // Default duration per image (seconds). If you want 5 seconds per image, send duration=5 in request.
+      const durationPerImage = parseInt(req.body.duration ?? '5', 10) || 5;
       let musicPath = null;
 
       const baseUrl = PUBLIC_BASE_OVERRIDE || `${req.protocol}://${req.get('host')}`;
@@ -84,10 +86,10 @@ app.post(
       }
 
       // Parse text animation settings
-      const textAnimation = req.body.textAnimation || 'fadein'; // fadein, fadeout, typewriter, slidein
+      const textAnimation = req.body.textAnimation || 'typewriter'; // default to typewriter
       const textPosition = req.body.textPosition || 'bottom'; // top, center, bottom
       const textColor = req.body.textColor || 'white';
-      const fontSize = parseInt(req.body.fontSize || '48', 10);
+      const fontSize = parseInt(req.body.fontSize || '36', 10);
       const fontFile = req.body.fontFile || ''; // Path to custom font (optional)
 
       console.log(`📝 Text overlays: ${textOverlays.length}, Animation: ${textAnimation}`);
@@ -315,7 +317,7 @@ async function processVideoWithFFmpeg(
           metadata: renderJobs.get(renderId).metadata
         });
 
-        // Auto cleanup after 5 minutes
+        // Auto cleanup after 5 minutes (delete uploads)
         setTimeout(() => {
           imageFiles.forEach(file => {
             try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
@@ -352,155 +354,208 @@ async function processVideoWithFFmpeg(
 /**
  * Build FFmpeg filter complex with text overlays and animations
  *
- * Text Animation Types:
- * - fadein: Text fades in at the start
- * - fadeout: Text fades out at the end
- * - fadeinout: Text fades in and out
- * - typewriter: Text appears character by character
- * - slidein: Text slides in from bottom
- * - slideout: Text slides out to top
+ * Approach:
+ * - For each input image stream [i:v] we:
+ *   1) scale/pad to 720x1280 (portrait) -> [img{i}]
+ *   2) create a transparent text-layer using color source and drawtext -> [txt{i}]
+ *   3) crop the text layer's width from 0 -> TEXT_WIDTH over typeDuration to simulate typing -> [txtc{i}]
+ *   4) overlay cropped text layer onto image -> [v{i}]
+ * - Then chain xfade transitions between v0, v1, v2 ...
+ *
+ * This reliably supports multi-line wrapped text and keeps the image on-screen until the reveal finishes.
  */
 function buildFilterComplexWithText(imageCount, durationPerImage, textOptions = {}) {
   const {
     textOverlays = [],
-    textAnimation = 'fadein',
+    textAnimation = 'typewriter',
     textPosition = 'bottom',
     textColor = 'white',
-    fontSize = 48,
+    fontSize = 36,
     fontFile = ''
   } = textOptions;
 
-  if (imageCount === 1) {
-    const text = textOverlays[0] || '';
-    const textFilter = text ? buildTextFilter(text, 0, durationPerImage, textAnimation, textPosition, textColor, fontSize, fontFile) : '';
-
-    return [
-      `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p${textFilter}[outv]`
-    ];
+  // Text box width - adjust as needed (max line width in pixels)
+  const TEXT_BOX_WIDTH = 620; // within 720 px canvas, leave margins
+  const TEXT_BOX_HEIGHT = 260; // fixed box height reserved at bottom (enough for multiple lines)
+  const TEXT_BOX_X = '(ow-text_w)/2'; // center horizontally for drawtext coordinates (used in drawtext)
+  // We'll compute numeric Y in expression depending on textPosition
+  let yExpr;
+  switch (textPosition) {
+    case 'top':
+      yExpr = '60';
+      break;
+    case 'center':
+      yExpr = '(h-text_h)/2';
+      break;
+    case 'bottom':
+    default:
+      yExpr = 'h-text_h-60';
+      break;
   }
 
+  // If only one image, simpler flow but still keep text reveal behavior
+  if (imageCount === 1) {
+    const text = textOverlays[0] || '';
+    const clipDuration = durationPerImage;
+    const typeDuration = Math.min(5, clipDuration); // reveal up to 5s, or shorter if clip shorter
+
+    // Steps:
+    // [0:v] -> img0
+    // color -> txtbg0 -> drawtext -> txt0 -> crop width over time -> txtc0
+    // overlay txtc0 onto img0 -> outv
+    const escapedText = escapeDrawtext(text);
+
+    const filters = [
+      // Scale + pad the image
+      `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=rgba[img0]`,
+
+      // Transparent canvas for text (duration same as clip)
+      `color=color=black@0:s=720x1280:d=${clipDuration}[txtbg0]`,
+
+      // Draw wrapped text onto transparent canvas
+      `[txtbg0]drawtext=${buildDrawtextOptions(escapedText, {
+        fontSize, textColor, fontFile, textWidth: TEXT_BOX_WIDTH, x: TEXT_BOX_X, y: yExpr
+      })}:format=rgba[txt0]`,
+
+      // Crop the text layer's width dynamically to simulate typewriter reveal (left-to-right)
+      // w = min(TEXT_BOX_WIDTH, (t/typeDuration)*TEXT_BOX_WIDTH)
+      `[txt0]crop=w='if(lt(t,${typeDuration}), max(1, (${TEXT_BOX_WIDTH})*(t/${typeDuration})), ${TEXT_BOX_WIDTH})':h=1280:x=0:y=0[txtc0]`,
+
+      // Overlay the cropped text layer onto the image
+      `[img0][txtc0]overlay=0:0:format=auto,format=yuv420p[outv]`
+    ];
+
+    return filters;
+  }
+
+  // For multiple images
   const filters = [];
   const fadeDuration = 0.5;
-  const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
-
-  // Prepare each image with text overlay
+  // We'll add a small extra padding for each clip so xfade has enough frames; compute clipLength per image
+  // Each image will be trimmed to durationPerImage (so the reveal should fit within this duration).
   for (let i = 0; i < imageCount; i++) {
-    const clipDuration = (i === imageCount - 1)
-      ? durationPerImage + totalFadeTimeLost
-      : durationPerImage;
-
     const text = textOverlays[i] || '';
-    const textFilter = text ? buildTextFilter(text, 0, clipDuration, textAnimation, textPosition, textColor, fontSize, fontFile) : '';
+    const clipDuration = durationPerImage; // each image duration in seconds
+    const typeDuration = Math.min(5, clipDuration); // reveal duration (max 5s)
+    const escapedText = escapeDrawtext(text);
 
+    // 1) scale/pad
     filters.push(
-      `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p${textFilter}[v${i}]`
+      `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=rgba[img${i}]`
+    );
+
+    // 2) transparent canvas for text (duration same as clip)
+    filters.push(
+      `color=color=black@0:s=720x1280:d=${clipDuration}[txtbg${i}]`
+    );
+
+    // 3) drawtext (wrapped)
+    filters.push(
+      `[txtbg${i}]drawtext=${buildDrawtextOptions(escapedText, {
+        fontSize, textColor, fontFile, textWidth: TEXT_BOX_WIDTH, x: TEXT_BOX_X, y: yExpr
+      })}:format=rgba[txt${i}]`
+    );
+
+    // 4) crop width over time to reveal left-to-right
+    filters.push(
+      `[txt${i}]crop=w='if(lt(t,${typeDuration}), max(1, (${TEXT_BOX_WIDTH})*(t/${typeDuration})), ${TEXT_BOX_WIDTH})':h=1280:x=0:y=0[txtc${i}]`
+    );
+
+    // 5) overlay text onto image
+    filters.push(
+      `[img${i}][txtc${i}]overlay=0:0:format=auto,format=rgba[v${i}]`
     );
   }
 
-  // Apply crossfade transitions
+  // Chain crossfade transitions:
+  // We'll chain xfade between v0 and v1, then result with v2, etc.
+  // Important: xfade offset is the time (from start of timeline) at which transition starts.
+  // We compute offsets cumulatively: first transition happens at (durationPerImage - fadeDuration),
+  // second at (2*durationPerImage - fadeDuration), etc.
   let current = 'v0';
   for (let i = 1; i < imageCount; i++) {
+    // transition start offset (seconds)
     const offset = (durationPerImage * i) - fadeDuration;
-    const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
-    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
-    current = next;
+    const nextLabel = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
+
+    // Use xfade. Input streams: [current][v{i}] -> [nextLabel]
+    filters.push(
+      `[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${nextLabel}]`
+    );
+
+    current = nextLabel;
   }
 
   return filters;
 }
 
 /**
- * Build text filter for FFmpeg drawtext
+ * Escape text for drawtext
  */
-function buildTextFilter(text, startTime, duration, animation, position, color, fontSize, fontFile) {
-  // Escape text for FFmpeg
-  const escapedText = text
+function escapeDrawtext(text) {
+  return (text || '')
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
     .replace(/:/g, '\\:')
+    .replace(/%/g, '%%') // percent signs may be used by ffmpeg expressions
     .replace(/\n/g, '\\n');
+}
 
-  // Calculate position
-  let x = '(w-text_w)/2'; // Center horizontally
-  let y;
-  switch (position) {
-    case 'top':
-      y = '50';
-      break;
-    case 'center':
-      y = '(h-text_h)/2';
-      break;
-    case 'bottom':
-    default:
-      y = 'h-text_h-50';
-      break;
-  }
+/**
+ * Build drawtext options string for ffmpeg with wrapping and box.
+ * Returns a single string (no leading comma). Caller will add it into drawtext=...
+ *
+ * We use:
+ * - text: escaped (already) passed in
+ * - fontsize, fontcolor
+ * - box=1 with semi-transparent background
+ * - text_wrap by setting text_w (text width) and fix_bounds=1
+ *
+ * Note: ffmpeg drawtext supports text_w/text_h when used internally
+ */
+function buildDrawtextOptions(escapedText, opts = {}) {
+  const {
+    fontSize = 36,
+    textColor = 'white',
+    fontFile = '',
+    textWidth = 620,
+    x = '(w-text_w)/2',
+    y = 'h-text_h-60'
+  } = opts;
 
-  // Base drawtext options
-  let drawtextOptions = [
-    `text='${escapedText}'`,
-    `fontsize=${fontSize}`,
-    `fontcolor=${color}`,
-    `x=${x}`,
-    `y=${y}`,
-    `borderw=2`,
-    `bordercolor=black@0.5`,
-    `box=1`,
-    `boxcolor=black@0.3`,
-    `boxborderw=10`
-  ];
+  // drawtext option list (these become key=val separated by ':')
+  const parts = [];
 
-  // Add font file if provided
+  // text text
+  parts.push(`text='${escapedText}'`);
+  parts.push(`fontsize=${fontSize}`);
+  parts.push(`fontcolor=${textColor}`);
+  parts.push(`x=${x}`);
+  parts.push(`y=${y}`);
+
+  // box and styling
+  parts.push(`box=1`);
+  parts.push(`boxcolor=black@0.45`);
+  parts.push(`boxborderw=10`);
+  parts.push(`borderw=2`);
+  parts.push(`bordercolor=black@0.6`);
+
+  // authoritative wrapping behavior:
+  // - fix_bounds=1 ensures ffmpeg uses text_w instead of expanding
+  // - text_w sets the maximum width for wrapping
+  parts.push(`fix_bounds=1`);
+  parts.push(`text_w=${textWidth}`); // wrap to this width
+  parts.push(`line_spacing=6`);
+  parts.push(`enable='gte(t,0)'`); // always enabled for this canvas
+
+  // add fontfile if provided
   if (fontFile) {
-    drawtextOptions.push(`fontfile=${fontFile}`);
+    // wrap font file path in single quotes if contains spaces
+    parts.push(`fontfile=${fontFile}`);
   }
 
-  // Add animation effects
-  switch (animation) {
-    case 'fadein':
-      // Fade in over 0.5 seconds
-      drawtextOptions.push(`alpha='if(lt(t,0.5),t/0.5,1)'`);
-      break;
-
-    case 'fadeout':
-      // Fade out in last 0.5 seconds
-      drawtextOptions.push(`alpha='if(gt(t,${duration - 0.5}),(${duration}-t)/0.5,1)'`);
-      break;
-
-    case 'fadeinout':
-      // Fade in first 0.5s, fade out last 0.5s
-      drawtextOptions.push(`alpha='if(lt(t,0.5),t/0.5,if(gt(t,${duration - 0.5}),(${duration}-t)/0.5,1))'`);
-      break;
-
-    case 'typewriter':
-      // Reveal text character by character over 1.5 seconds
-      const charCount = text.length;
-      const revealDuration = Math.min(1.5, duration / 2);
-      drawtextOptions.push(`text='${escapedText}'`);
-      // Use expression to show characters progressively
-      drawtextOptions[0] = `text='${escapedText.split('').map((char, i) =>
-        `{if(gt(t,${i * revealDuration / charCount}),${char},)}`
-      ).join('')}'`;
-      break;
-
-    case 'slidein':
-      // Slide in from bottom over 0.7 seconds
-      drawtextOptions[3] = `y='if(lt(t,0.7),${y}+(1-t/0.7)*100,${y})'`;
-      drawtextOptions.push(`alpha='if(lt(t,0.7),t/0.7,1)'`);
-      break;
-
-    case 'slideout':
-      // Slide out to top in last 0.7 seconds
-      drawtextOptions[3] = `y='if(gt(t,${duration - 0.7}),${y}-(t-(${duration}-0.7))/0.7*100,${y})'`;
-      drawtextOptions.push(`alpha='if(gt(t,${duration - 0.7}),(${duration}-t)/0.7,1)'`);
-      break;
-
-    default:
-      // No animation
-      break;
-  }
-
-  return `,drawtext=${drawtextOptions.join(':')}`;
+  // join into one string
+  return parts.join(':');
 }
 
 /**

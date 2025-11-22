@@ -4,6 +4,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class AchievementsPage extends StatefulWidget {
   const AchievementsPage({super.key});
@@ -74,7 +75,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
         ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.secondary))
+          ? const Center(child: FitCheckLoader())
           : RefreshIndicator(
               color: AppColors.secondary,
               onRefresh: _refreshData,

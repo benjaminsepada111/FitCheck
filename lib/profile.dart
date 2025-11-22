@@ -10,6 +10,7 @@ import 'package:capstone_project/services/notification_service.dart';
 import 'package:capstone_project/achievements_page.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
+import 'package:capstone_project/reminder_settings.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -337,7 +338,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: GestureDetector(
             onTap: () async {
               await Navigator.push(
@@ -532,9 +533,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       context,
                       r,
                       Icons.notifications_outlined,
-                      "Notifications",
-                      "Manage your notifications",
-                      null,
+                      "Notification Reminders",
+                      "Manage meal & milestone reminders",
+                          () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ReminderSettingsPage(),
+                        ),
+                      ),
                     ),
                   ]),
                   ResponsiveGap(24),

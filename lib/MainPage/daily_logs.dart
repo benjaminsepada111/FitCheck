@@ -6,7 +6,7 @@ import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/milestone_service.dart';
-import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -104,10 +104,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           .toList();
 
       // Load workouts for the selected date
+      // Load workouts for the selected date
       final workoutsForDate = widget.challenge != null
-          ? await WorkoutService.getWorkoutsForDate(
-        widget.challenge!.id,
-        widget.selectedDate,
+          ? await WorkoutServiceV2.getWorkoutsForDate(
+        challengeId: widget.challenge!.id,
+        date: widget.selectedDate,
       )
           : <Workout>[];
 

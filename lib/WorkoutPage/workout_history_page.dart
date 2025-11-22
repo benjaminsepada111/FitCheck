@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/models/challenge.dart';
-import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/WorkoutPage/add_workout_sheet.dart';
 import 'package:intl/intl.dart';
@@ -77,7 +77,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         return;
       }
 
-      final workouts = await WorkoutService.getChallengeWorkouts(
+      final workouts = await WorkoutServiceV2.getChallengeWorkouts(
         widget.currentChallenge!.id,
       );
       if (mounted) {
@@ -187,18 +187,12 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
         await ImageStorageService.deleteImage(workout.imageUrl!);
       }
 
-      final sanitized = workout.exerciseName
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
-          .replaceAll(RegExp(r'\s+'), '_')
-          .trim();
-      final timeStamp = workout.timestamp.millisecondsSinceEpoch.toString();
-      final workoutDocName = '${sanitized}_$timeStamp';
-
-      final success = await WorkoutService.deleteWorkout(
-        workoutDocName,
-        widget.currentChallenge!.id,
-        workout.timestamp,
+      final success = await WorkoutServiceV2.deleteWorkout(
+        challengeId: widget.currentChallenge!.id,
+        workoutId: workout.id,
+        workoutDate: workout.timestamp,
+        isCardio: workout.isCardio,
+        dailyGoal: widget.currentChallenge!.dailyCalorieGoal,
       );
 
       if (!mounted) return;

@@ -5,7 +5,7 @@ import 'package:capstone_project/models/workout.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/cardio_exercise.dart';
 import 'package:capstone_project/models/user_data.dart';
-import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/workout_cache_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
@@ -208,7 +208,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
       }
 
       final workout = Workout(
-        id: WorkoutService.generateWorkoutId(),
+        id: WorkoutServiceV2.generateWorkoutId(),
         userId: user.uid,
         exerciseName: _selectedCardioExercise!.name,
         workoutType: 'cardio',
@@ -218,9 +218,10 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         timestamp: DateTime.now(),
       );
 
-      final success = await WorkoutService.createWorkout(
-        workout,
-        widget.currentChallenge.id,
+      final success = await WorkoutServiceV2.addWorkout(
+        challengeId: widget.currentChallenge.id,
+        workout: workout,
+        dailyGoal: widget.currentChallenge.dailyCalorieGoal,
       );
 
       if (!mounted) return;
@@ -337,7 +338,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
       }
 
       final workout = Workout(
-        id: WorkoutService.generateWorkoutId(),
+        id: WorkoutServiceV2.generateWorkoutId(),
         userId: user.uid,
         exerciseName: exerciseName,
         workoutType: 'strength',
@@ -347,9 +348,10 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         timestamp: DateTime.now(),
       );
 
-      final success = await WorkoutService.createWorkout(
-        workout,
-        widget.currentChallenge.id,
+      final success = await WorkoutServiceV2.addWorkout(
+        challengeId: widget.currentChallenge.id,
+        workout: workout,
+        dailyGoal: widget.currentChallenge.dailyCalorieGoal,
       );
 
       if (!mounted) return;

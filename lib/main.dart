@@ -20,7 +20,7 @@ void main() async {
   );
 
   // Initialize Notification Service
-  // This must be done before runApp() to ensure notifications work
+  // This must be done before runApp()  to ensure notifications work
   final notificationService = NotificationService();
   await notificationService.initialize();
 

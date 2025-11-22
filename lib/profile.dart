@@ -11,6 +11,7 @@ import 'package:capstone_project/achievements_page.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
 import 'package:capstone_project/reminder_settings.dart';
+import 'package:capstone_project/services/user_achievement_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -27,6 +28,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   int _accountAgeDays = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  List<Map<String, dynamic>> _unlockedAchievements = [];
 
   @override
   void initState() {
@@ -40,6 +42,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
     _loadUserData();
     _loadAccountInfo();
+    _loadUnlockedAchievements();
     _animationController.forward();
   }
 
@@ -86,6 +89,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         }
       }
     } catch (e) {}
+  }
+
+  Future<void> _loadUnlockedAchievements() async {
+    try {
+      final achievements = await UserAchievementService.getAllAchievementsWithDetails();
+      if (mounted) {
+        setState(() {
+          _unlockedAchievements = achievements
+              .where((achievement) => achievement['unlocked'] == true)
+              .toList();
+        });
+      }
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -323,116 +341,111 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           physics: const BouncingScrollPhysics(),
           slivers: [
             // Custom App Bar with Profile Header
-        SliverToBoxAdapter(
-        child: Container(
-        decoration: BoxDecoration(
-        gradient: LinearGradient(
-        begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.secondary.withOpacity(0.9),
-            AppColors.secondary.withOpacity(0.6),
-          ],
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: GestureDetector(
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
-              );
-              _loadUserData();
-            },
-            child: Container(
-              padding: EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.12),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.10),
-                    blurRadius: 20,
-                    offset: Offset(0, 8),
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.secondary.withOpacity(0.9),
+                      AppColors.secondary.withOpacity(0.6),
+                    ],
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Avatar
-                  Hero(
-                    tag: 'profile_avatar',
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white,
-                      child: ClipOval(
-                        child: _userData?.profilePictureUrl?.isNotEmpty == true
-                            ? Image.network(
-                          _userData!.profilePictureUrl!,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                        )
-                            : _buildInitials(),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    child: GestureDetector(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
+                        );
+                        _loadUserData();
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.12),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.10),
+                              blurRadius: 20,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Avatar
+                            Hero(
+                              tag: 'profile_avatar',
+                              child: CircleAvatar(
+                                radius: 40,
+                                backgroundColor: Colors.white,
+                                child: ClipOval(
+                                  child: _userData?.profilePictureUrl?.isNotEmpty == true
+                                      ? Image.network(
+                                    _userData!.profilePictureUrl!,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                  )
+                                      : _buildInitials(),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 18),
+                            // Name + Email
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _userData?.name ?? user?.displayName ?? "User",
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    user?.email ?? "No email",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Edit Button
+                            Container(
+                              padding: EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.edit, color: Colors.white, size: 20),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-
-                  SizedBox(width: 18),
-
-                  // Name + Email
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _userData?.name ?? user?.displayName ?? "User",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          user?.email ?? "No email",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Edit Button
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.edit, color: Colors.white, size: 20),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
-    ),
-    ),
 
-
-
-    // Main Content
+            // Main Content
             SliverPadding(
               padding: r.padding(all: 16),
               sliver: SliverList(
@@ -440,6 +453,12 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                   // Quick Stats Card
                   _buildQuickStatsCard(r),
                   ResponsiveGap(16),
+
+                  // Unlocked Achievements Section
+                  if (_unlockedAchievements.isNotEmpty) ...[
+                    _buildUnlockedAchievementsSection(r),
+                    ResponsiveGap(16),
+                  ],
 
                   // Achievements Card
                   _buildAchievementsCard(r),
@@ -553,6 +572,150 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildUnlockedAchievementsSection(Responsive r) {
+    return Container(
+      padding: r.padding(all: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(r.size(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: r.size(20),
+            offset: Offset(0, r.size(4)),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: r.padding(all: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(r.size(10)),
+                    ),
+                    child: Icon(
+                      Icons.emoji_events_rounded,
+                      color: AppColors.secondary,
+                      size: r.size(20),
+                    ),
+                  ),
+                  ResponsiveGap(12, vertical: false),
+                  Text(
+                    'Unlocked Achievements',
+                    style: TextStyle(
+                      fontSize: r.font(16, min: 14, max: 20),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade900,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: r.paddingSymmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(r.size(12)),
+                ),
+                child: Text(
+                  '${_unlockedAchievements.length}',
+                  style: TextStyle(
+                    fontSize: r.font(14, min: 12, max: 16),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          ResponsiveGap(16),
+          // Horizontal scrollable list of unlocked achievements
+          SizedBox(
+            height: r.size(120),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _unlockedAchievements.length,
+              itemBuilder: (context, index) {
+                final achievement = _unlockedAchievements[index];
+                final imagePath = achievement['image'] as String?;
+                final color = Color(achievement['color'] as int);
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AchievementsPage(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: r.size(100),
+                    margin: EdgeInsets.only(right: r.size(12)),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Achievement Badge
+                        Container(
+                          width: r.size(70),
+                          height: r.size(70),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: imagePath != null
+                              ? Padding(
+                            padding: EdgeInsets.all(r.size(8)),
+                            child: Image.asset(
+                              imagePath,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.emoji_events_rounded,
+                                  color: color,
+                                  size: r.size(36),
+                                );
+                              },
+                            ),
+                          )
+                              : Icon(
+                            Icons.emoji_events_rounded,
+                            color: color,
+                            size: r.size(36),
+                          ),
+                        ),
+                        ResponsiveGap(8),
+                        // Achievement Title
+                        Text(
+                          achievement['title'] as String,
+                          style: TextStyle(
+                            fontSize: r.font(12, min: 10, max: 14),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          ResponsiveGap(8),
+        ],
       ),
     );
   }
@@ -978,4 +1141,3 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 }
-

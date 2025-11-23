@@ -193,25 +193,36 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         console.log(`⏳ Processing: ${percent}%`);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
       })
-      .on('end', () => {
-        console.log(`✅ Video created successfully with FULL text overlays: ${outputPath}`);
-        renderJobs.set(renderId, {
-          status: 'done',
-          progress: 100,
-          url: outputUrl,
-          error: null,
-          createdAt: renderJobs.get(renderId).createdAt
-        });
+  .on('end', () => {
+    console.log(`✅ Video created successfully with FULL text overlays: ${outputPath}`);
+    renderJobs.set(renderId, {
+      status: 'done',
+      progress: 100,
+      url: outputUrl,
+      error: null,
+      createdAt: renderJobs.get(renderId).createdAt
+    });
 
-        setTimeout(() => {
-          imageFiles.forEach(file => {
-            try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
-          });
-          if (musicPath && musicPath.includes(TEMP_DIR)) {
-            try { if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath); } catch {}
-          }
-        }, 5 * 60 * 1000);
-      })
+    setTimeout(() => {
+      // Cleanup images
+      imageFiles.forEach(file => {
+        try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
+      });
+
+      // Cleanup music
+      if (musicPath && musicPath.includes(TEMP_DIR)) {
+        try { if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath); } catch {}
+      }
+
+      // ✅ NEW: Cleanup text files
+      try {
+        const textFiles = fs.readdirSync(TEMP_DIR).filter(f => f.startsWith('text_'));
+        textFiles.forEach(file => {
+          try { fs.unlinkSync(path.join(TEMP_DIR, file)); } catch {}
+        });
+      } catch {}
+    }, 5 * 60 * 1000);
+  }))
       .on('error', err => {
         console.error('❌ FFmpeg error:', err.message);
         renderJobs.set(renderId, {
@@ -277,30 +288,39 @@ function escapeFFmpegText(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')
-    .replace(/'/g, "'\\\\''")
-    .replace(/:/g, '\\:')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '')
-    .replace(/[^\x20-\x7E\n]/g, '')
-    .substring(0, 400);  // ✅ Increased from 250 to 400 for longer text
+    .replace(/\\/g, '\\\\\\\\')         // Backslash
+    .replace(/'/g, "'\\\\''")           // Single quote
+    .replace(/:/g, '\\:')               // Colon
+    .replace(/\n/g, '\\n')              // Newline (FFmpeg format)
+    .replace(/\r/g, '')                 // Remove carriage return
+    .replace(/[^\x20-\x7E\n]/g, ' ')    // Replace special chars with space
+    .replace(/\s+/g, ' ')               // Collapse multiple spaces
+    .trim()                             // Remove leading/trailing spaces
+    .substring(0, 500);                 // ✅ Increased from 400 to 500
 }
 
 /**
  * Build FFmpeg filter complex with IMPROVED multi-line text overlays
  */
+/**
+ * Build FFmpeg filter complex with IMPROVED multi-line text overlays
+ * USES TEXT FILE for better newline handling
+ */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
   if (imageCount === 1) {
-    const textContent = escapeFFmpegText(textLogs[0] || '');
+    const textContent = textLogs[0] || '';
     const hasText = textContent.length > 0;
 
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      // ✅ IMPROVED: Better positioning and sizing for multi-line text
-      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=20:fontcolor=white:box=1:boxcolor=black@0.80:boxborderw=12:x=(w-text_w)/2:y=h-th-60:line_spacing=5:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      // ✅ WRITE TEXT TO FILE for better newline handling
+      const textFile = path.join(TEMP_DIR, `text_${Date.now()}_0.txt`);
+      fs.writeFileSync(textFile, textContent);
+
+      filter += `,drawtext=textfile='${textFile}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-80:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
     }
 
     filter += `[outv]`;
@@ -317,15 +337,19 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
       ? durationPerImage + totalFadeTimeLost
       : durationPerImage;
 
-    const textContent = escapeFFmpegText(textLogs[i] || '');
+    const textContent = textLogs[i] || '';
     const hasText = textContent.length > 0;
 
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    // ✅ IMPROVED: Enhanced text overlay with better multi-line support
+    // ✅ IMPROVED: Use text file for better multi-line rendering
     if (hasText) {
-      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=18:fontcolor=white:box=1:boxcolor=black@0.80:boxborderw=12:x=(w-text_w)/2:y=h-th-50:line_spacing=4:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      // Write text to temporary file
+      const textFile = path.join(TEMP_DIR, `text_${Date.now()}_${i}.txt`);
+      fs.writeFileSync(textFile, textContent);
+
+      filter += `,drawtext=textfile='${textFile}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-80:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
     }
 
     filter += `[v${i}]`;

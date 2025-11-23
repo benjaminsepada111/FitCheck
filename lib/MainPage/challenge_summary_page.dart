@@ -4,6 +4,7 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/weekly_checkin_service.dart';
 import 'package:capstone_project/models/weekly_checkin.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class ChallengeSummaryPage extends StatefulWidget {
   final Map<String, dynamic> challenge;
@@ -423,7 +424,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
             // Stats
             _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: FitCheckLoader())
               : Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -738,8 +739,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           ],
         ),
         child: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+          child: FitCheckLoader(
           ),
         ),
       );

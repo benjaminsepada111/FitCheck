@@ -365,14 +365,20 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
 
-        // 🆕 Generate summary text for this milestone
+        // 🆕 Generate VERTICAL summary text for this milestone
         final logData = _dailyLogs[m.date.toString()];
         String summaryText = '';
 
         if (logData != null) {
-          // Format: "MMM d\nXXX cal consumed\nXXX cal burned"
           final dateStr = DateFormat('MMM d').format(logData.date);
-          summaryText = '$dateStr\n${logData.totalCalories} cal consumed\n${logData.caloriesBurned} cal burned';
+          final consumed = '${logData.totalCalories} cal consumed';
+          final burned = '${logData.caloriesBurned} cal burned';
+
+          // 🎯 VERTICAL FORMAT: Use \n for line breaks
+          summaryText = '$dateStr\n$consumed\n$burned';
+
+          print('📝 Generated text for ${m.date}: $summaryText'); // Debug log
+
         } else if (m.notes != null && m.notes!.isNotEmpty) {
           // Fallback to notes if no log data
           summaryText = m.notes!.length > 100

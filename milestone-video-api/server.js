@@ -347,15 +347,14 @@ function escapeFFmpegText(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')    // Backslash (needs 4 backslashes for FFmpeg)
-    .replace(/'/g, "'\\\\''")      // Single quote
-    .replace(/:/g, '\\:')          // Colon
-    .replace(/\n/g, '\\n')         // Newline (FFmpeg will render as line break)
-    .replace(/\r/g, '')            // Remove carriage return
-    .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters except newline
-    .substring(0, 250);            // Limit length to prevent overflow
+    .replace(/\\/g, '\\\\\\\\')     // Escape backslashes (4 backslashes for FFmpeg)
+    .replace(/'/g, "'\\\\''")       // Escape single quotes
+    .replace(/:/g, '\\:')           // Escape colons
+    .replace(/\n/g, '\\n')          // 🔧 Convert newline to FFmpeg line break
+    .replace(/\r/g, '')             // Remove carriage returns
+    .replace(/[^\x20-\x7E\n\\]/g, '') // Keep printable chars, newlines, and backslashes
+    .substring(0, 300);             // Increased limit for multi-line text
 }
-
 /**
  * Build FFmpeg filter complex with text overlays for each image
  */
@@ -369,7 +368,8 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=h-th-100:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      // 🎯 Multi-line text settings
+      filter += `,drawtext=text='${textContent}':fontsize=28:fontcolor=white:line_spacing=8:box=1:boxcolor=black@0.8:boxborderw=12:x=(w-text_w)/2:y=h-th-120:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
     }
 
     filter += `[outv]`;
@@ -394,7 +394,8 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 
     // Add text overlay if text exists
     if (hasText) {
-      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=8:x=(w-text_w)/2:y=h-th-80:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      // 🎯 Multi-line text with proper line spacing
+      filter += `,drawtext=text='${textContent}':fontsize=26:fontcolor=white:line_spacing=6:box=1:boxcolor=black@0.8:boxborderw=10:x=(w-text_w)/2:y=h-th-100:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
     }
 
     filter += `[v${i}]`;

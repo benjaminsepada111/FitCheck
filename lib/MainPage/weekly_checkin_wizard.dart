@@ -218,16 +218,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
       if (mounted) {
         if (success) {
-          // Navigate to success page
+          // Close the wizard and go back to home page
           _buttonAnimationController.reverse();
-          await _controller.nextPage(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeInOutCubic,
-          );
-          // Reset animation state after navigation completes
-          if (mounted) {
-            setState(() => _isAnimating = false);
-          }
+          setState(() => _isAnimating = false);
+          Navigator.of(context).pop();
+          widget.onCheckInComplete();
         } else {
           // If submission failed, show error and reset animation state
           _buttonAnimationController.reverse();
@@ -266,9 +261,16 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget build(BuildContext context) {
     bool isProcessing = _isAnimating;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
+    return WillPopScope(
+      onWillPop: () async {
+        // Prevent back button from closing during processing
+        if (isProcessing) return false;
+        return true;
+      },
+      child: Scaffold(
+        key: const ValueKey('weekly_checkin_scaffold'),
+        backgroundColor: Colors.white,
+        body: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
@@ -364,6 +366,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -371,12 +374,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildWeightPage() {
     return Container(
       width: double.infinity,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               // Header
               ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
@@ -414,7 +416,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                     textAlign: TextAlign.center,
                     onTap: () {
-                      _weightController.clear();
+                      // Only select all text, don't clear it
+                      _weightController.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: _weightController.text.length,
+                      );
                       setState(() {
                         _weightError = null;
                       });
@@ -476,7 +482,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -484,12 +489,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildFeelingPage() {
     return Container(
       width: double.infinity,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               // Header
               ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
@@ -533,7 +537,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -582,12 +585,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildActivityPage() {
     return Container(
       width: double.infinity,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               // Header
               ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
@@ -629,7 +631,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -678,12 +679,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildNotesPage() {
     return Container(
       width: double.infinity,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               // Header
               ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
@@ -719,7 +719,13 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                 maxLength: 150,
                 style: const TextStyle(fontSize: 16),
                 onTap: () {
-                  _notesController.clear();
+                  // Select all text instead of clearing
+                  if (_notesController.text.isNotEmpty) {
+                    _notesController.selection = TextSelection(
+                      baseOffset: 0,
+                      extentOffset: _notesController.text.length,
+                    );
+                  }
                 },
                 onChanged: (value) {
                   setState(() {
@@ -749,7 +755,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -757,12 +762,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildReviewPage() {
     return Container(
       width: double.infinity,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               // Header
               ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
@@ -828,7 +832,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -877,12 +880,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildSuccessPage() {
     return Container(
       width: double.infinity,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               const Spacer(),
 
               // Success Icon
@@ -955,7 +957,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ],
           ),
         ),
-      ),
     );
   }
 }

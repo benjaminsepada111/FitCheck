@@ -338,168 +338,162 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           : FadeTransition(
         opacity: _fadeAnimation,
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           slivers: [
             // Custom App Bar with Profile Header
             // Replace your entire SliverToBoxAdapter section (the profile header) with this:
 
             SliverToBoxAdapter(
               child: Container(
-                child: SafeArea(
-                  bottom: false,
-                  child: Column(
-                    children: [
-                      // Top padding
-                      SizedBox(height: 20),
+                child: Column(
+                  children: [
+                    // Top padding
+                    SizedBox(height: 12),
 
-                      // Profile Card
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: GestureDetector(
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
-                            );
-                            _loadUserData();
-                          },
-                          child: Container(
-                            padding: EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  blurRadius: 30,
-                                  offset: Offset(0, 10),
-                                ),
-                              ],
+                    // Profile Card
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: GestureDetector(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
+                          );
+                          _loadUserData();
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: AppColors.secondary,
+                              width: 2,
                             ),
-                            child: Column(
-                              children: [
-                                // Avatar with edit badge
-                                Stack(
-                                  children: [
-                                    Hero(
-                                      tag: 'profile_avatar',
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: AppColors.secondary.withOpacity(0.3),
-                                            width: 3,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: AppColors.secondary.withOpacity(0.2),
-                                              blurRadius: 20,
-                                              offset: Offset(0, 8),
-                                            ),
-                                          ],
+                          ),
+                          child: Column(
+                            children: [
+                              // Avatar with edit badge
+                              Stack(
+                                children: [
+                                  Hero(
+                                    tag: 'profile_avatar',
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: AppColors.secondary.withOpacity(0.3),
+                                          width: 3,
                                         ),
-                                        child: CircleAvatar(
-                                          radius: 50,
-                                          backgroundColor: Colors.white,
-                                          child: ClipOval(
-                                            child: _userData?.profilePictureUrl?.isNotEmpty == true
-                                                ? Image.network(
-                                              _userData!.profilePictureUrl!,
-                                              width: 100,
-                                              height: 100,
-                                              fit: BoxFit.cover,
-                                            )
-                                                : _buildInitials(),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppColors.secondary.withOpacity(0.2),
+                                            blurRadius: 20,
+                                            offset: Offset(0, 8),
                                           ),
+                                        ],
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 50,
+                                        backgroundColor: Colors.white,
+                                        child: ClipOval(
+                                          child: _userData?.profilePictureUrl?.isNotEmpty == true
+                                              ? Image.network(
+                                            _userData!.profilePictureUrl!,
+                                            width: 100,
+                                            height: 100,
+                                            fit: BoxFit.cover,
+                                          )
+                                              : _buildInitials(),
                                         ),
                                       ),
                                     ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: 0,
-                                      child: Container(
-                                        padding: EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.secondary,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 3,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: AppColors.secondary.withOpacity(0.4),
-                                              blurRadius: 8,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          Icons.edit_rounded,
+                                  ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.secondary,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
                                           color: Colors.white,
-                                          size: 16,
+                                          width: 3,
                                         ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppColors.secondary.withOpacity(0.4),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        Icons.edit_rounded,
+                                        color: Colors.white,
+                                        size: 16,
                                       ),
                                     ),
-                                  ],
-                                ),
-
-                                SizedBox(height: 16),
-
-                                // Name
-                                Text(
-                                  _userData?.name ?? user?.displayName ?? "User",
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey.shade900,
-                                    letterSpacing: -0.5,
                                   ),
-                                  textAlign: TextAlign.center,
+                                ],
+                              ),
+
+                              SizedBox(height: 16),
+
+                              // Name
+                              Text(
+                                _userData?.name ?? user?.displayName ?? "User",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade900,
+                                  letterSpacing: -0.5,
                                 ),
+                                textAlign: TextAlign.center,
+                              ),
 
-                                SizedBox(height: 6),
+                              SizedBox(height: 6),
 
-                                // Email with icon
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.email_outlined,
-                                      size: 16,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        user?.email ?? "No email",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade600,
-                                          letterSpacing: 0.2,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        overflow: TextOverflow.ellipsis,
+                              // Email with icon
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.email_outlined,
+                                    size: 16,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      user?.email ?? "No email",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                        letterSpacing: 0.2,
                                       ),
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ],
-                                ),
-
-                                SizedBox(height: 10),
-
-                                // Verified Badge (if verified)
-                                if (FirebaseAuth.instance.currentUser?.emailVerified == true)
-                                  Container(
                                   ),
-                              ],
-                            ),
+                                ],
+                              ),
+
+                              SizedBox(height: 10),
+
+                              // Verified Badge (if verified)
+                              if (FirebaseAuth.instance.currentUser?.emailVerified == true)
+                                Container(
+                                ),
+                            ],
                           ),
                         ),
                       ),
+                    ),
 
-                      SizedBox(height: 20),
-                    ],
-                  ),
+                    SizedBox(height: 12),
+                  ],
                 ),
               ),
             ),
@@ -507,7 +501,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
             // Main Content
             SliverPadding(
-              padding: r.padding(all: 16),
+              padding: r.padding(left: 16, right: 16, top: 8, bottom: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Quick Stats Card

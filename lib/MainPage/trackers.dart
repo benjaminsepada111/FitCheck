@@ -270,7 +270,7 @@ class TrackersState extends State<Trackers>
                               Text(
                                 netCalories.toString(),
                                 style: TextStyle(
-                                  fontSize: r.font(36, min: 24, max: 48),
+                                  fontSize: r.font(28, min: 20, max: 36),
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                   height: 1.0,
@@ -280,7 +280,7 @@ class TrackersState extends State<Trackers>
                               Text(
                                 '/ $_calorieGoal',
                                 style: TextStyle(
-                                  fontSize: r.font(14, min: 12, max: 18),
+                                  fontSize: r.font(13, min: 11, max: 16),
                                   color: Colors.grey.shade400,
                                   height: 1.0,
                                 ),

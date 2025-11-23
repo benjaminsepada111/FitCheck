@@ -371,39 +371,65 @@ function escapeFFmpegText(text) {
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
+  const fadeDuration = 0.5;
+  const totalFadeLost = (imageCount - 1) * fadeDuration;
 
-  if (imageCount === 1) {
-    const textLines = (textLogs[0] || '').split('\n').filter(line => line.trim());
-    const hasText = textLines.length > 0;
+  const filters = [];
 
-    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
+  for (let i = 0; i < imageCount; i++) {
+    const clipDuration = (i === imageCount - 1)
+      ? durationPerImage + totalFadeLost
+      : durationPerImage;
 
-    if (hasText) {
-      // 🎯 BUILD MULTI-LINE TEXT USING MULTIPLE DRAWTEXT FILTERS
-      const baseY = 1100; // Starting Y position from top
-      const lineHeight = 35; // Space between lines
+    const textLines = (textLogs[i] || '').split('\n').filter(t => t.trim());
 
+    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,
+                   pad=720:1280:(ow-iw)/2:(oh-ih)/2,
+                   setsar=1,fps=30,
+                   loop=loop=-1:size=1:start=0,
+                   trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
+
+    if (textLines.length > 0) {
+      const baseY = 1040;
+      const lineHeight = 38;
+
+      // Draw background box FIRST
+      const boxHeight = textLines.length * lineHeight + 40;
+
+      filter += `,drawbox=x=60:y=${baseY - 30}:w=600:h=${boxHeight}:color=black@0.55:t=fill`;
+
+      // Draw each line on TOP
       textLines.forEach((line, index) => {
-        const escapedLine = line
+        const esc = line
           .replace(/\\/g, '\\\\\\\\')
           .replace(/'/g, "'\\\\''")
           .replace(/:/g, '\\:');
 
-        const yPos = baseY + (index * lineHeight);
-        const fadeAlpha = `'if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+        const y = baseY + (index * lineHeight);
+        const fade = `'if(lt(t,0.5),t/0.5,if(lt(t,${clipDuration - 0.5}),1,(${clipDuration}-t)/0.5))'`;
 
-        filter += `,drawtext=text='${escapedLine}':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=${yPos}:alpha=${fadeAlpha}`;
+        filter += `,drawtext=text='${esc}':
+                   fontsize=30:fontcolor=white:
+                   x=(w-text_w)/2:y=${y}:alpha=${fade}`;
       });
-
-      // Add background box behind all text
-      const boxY = baseY - 15;
-      const boxHeight = (textLines.length * lineHeight) + 25;
-      filter += `,drawbox=x=(w-tw)/2-20:y=${boxY}:w=tw+40:h=${boxHeight}:color=black@0.75:t=fill`;
     }
 
-    filter += `[outv]`;
-    return [filter];
+    filter += `[v${i}]`;
+    filters.push(filter);
   }
+
+  // Apply crossfades
+  let current = 'v0';
+  for (let i = 1; i < imageCount; i++) {
+    const offset = (durationPerImage * i) - fadeDuration;
+    const next = (i === imageCount - 1) ? 'outv' : `v${i}t`;
+    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
+    current = next;
+  }
+
+  return filters;
+}
+
 
   const filters = [];
   const fadeDuration = 0.5;
@@ -417,6 +443,7 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 
     const textLines = (textLogs[i] || '').split('\n').filter(line => line.trim());
     const hasText = textLines.length > 0;
+
 
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;

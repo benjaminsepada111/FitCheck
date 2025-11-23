@@ -50,7 +50,7 @@ class DailyLogData {
   String generateTextLog() {
     final StringBuffer buffer = StringBuffer();
 
-    buffer.writeln('📅 Today\'s Story Log\n');
+    buffer.writeln('📅 ${DateFormat('MMMM d, yyyy').format(date)}\n');
 
     // Add notes if available
     if (notes != null && notes!.isNotEmpty) {
@@ -65,53 +65,52 @@ class DailyLogData {
       if (entries.isNotEmpty) {
         hasFoodLogs = true;
         for (var entry in entries) {
-          allFoodItems.add('${entry.foodName} (${entry.totalCalories.round()} calories)');
+          allFoodItems.add('${entry.foodName} (${entry.totalCalories.round()} cal)');
         }
       }
     }
 
     if (hasFoodLogs) {
-      buffer.write('🍽️ I ate: ');
-      buffer.writeln(allFoodItems.map((item) => '• $item').join(' '));
+      buffer.writeln('🍽️ I ate:');
+      for (var item in allFoodItems) {
+        buffer.writeln('  • $item');
+      }
       buffer.writeln();
     } else {
-      buffer.writeln('🍽️ I ate: No meals logged today.\n');
+      buffer.writeln('🍽️ No meals logged today\n');
     }
 
     // Workout section
     if (workouts.isNotEmpty) {
-      buffer.write('💪 I worked out: ');
-      List<String> workoutDescriptions = [];
+      buffer.writeln('💪 I worked out:');
 
       for (var workout in workouts) {
         if (workout.isCardio) {
           if (workout.durationMinutes != null) {
-            workoutDescriptions.add('${workout.exerciseName} — ${workout.durationMinutes} minutes');
+            buffer.writeln('  • ${workout.exerciseName} (${workout.durationMinutes} min)');
           } else {
-            workoutDescriptions.add(workout.exerciseName);
+            buffer.writeln('  • ${workout.exerciseName}');
           }
         } else {
           if (workout.sets != null && workout.reps != null) {
-            workoutDescriptions.add('${workout.exerciseName} — ${workout.sets} sets × ${workout.reps} reps');
+            buffer.writeln('  • ${workout.exerciseName} (${workout.sets}×${workout.reps})');
           } else {
-            workoutDescriptions.add(workout.exerciseName);
+            buffer.writeln('  • ${workout.exerciseName}');
           }
         }
       }
-
-      buffer.writeln(workoutDescriptions.map((desc) => '• $desc').join(' '));
       buffer.writeln();
     } else {
-      buffer.writeln('💪 I worked out: No workouts logged today.\n');
+      buffer.writeln('💪 No workouts logged today\n');
     }
 
     // Calorie summary
-    buffer.writeln('🔥 Total calories consumed: $totalCalories');
+    buffer.writeln('🔥 Consumed: $totalCalories cal');
 
     if (caloriesBurned > 0) {
-      buffer.writeln('🔥 Calories burned: $caloriesBurned');
+      buffer.writeln('🔥 Burned: $caloriesBurned cal');
       final netCalories = totalCalories - caloriesBurned;
-      buffer.writeln('🔥 Net calories: $netCalories');
+      buffer.writeln('🔥 Net: $netCalories cal');
     }
 
     return buffer.toString().trim();
@@ -144,8 +143,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   bool _isExporting = false;
   Duration _slideshowInterval = const Duration(seconds: 2);
 
-  // Cache the generated video URL
+  // Cache the generated video URL AND text logs
   String? _cachedVideoUrl;
+  List<String>? _cachedTextLogs;  // 🆕 Store the text logs used for video
 
   bool _isTextLogView = false;
 
@@ -158,54 +158,76 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    _loadCachedVideoUrl(); // Load cached URL when page opens
+    _loadCachedVideoUrl();
   }
 
   // ======================
   // PERSISTENT VIDEO CACHE
   // ======================
 
-  /// Generate a unique cache key based on challenge ID and milestone count
   String _getCacheKey() {
     return 'video_cache_${widget.challengeId}_${widget.milestones.length}';
   }
 
-  /// Load cached video URL from SharedPreferences
+  String _getTextLogsCacheKey() {
+    return 'text_logs_cache_${widget.challengeId}_${widget.milestones.length}';
+  }
+
   Future<void> _loadCachedVideoUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getCacheKey();
+      final textLogsCacheKey = _getTextLogsCacheKey();
+
       final cachedUrl = prefs.getString(cacheKey);
+      final cachedLogsJson = prefs.getString(textLogsCacheKey);
 
       if (cachedUrl != null && cachedUrl.isNotEmpty) {
         setState(() {
           _cachedVideoUrl = cachedUrl;
+
+          // Load cached text logs if available
+          if (cachedLogsJson != null) {
+            try {
+              _cachedTextLogs = List<String>.from(jsonDecode(cachedLogsJson));
+            } catch (e) {
+              print('⚠️ Failed to decode cached text logs: $e');
+            }
+          }
         });
       }
     } catch (e) {
-      // Error loading cached video URL
+      print('❌ Error loading cached data: $e');
     }
   }
 
-  /// Save video URL to SharedPreferences
-  Future<void> _saveCachedVideoUrl(String url) async {
+  Future<void> _saveCachedVideoUrl(String url, List<String> textLogs) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getCacheKey();
+      final textLogsCacheKey = _getTextLogsCacheKey();
+
       await prefs.setString(cacheKey, url);
+      await prefs.setString(textLogsCacheKey, jsonEncode(textLogs));
+
+      print('✅ Cached video URL and text logs');
     } catch (e) {
-      // Error saving cached video URL
+      print('❌ Error saving cached data: $e');
     }
   }
 
-  /// Clear cached video URL from SharedPreferences
   Future<void> _clearCachedVideoUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getCacheKey();
+      final textLogsCacheKey = _getTextLogsCacheKey();
+
       await prefs.remove(cacheKey);
+      await prefs.remove(textLogsCacheKey);
+
+      print('✅ Cleared video and text logs cache');
     } catch (e) {
-      // Error clearing cached video URL
+      print('❌ Error clearing cache: $e');
     }
   }
 
@@ -329,7 +351,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
       _showSnackBar('Opening existing video...');
 
-      // Navigate directly to video preview
+      // Navigate directly to video preview with cached text logs
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -338,6 +360,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             videoTitle: 'Milestone Journey',
             milestones: widget.milestones,
             slideshowInterval: _slideshowInterval,
+            textLogs: _cachedTextLogs,  // 🆕 Pass cached text logs
           ),
         ),
       );
@@ -350,7 +373,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     try {
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
-      final List<String> textLogs = []; // 🆕 Collect text logs
+      final List<String> textLogs = [];
 
       // Show loading dialog
       if (!mounted) return;
@@ -365,25 +388,23 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
 
-        // 🆕 Generate summary text for this milestone
+        // 🆕 Generate FULL text log for this milestone
         final logData = _dailyLogs[m.date.toString()];
-        String summaryText = '';
+        String fullTextLog = '';
 
         if (logData != null) {
-          // Format: "MMM d\nXXX cal consumed\nXXX cal burned"
-          final dateStr = DateFormat('MMM d').format(logData.date);
-          summaryText = '$dateStr\n${logData.totalCalories} cal consumed\n${logData.caloriesBurned} cal burned';
+          // Use the complete generated text log
+          fullTextLog = logData.generateTextLog();
         } else if (m.notes != null && m.notes!.isNotEmpty) {
           // Fallback to notes if no log data
-          summaryText = m.notes!.length > 100
-              ? '${m.notes!.substring(0, 100)}...'
-              : m.notes!;
+          final dateStr = DateFormat('MMM d, yyyy').format(m.date);
+          fullTextLog = '$dateStr\n\n${m.notes!}';
         } else {
           // Just show date if no data
-          summaryText = DateFormat('MMM d, yyyy').format(m.date);
+          fullTextLog = DateFormat('MMM d, yyyy').format(m.date);
         }
 
-        textLogs.add(summaryText);
+        textLogs.add(fullTextLog);
 
         // Priority 1: Use local imagePath if exists
         if (m.imagePath != null) {
@@ -427,18 +448,19 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         textLogs.add('');
       }
 
-      print('📝 Prepared ${textLogs.length} text logs for ${filesToUpload.length} images');
+      print('📝 Prepared ${textLogs.length} FULL text logs for ${filesToUpload.length} images');
+      print('📄 First log preview: ${textLogs.first.substring(0, textLogs.first.length > 100 ? 100 : textLogs.first.length)}...');
 
       // Update loading message
       if (mounted) {
         Navigator.pop(context);
-        _showLoadingDialog('Uploading ${filesToUpload.length} images with text overlays...');
+        _showLoadingDialog('Uploading ${filesToUpload.length} images with detailed text overlays...');
       }
 
-      // 🆕 Call API with text logs
+      // 🆕 Call API with FULL text logs
       final response = await ApiService.generateVideo(
         images: filesToUpload,
-        notes: textLogs,  // Pass text summaries
+        notes: textLogs,  // Pass FULL text logs
         musicFile: null,
         musicUrl: null,
         durationPerImage: _slideshowInterval.inSeconds,
@@ -508,17 +530,18 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       if (mounted) Navigator.pop(context);
 
       if (resultUrl != null && resultUrl.isNotEmpty) {
-        // CACHE THE VIDEO URL (in memory and persistent storage)
+        // CACHE THE VIDEO URL AND TEXT LOGS
         setState(() {
           _cachedVideoUrl = resultUrl;
+          _cachedTextLogs = textLogs;  // 🆕 Cache the text logs
           _isExporting = false;
         });
 
         // Save to SharedPreferences for persistence
-        await _saveCachedVideoUrl(resultUrl);
+        await _saveCachedVideoUrl(resultUrl, textLogs);
 
         // Show video ready dialog with navigation option
-        _showVideoReadyDialog(resultUrl);
+        _showVideoReadyDialog(resultUrl, textLogs);
       } else {
         _showSnackBar(
             'Render timeout after $attempt attempts. Video may still be processing.');
@@ -585,9 +608,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   // ======================
-  // VIDEO READY DIALOG
+  // VIDEO READY DIALOG (UPDATED)
   // ======================
-  void _showVideoReadyDialog(String videoUrl) {
+  void _showVideoReadyDialog(String videoUrl, List<String> textLogs) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -733,6 +756,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                                     videoTitle: 'Milestone Journey',
                                     milestones: widget.milestones,
                                     slideshowInterval: _slideshowInterval,
+                                    textLogs: textLogs,  // 🆕 Pass text logs to video editor
                                   ),
                                 ),
                               );
@@ -967,7 +991,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         actions: [
-          // 👇 NEW: Toggle view button
           IconButton(
             icon: Icon(
               _isTextLogView ? Icons.image : Icons.notes,
@@ -975,7 +998,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             ),
             onPressed: () async {
               if (!_isTextLogView && _dailyLogs.isEmpty) {
-                // Load logs when switching to text view for the first time
                 await _loadDailyLogs();
               }
               setState(() {
@@ -1288,7 +1310,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     Navigator.pop(context);
 
     try {
-      // ⭐ ADD PERMISSION HANDLING
       if (source == ImageSource.camera) {
         var status = await Permission.camera.request();
         if (!status.isGranted) {
@@ -1299,17 +1320,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           return;
         }
       } else if (source == ImageSource.gallery) {
-        // Request photo permission for gallery
         PermissionStatus status;
 
         if (Platform.isAndroid) {
           final androidInfo = await DeviceInfoPlugin().androidInfo;
 
           if (androidInfo.version.sdkInt >= 33) {
-            // Android 13+ - Use photos permission
             status = await Permission.photos.request();
           } else {
-            // Android 12 and below - Use storage permission
             status = await Permission.storage.request();
           }
 
@@ -1323,7 +1341,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         }
       }
 
-      // Now pick the image after permission is granted
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
@@ -1343,10 +1360,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         if (success) {
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
-            // CLEAR CACHED VIDEO since images changed
             _cachedVideoUrl = null;
+            _cachedTextLogs = null;  // 🆕 Clear cached text logs too
           });
-          // Clear persistent cache
           await _clearCachedVideoUrl();
 
           widget.onMilestonesChanged?.call();
@@ -1405,8 +1421,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         setState(() {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
-          // CLEAR CACHED VIDEO since images changed
           _cachedVideoUrl = null;
+          _cachedTextLogs = null;  // 🆕 Clear cached text logs too
 
           if (widget.milestones.isEmpty) {
             Navigator.pop(context);
@@ -1418,7 +1434,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 curve: Curves.easeInOut);
           }
         });
-        // Clear persistent cache
         await _clearCachedVideoUrl();
 
         widget.onMilestonesChanged?.call();
@@ -1499,7 +1514,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with date
                 Row(
                   children: [
                     Container(
@@ -1542,7 +1556,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Text log content
                 if (logData != null) ...[
                   SelectableText(
                     logData.generateTextLog(),
@@ -1580,7 +1593,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
                 const SizedBox(height: 24),
 
-                // Share button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

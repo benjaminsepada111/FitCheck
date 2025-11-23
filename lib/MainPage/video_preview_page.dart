@@ -25,6 +25,7 @@ class VideoEditorPage extends StatefulWidget {
   final String? thumbnailUrl;
   final List<Milestone>? milestones;
   final Duration? slideshowInterval;
+  final List<String>? textLogs;
 
   const VideoEditorPage({
     required this.videoUrl,
@@ -32,7 +33,9 @@ class VideoEditorPage extends StatefulWidget {
     this.thumbnailUrl,
     this.milestones,
     this.slideshowInterval,
+    this.textLogs,
     super.key,
+
   });
 
   @override
@@ -42,6 +45,7 @@ class VideoEditorPage extends StatefulWidget {
 class _VideoEditorPageState extends State<VideoEditorPage>
     with TickerProviderStateMixin {
   late VideoPlayerController _videoController;
+  List<String>? _textLogs;
   ChewieController? _chewieController;
 
   bool _isInitialized = false;
@@ -68,6 +72,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     super.initState();
     _currentVideoUrl = widget.videoUrl;
     _initializeVideo();
+    _textLogs = widget.textLogs;
   }
 
   Future<void> _initializeVideo() async {
@@ -245,13 +250,22 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     try {
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
-      final List<String> notes = [];
+
+      // ✅ CRITICAL FIX: Use cached text logs instead of milestone notes
+      final List<String> textLogsToSend = _textLogs ?? [];
+
+      print('📝 Re-rendering with ${textLogsToSend.length} CACHED text logs');
+      if (textLogsToSend.isNotEmpty) {
+        print('📄 First log preview: ${textLogsToSend.first.substring(0, textLogsToSend.first.length > 100 ? 100 : textLogsToSend.first.length)}...');
+      }
 
       _showLoadingDialog('Preparing to re-render video with music...');
 
+      // Load milestone images
       for (int i = 0; i < widget.milestones!.length; i++) {
         final m = widget.milestones![i];
-        notes.add(m.notes ?? '');
+
+        // ✅ NO LONGER COLLECTING NOTES HERE - we use cached text logs instead
 
         if (m.imagePath != null) {
           final f = File(m.imagePath!);
@@ -274,7 +288,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               filesToUpload.add(saved);
             }
           } catch (e) {
-            // Error downloading image
+            print('Error downloading image: $e');
           }
         }
       }
@@ -286,14 +300,20 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         return;
       }
 
-      if (mounted) {
-        Navigator.pop(context);
-        _showLoadingDialog('Re-rendering video with music...');
+      // ✅ Ensure text logs match image count
+      while (textLogsToSend.length < filesToUpload.length) {
+        textLogsToSend.add('');
       }
 
+      if (mounted) {
+        Navigator.pop(context);
+        _showLoadingDialog('Re-rendering video with music and original text logs...');
+      }
+
+      // ✅ CRITICAL: Pass cached text logs, NOT milestone notes!
       final response = await ApiService.generateVideo(
         images: filesToUpload,
-        notes: notes,
+        notes: textLogsToSend,  // ✅ Use cached text logs!
         musicFile: _selectedMusicFile,
         musicUrl: _selectedMusicUrl,
         durationPerImage: widget.slideshowInterval?.inSeconds ?? 2,
@@ -362,7 +382,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         setState(() => _isReRendering = false);
         _currentVideoUrl = resultUrl;
         await _initializeVideoWithUrl(resultUrl, autoPlay: true);
-        _showSnackBar('✅ Music added successfully!');
+        _showSnackBar('✅ Music added successfully with original text logs!');
       } else {
         _showSnackBar('Render timeout. Please try again.');
       }

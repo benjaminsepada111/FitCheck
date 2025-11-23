@@ -17,7 +17,6 @@ const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_DIR = path.join(__dirname, 'videos');
 const TEMP_DIR = path.join(__dirname, 'temp');
 
-// Create directories if they don't exist
 [UPLOAD_DIR, VIDEO_DIR, TEMP_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -32,12 +31,11 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB per file
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 const PUBLIC_BASE_OVERRIDE = process.env.BASE_URL || null;
 
-// In-memory render status storage
 const renderJobs = new Map();
 
 app.use('/uploads', express.static(UPLOAD_DIR));
@@ -45,10 +43,6 @@ app.use('/videos', express.static(VIDEO_DIR));
 
 app.get('/', (req, res) => res.send('Milestone Video API with FFmpeg is running'));
 
-/**
- * POST /api/generate-video
- * Creates video using FFmpeg instead of Shotstack
- */
 app.post(
   '/api/generate-video',
   upload.fields([
@@ -64,7 +58,6 @@ app.post(
 
       const baseUrl = PUBLIC_BASE_OVERRIDE || `${req.protocol}://${req.get('host')}`;
 
-      // Handle uploaded images
       const imageFiles = req.files?.['images'] || [];
       if (!imageFiles.length) {
         console.error('❌ No images provided');
@@ -73,24 +66,25 @@ app.post(
 
       console.log(`🖼️ Total images: ${imageFiles.length}`);
 
-      // 🆕 Parse text logs from request body
+      // Parse text logs from request body
       let textLogs = [];
       if (req.body.textLogs) {
         try {
           textLogs = JSON.parse(req.body.textLogs);
           console.log(`📝 Received ${textLogs.length} text logs`);
+          console.log(`📄 First log sample: ${textLogs[0]?.substring(0, 100)}...`);
         } catch (e) {
           console.warn('⚠️ Failed to parse textLogs:', e.message);
           textLogs = [];
         }
       }
 
-      // Ensure text logs match image count (pad with empty strings if needed)
+      // Ensure text logs match image count
       while (textLogs.length < imageFiles.length) {
         textLogs.push('');
       }
 
-      // Handle music upload or URL
+      // Handle music
       const musicFiles = req.files?.['music'] || [];
       if (musicFiles.length > 0) {
         musicPath = musicFiles[0].path;
@@ -113,13 +107,11 @@ app.post(
       const reversedImages = [...imageFiles].reverse();
       const reversedTextLogs = [...textLogs].reverse();
 
-      // Generate unique render ID
       const renderId = uuidv4();
       const outputFileName = `video-${renderId}.mp4`;
       const outputPath = path.join(VIDEO_DIR, outputFileName);
       const outputUrl = `${baseUrl}/videos/${outputFileName}`;
 
-      // Initialize render job status
       renderJobs.set(renderId, {
         status: 'queued',
         progress: 0,
@@ -128,9 +120,8 @@ app.post(
         createdAt: new Date()
       });
 
-      console.log(`🎬 Starting FFmpeg render with text overlays: ${renderId}`);
+      console.log(`🎬 Starting FFmpeg render with FULL text overlays: ${renderId}`);
 
-      // Return render ID immediately (non-blocking)
       res.json({
         success: true,
         data: {
@@ -138,10 +129,9 @@ app.post(
         }
       });
 
-      // Process video asynchronously with text logs
       processVideoWithFFmpeg(
         reversedImages,
-        reversedTextLogs,  // 🆕 Pass text logs
+        reversedTextLogs,
         durationPerImage,
         musicPath,
         outputPath,
@@ -156,9 +146,6 @@ app.post(
   }
 );
 
-/**
- * Process video with FFmpeg
- */
 async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, musicPath, outputPath, outputUrl, renderId) {
   try {
     renderJobs.set(renderId, {
@@ -167,9 +154,8 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       progress: 10
     });
 
-    console.log(`🎥 Creating video from ${imageFiles.length} images with text overlays...`);
+    console.log(`🎥 Creating video from ${imageFiles.length} images with FULL text overlays...`);
 
-    // 🆕 Use the new function with text support
     const filterComplex = buildFilterComplexWithText(imageFiles, textLogs, durationPerImage);
     const totalDuration = imageFiles.length * durationPerImage;
 
@@ -208,7 +194,7 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
       })
       .on('end', () => {
-        console.log(`✅ Video created successfully with text overlays: ${outputPath}`);
+        console.log(`✅ Video created successfully with FULL text overlays: ${outputPath}`);
         renderJobs.set(renderId, {
           status: 'done',
           progress: 100,
@@ -217,7 +203,6 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
           createdAt: renderJobs.get(renderId).createdAt
         });
 
-        // Auto cleanup after 5 minutes
         setTimeout(() => {
           imageFiles.forEach(file => {
             try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
@@ -251,57 +236,6 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
   }
 }
 
-/**
- * Build FFmpeg filter complex for crossfade transitions
- * KEY FIX: Images must be looped before trimming to create video duration
- * CRITICAL FIX: Last image duration extended to compensate for crossfade time loss
- */
-function buildFilterComplex(imageCount, durationPerImage) {
-  if (imageCount === 1) {
-    // Single image: loop it for the full duration
-    return [
-      `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p[outv]`
-    ];
-  }
-
-  const filters = [];
-  const fadeDuration = 0.5; // seconds
-
-  // Calculate total fade time lost: Each crossfade loses 0.5s
-  // With 3 images, we have 2 crossfades, so we lose 1s total
-  const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
-
-  // Prepare each image with proper looping and duration
-  for (let i = 0; i < imageCount; i++) {
-    // Last image gets extended duration to compensate for all crossfade time loss
-    // This ensures the video reaches the expected total duration
-    const clipDuration = (i === imageCount - 1)
-      ? durationPerImage + totalFadeTimeLost
-      : durationPerImage;
-
-    // loop=-1 means infinite loop, size=1 means loop 1 frame at a time
-    // trim cuts the looped video to the desired duration
-    // setpts resets timestamps to start from 0
-    filters.push(
-      `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p[v${i}]`
-    );
-  }
-
-  // Then apply crossfade transitions between consecutive clips
-  let current = 'v0';
-  for (let i = 1; i < imageCount; i++) {
-    const offset = (durationPerImage * i) - fadeDuration;
-    const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
-    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
-    current = next;
-  }
-
-  return filters;
-}
-
-/**
- * GET /api/render-status/:id
- */
 app.get('/api/render-status/:id', async (req, res) => {
   const id = req.params.id;
   const job = renderJobs.get(id);
@@ -317,9 +251,6 @@ app.get('/api/render-status/:id', async (req, res) => {
   });
 });
 
-/**
- * GET /api/health
- */
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -329,7 +260,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Clean up old render jobs hourly
 setInterval(() => {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   for (const [id, job] of renderJobs.entries()) {
@@ -347,17 +277,17 @@ function escapeFFmpegText(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')    // Backslash (needs 4 backslashes for FFmpeg)
-    .replace(/'/g, "'\\\\''")      // Single quote
-    .replace(/:/g, '\\:')          // Colon
-    .replace(/\n/g, '\\n')         // Newline (FFmpeg will render as line break)
-    .replace(/\r/g, '')            // Remove carriage return
-    .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters except newline
-    .substring(0, 250);            // Limit length to prevent overflow
+    .replace(/\\/g, '\\\\\\\\')
+    .replace(/'/g, "'\\\\''")
+    .replace(/:/g, '\\:')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '')
+    .replace(/[^\x20-\x7E\n]/g, '')
+    .substring(0, 400);  // ✅ Increased from 250 to 400 for longer text
 }
 
 /**
- * Build FFmpeg filter complex with text overlays for each image
+ * Build FFmpeg filter complex with IMPROVED multi-line text overlays
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
@@ -369,7 +299,8 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=h-th-100:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      // ✅ IMPROVED: Better positioning and sizing for multi-line text
+      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=20:fontcolor=white:box=1:boxcolor=black@0.80:boxborderw=12:x=(w-text_w)/2:y=h-th-60:line_spacing=5:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
     }
 
     filter += `[outv]`;
@@ -380,7 +311,7 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const fadeDuration = 0.5;
   const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
 
-  // Prepare each image with text overlay
+  // Prepare each image with IMPROVED text overlay
   for (let i = 0; i < imageCount; i++) {
     const clipDuration = (i === imageCount - 1)
       ? durationPerImage + totalFadeTimeLost
@@ -392,9 +323,9 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    // Add text overlay if text exists
+    // ✅ IMPROVED: Enhanced text overlay with better multi-line support
     if (hasText) {
-      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=8:x=(w-text_w)/2:y=h-th-80:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=18:fontcolor=white:box=1:boxcolor=black@0.80:boxborderw=12:x=(w-text_w)/2:y=h-th-50:line_spacing=4:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
     }
 
     filter += `[v${i}]`;
@@ -416,5 +347,5 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 Milestone Video API with FFmpeg started');
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🎥 FFmpeg: Enabled ✅`);
+  console.log(`🎥 FFmpeg: Enabled with FULL text overlay support ✅`);
 });

@@ -282,25 +282,65 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 /**
- * ✅ FIXED: Escape special characters for FFmpeg drawtext filter
- * Properly handles multi-line text with newlines
+ * ✅ SIMPLE: Escape text for FFmpeg (no newline handling needed)
  */
-function escapeFFmpegText(text) {
+function escapeFFmpegTextSimple(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')           // Escape backslashes
-    .replace(/'/g, "\u2019")              // Replace single quotes with right single quotation mark
-    .replace(/:/g, '\\:')                 // Escape colons
-    .replace(/\n/g, '\\n')                // Convert newlines to FFmpeg format
-    .replace(/\r/g, '')                   // Remove carriage returns
-    .trim()                               // Remove leading/trailing whitespace
-    .substring(0, 600);                   // Increased limit to 600 chars
+    .replace(/\\/g, '\\\\\\\\')     // Escape backslashes
+    .replace(/'/g, "\u2019")        // Replace quotes with Unicode right single quotation mark
+    .replace(/:/g, '\\:')           // Escape colons
+    .replace(/\n/g, ' ')            // Replace newlines with spaces (we handle lines separately)
+    .replace(/\r/g, '')             // Remove carriage returns
+    .trim();
 }
 
 /**
- * ✅ FIXED: Build FFmpeg filter complex with proper multi-line text overlays
- * Uses inline text with correct escaping for newlines
+ * ✅ NEW: Split text into lines intelligently
+ * Splits by newlines first, then by character limit
+ */
+function splitTextIntoLines(text, maxCharsPerLine = 40) {
+  if (!text) return [];
+
+  const lines = [];
+
+  // First split by actual newlines
+  const paragraphs = text.split('\n').filter(p => p.trim().length > 0);
+
+  // Then split long paragraphs by character limit
+  paragraphs.forEach(paragraph => {
+    if (paragraph.length <= maxCharsPerLine) {
+      lines.push(paragraph.trim());
+    } else {
+      // Split long lines at word boundaries
+      const words = paragraph.split(' ');
+      let currentLine = '';
+
+      words.forEach(word => {
+        if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
+          currentLine += (currentLine.length > 0 ? ' ' : '') + word;
+        } else {
+          if (currentLine.length > 0) {
+            lines.push(currentLine.trim());
+          }
+          currentLine = word;
+        }
+      });
+
+      if (currentLine.length > 0) {
+        lines.push(currentLine.trim());
+      }
+    }
+  });
+
+  // Limit to max 12 lines to avoid overcrowding
+  return lines.slice(0, 12);
+}
+
+/**
+ * ✅ WORKING: Build FFmpeg filter complex with REAL multi-line text overlays
+ * Uses multiple drawtext filters (one per line) for guaranteed multi-line support
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
@@ -313,10 +353,16 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      const escapedText = escapeFFmpegText(textContent);
-      console.log(`🎨 Adding text overlay (${escapedText.length} chars, ${(escapedText.match(/\\\\n/g) || []).length} lines)`);
+      const lines = splitTextIntoLines(textContent, 40); // 40 chars per line
+      console.log(`🎨 Adding ${lines.length} text lines to overlay`);
 
-      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=13:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      // Add each line as a separate drawtext filter
+      lines.forEach((line, index) => {
+        const escapedLine = escapeFFmpegTextSimple(line);
+        const yPosition = `h-${70 + (lines.length - 1 - index) * 22}`; // 22px spacing between lines, from bottom up
+
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=8:x=(w-text_w)/2:y=${yPosition}:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      });
     }
 
     filter += `[outv]`;
@@ -339,12 +385,18 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    // Add text overlay
+    // Add text overlay as multiple lines
     if (hasText) {
-      const escapedText = escapeFFmpegText(textContent);
-      console.log(`🎨 Adding text overlay to clip ${i+1} (${escapedText.length} chars, ${(escapedText.match(/\\\\n/g) || []).length} lines)`);
+      const lines = splitTextIntoLines(textContent, 40); // 40 chars per line
+      console.log(`🎨 Adding ${lines.length} text lines to clip ${i+1}`);
 
-      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=13:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      // Add each line as a separate drawtext filter
+      lines.forEach((line, index) => {
+        const escapedLine = escapeFFmpegTextSimple(line);
+        const yPosition = `h-${70 + (lines.length - 1 - index) * 22}`; // 22px spacing between lines, from bottom up
+
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=8:x=(w-text_w)/2:y=${yPosition}:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      });
     }
 
     filter += `[v${i}]`;
@@ -366,5 +418,5 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 Milestone Video API with FFmpeg started');
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🎥 FFmpeg: Enabled with FULL text overlay support ✅`);
+  console.log(`🎥 FFmpeg: Enabled with MULTI-LINE text overlay support ✅`);
 });

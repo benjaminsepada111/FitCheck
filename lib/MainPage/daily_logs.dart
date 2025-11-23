@@ -447,7 +447,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           const SizedBox(height: 16),
           // Horizontal workout carousel
           SizedBox(
-            height: 200,
+            height: 250,
             child: PageView.builder(
               controller: _workoutPageController,
               itemCount: _workouts.length,
@@ -496,155 +496,143 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
+// Replace your _buildWorkoutCard method with this vertical layout version:
+
   Widget _buildWorkoutCard(Workout workout) {
     return GestureDetector(
       onTap: () => _showWorkoutDetail(workout),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF06111D),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withOpacity(0.15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
+            // Image at the top
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(20),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
               ),
               child: SizedBox(
-                width: 140,
-                height: 200,
-                child: _buildWorkoutImage(workout, height: 200),
+                width: double.infinity,
+                height: 140,
+                child: _buildWorkoutImage(workout, height: 140),
               ),
             ),
-            // Details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top: Type and Duration
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: workout.isCardio
-                                ? Colors.blue.withValues(alpha: 0.1)
-                                : AppColors.secondary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                workout.isCardio
-                                    ? Icons.directions_run_rounded
-                                    : Icons.fitness_center_rounded,
-                                size: 14,
-                                color: workout.isCardio
-                                    ? Colors.blue.shade600
-                                    : AppColors.secondary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                workout.isCardio ? 'Cardio' : 'Strength',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: workout.isCardio
-                                      ? Colors.blue.shade600
-                                      : AppColors.secondary,
-                                ),
-                              ),
-                            ],
-                          ),
+
+            // Details below image
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Type, Time, and Stats Row
+                  Row(
+                    children: [
+                      Icon(
+                        workout.isCardio
+                            ? Icons.directions_run
+                            : Icons.fitness_center,
+                        size: 16,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatTime(workout.timestamp),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w500,
                         ),
-                        if (workout.isCardio && workout.durationMinutes != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.schedule_rounded,
-                            size: 14,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '|',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        workout.isCardio ? 'Cardio' : 'Strength',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      // Add duration for cardio or sets/reps for strength inline
+                      if (workout.isCardio && workout.durationMinutes != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '|',
+                          style: TextStyle(
+                            fontSize: 13,
                             color: Colors.grey.shade600,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
                             '${workout.durationMinutes} min',
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade600,
+                              fontSize: 13,
+                              color: Colors.grey.shade400,
+                              fontWeight: FontWeight.w500,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Title right below top row
-                    Text(
-                      workout.exerciseName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
-                        letterSpacing: -0.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (workout.isStrength && workout.sets != null && workout.reps != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.repeat_rounded,
-                            size: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${workout.sets} sets × ${workout.reps} reps',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const Spacer(),
-                    // Bottom: Time
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 13,
-                          color: Colors.grey.shade500,
                         ),
-                        const SizedBox(width: 4),
+                      ] else if (workout.isStrength &&
+                          workout.sets != null &&
+                          workout.reps != null) ...[
+                        const SizedBox(width: 8),
                         Text(
-                          _formatTime(workout.timestamp),
+                          '|',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 13,
                             color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            '${workout.sets} sets • ${workout.reps} reps',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade400,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Exercise Name
+                  Text(
+                    workout.exerciseName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      height: 1.2,
                     ),
-                  ],
-                ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
@@ -653,14 +641,18 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
+// Updated workout detail dialog to match the dark theme:
+
   void _showWorkoutDetail(Workout workout) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFF06111D),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: SingleChildScrollView(
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 500),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,54 +660,158 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                 // Image
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
+                    top: Radius.circular(20),
                   ),
-                  child: _buildWorkoutImage(workout, height: 250),
+                  child: _buildWorkoutImage(workout, height: 180),
                 ),
                 // Details
                 Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Exercise Name
                       Text(
                         workout.exerciseName,
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A),
+                          color: Colors.white,
                           letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildDetailItem(
-                              Icons.repeat_rounded,
-                              'Sets',
-                              workout.sets.toString(),
+                      const SizedBox(height: 12),
+
+                      // Type Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: workout.isCardio
+                              ? Colors.blue.withValues(alpha: 0.2)
+                              : AppColors.secondary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              workout.isCardio
+                                  ? Icons.directions_run_rounded
+                                  : Icons.fitness_center_rounded,
+                              size: 16,
+                              color: workout.isCardio
+                                  ? Colors.blue.shade300
+                                  : AppColors.secondary,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildDetailItem(
-                              Icons.numbers_rounded,
-                              'Reps',
-                              workout.reps.toString(),
+                            const SizedBox(width: 6),
+                            Text(
+                              workout.isCardio ? 'Cardio' : 'Strength Training',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: workout.isCardio
+                                    ? Colors.blue.shade300
+                                    : AppColors.secondary,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      if (workout.notes != null &&
-                          workout.notes!.isNotEmpty) ...[
+
+                      const SizedBox(height: 20),
+
+                      // Stats Row - Show appropriate stats based on workout type
+                      if (workout.isStrength) ...[
+                        if (workout.sets != null && workout.reps != null)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDetailItem(
+                                  Icons.repeat_rounded,
+                                  'Sets',
+                                  workout.sets.toString(),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildDetailItem(
+                                  Icons.numbers_rounded,
+                                  'Reps',
+                                  workout.reps.toString(),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade900.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade800),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 18,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'No sets/reps information',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ] else if (workout.isCardio) ...[
+                        if (workout.durationMinutes != null)
+                          _buildDetailItem(
+                            Icons.schedule_rounded,
+                            'Duration',
+                            '${workout.durationMinutes} min',
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade900.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade800),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 18,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'No duration information',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+
+                      // Notes Section
+                      if (workout.notes != null && workout.notes!.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
+                            color: Colors.grey.shade900.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
+                            border: Border.all(color: Colors.grey.shade800),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,7 +829,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.grey.shade800,
+                                      color: Colors.grey.shade300,
                                     ),
                                   ),
                                 ],
@@ -743,7 +839,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                                 workout.notes!,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade700,
+                                  color: Colors.grey.shade400,
                                   height: 1.5,
                                 ),
                               ),
@@ -751,6 +847,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                           ),
                         ),
                       ],
+
+                      // Timestamp
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -764,12 +862,14 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
                             _formatTime(workout.timestamp),
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: Colors.grey.shade400,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
+
+                      // Close Button
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
@@ -805,13 +905,15 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     );
   }
 
+// Updated detail item for dark theme:
+
   Widget _buildDetailItem(IconData icon, String label, String value) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withValues(alpha: 0.08),
+        color: AppColors.secondary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -822,7 +924,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: AppColors.secondary,
+              color: Colors.white,
               letterSpacing: -0.5,
             ),
           ),
@@ -832,7 +934,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              color: Colors.grey.shade400,
             ),
           ),
         ],

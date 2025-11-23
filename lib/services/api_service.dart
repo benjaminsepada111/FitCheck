@@ -18,7 +18,7 @@ class ApiService {
     required List<File> images,
     required List<String> notes,
     String? musicUrl,
-    String? aspectRatio, // Add this line
+    String? aspectRatio,
     File? musicFile,
     int durationPerImage = 2,
   }) async {
@@ -60,29 +60,16 @@ class ApiService {
       );
     }
 
-    // Add form fields
-    request.fields['notes'] = jsonEncode(paddedNotes);
+    // 🆕 CRITICAL: Send text logs as JSON array
+    request.fields['textLogs'] = jsonEncode(paddedNotes);
     request.fields['duration'] = durationPerImage.toString();
 
-    // Handle music URL or uploaded file
-    if (musicFile != null) {
-    } else if (musicUrl != null && musicUrl.isNotEmpty) {
+    // Handle music URL
+    if (musicFile == null && musicUrl != null && musicUrl.isNotEmpty) {
       request.fields['musicUrl'] = musicUrl;
-
-      // Validate music URL format
-      final validExtensions = ['.mp3', '.wav', '.m4a', '.aac'];
-      final hasValidExtension = validExtensions.any((ext) =>
-          musicUrl.toLowerCase().contains(ext)
-      );
-
-      if (!hasValidExtension) {
-      }
-
-      if (!musicUrl.startsWith('http://') && !musicUrl.startsWith('https://')) {
-      }
-    } else {
     }
 
+    print('📝 Sending ${paddedNotes.length} text logs to backend');
 
     // Send request
     final streamed = await request.send();
@@ -94,6 +81,7 @@ class ApiService {
       // Extract and log render ID if available
       final renderId = response['data']?['response']?['id'];
       if (renderId != null) {
+        print('✅ Video render started: $renderId');
       }
 
       return response;

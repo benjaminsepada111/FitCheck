@@ -73,6 +73,23 @@ app.post(
 
       console.log(`🖼️ Total images: ${imageFiles.length}`);
 
+      // 🆕 Parse text logs from request body
+      let textLogs = [];
+      if (req.body.textLogs) {
+        try {
+          textLogs = JSON.parse(req.body.textLogs);
+          console.log(`📝 Received ${textLogs.length} text logs`);
+        } catch (e) {
+          console.warn('⚠️ Failed to parse textLogs:', e.message);
+          textLogs = [];
+        }
+      }
+
+      // Ensure text logs match image count (pad with empty strings if needed)
+      while (textLogs.length < imageFiles.length) {
+        textLogs.push('');
+      }
+
       // Handle music upload or URL
       const musicFiles = req.files?.['music'] || [];
       if (musicFiles.length > 0) {
@@ -94,6 +111,7 @@ app.post(
 
       // Reverse order (last milestone first)
       const reversedImages = [...imageFiles].reverse();
+      const reversedTextLogs = [...textLogs].reverse();
 
       // Generate unique render ID
       const renderId = uuidv4();
@@ -110,7 +128,7 @@ app.post(
         createdAt: new Date()
       });
 
-      console.log(`🎬 Starting FFmpeg render: ${renderId}`);
+      console.log(`🎬 Starting FFmpeg render with text overlays: ${renderId}`);
 
       // Return render ID immediately (non-blocking)
       res.json({
@@ -120,9 +138,10 @@ app.post(
         }
       });
 
-      // Process video asynchronously
+      // Process video asynchronously with text logs
       processVideoWithFFmpeg(
         reversedImages,
+        reversedTextLogs,  // 🆕 Pass text logs
         durationPerImage,
         musicPath,
         outputPath,
@@ -140,7 +159,7 @@ app.post(
 /**
  * Process video with FFmpeg
  */
-async function processVideoWithFFmpeg(imageFiles, durationPerImage, musicPath, outputPath, outputUrl, renderId) {
+async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, musicPath, outputPath, outputUrl, renderId) {
   try {
     renderJobs.set(renderId, {
       ...renderJobs.get(renderId),
@@ -148,9 +167,10 @@ async function processVideoWithFFmpeg(imageFiles, durationPerImage, musicPath, o
       progress: 10
     });
 
-    console.log(`🎥 Creating video from ${imageFiles.length} images...`);
+    console.log(`🎥 Creating video from ${imageFiles.length} images with text overlays...`);
 
-    const filterComplex = buildFilterComplex(imageFiles.length, durationPerImage);
+    // 🆕 Use the new function with text support
+    const filterComplex = buildFilterComplexWithText(imageFiles, textLogs, durationPerImage);
     const totalDuration = imageFiles.length * durationPerImage;
 
     const command = ffmpeg();
@@ -162,7 +182,6 @@ async function processVideoWithFFmpeg(imageFiles, durationPerImage, musicPath, o
       hasAudio = true;
     }
 
-    // 🧠 FIXED: removed -vf (scale/pad already handled in filterComplex)
     command
       .complexFilter(filterComplex)
       .outputOptions([
@@ -189,7 +208,7 @@ async function processVideoWithFFmpeg(imageFiles, durationPerImage, musicPath, o
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
       })
       .on('end', () => {
-        console.log(`✅ Video created successfully: ${outputPath}`);
+        console.log(`✅ Video created successfully with text overlays: ${outputPath}`);
         renderJobs.set(renderId, {
           status: 'done',
           progress: 100,
@@ -320,6 +339,79 @@ setInterval(() => {
     }
   }
 }, 60 * 60 * 1000);
+
+/**
+ * Escape special characters for FFmpeg drawtext filter
+ */
+function escapeFFmpegText(text) {
+  if (!text) return '';
+
+  return text
+    .replace(/\\/g, '\\\\\\\\')    // Backslash (needs 4 backslashes for FFmpeg)
+    .replace(/'/g, "'\\\\''")      // Single quote
+    .replace(/:/g, '\\:')          // Colon
+    .replace(/\n/g, '\\n')         // Newline (FFmpeg will render as line break)
+    .replace(/\r/g, '')            // Remove carriage return
+    .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters except newline
+    .substring(0, 250);            // Limit length to prevent overflow
+}
+
+/**
+ * Build FFmpeg filter complex with text overlays for each image
+ */
+function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
+  const imageCount = imageFiles.length;
+
+  if (imageCount === 1) {
+    const textContent = escapeFFmpegText(textLogs[0] || '');
+    const hasText = textContent.length > 0;
+
+    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
+
+    if (hasText) {
+      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=h-th-100:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+    }
+
+    filter += `[outv]`;
+    return [filter];
+  }
+
+  const filters = [];
+  const fadeDuration = 0.5;
+  const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
+
+  // Prepare each image with text overlay
+  for (let i = 0; i < imageCount; i++) {
+    const clipDuration = (i === imageCount - 1)
+      ? durationPerImage + totalFadeTimeLost
+      : durationPerImage;
+
+    const textContent = escapeFFmpegText(textLogs[i] || '');
+    const hasText = textContent.length > 0;
+
+    // Base video processing
+    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
+
+    // Add text overlay if text exists
+    if (hasText) {
+      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=8:x=(w-text_w)/2:y=h-th-80:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+    }
+
+    filter += `[v${i}]`;
+    filters.push(filter);
+  }
+
+  // Apply crossfade transitions
+  let current = 'v0';
+  for (let i = 1; i < imageCount; i++) {
+    const offset = (durationPerImage * i) - fadeDuration;
+    const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
+    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
+    current = next;
+  }
+
+  return filters;
+}
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 Milestone Video API with FFmpeg started');

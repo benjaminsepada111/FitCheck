@@ -49,107 +49,69 @@ class DailyLogData {
 
   String generateTextLog() {
     final StringBuffer buffer = StringBuffer();
-    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
 
-    buffer.writeln('📅 ${dateFormat.format(date)}\n');
+    buffer.writeln('📅 Today\'s Story Log\n');
 
     // Add notes if available
     if (notes != null && notes!.isNotEmpty) {
-      buffer.writeln('📝 My Thoughts:');
-      buffer.writeln(notes);
-      buffer.writeln();
+      buffer.writeln('📝 ${notes}\n');
     }
 
-    // Calorie Summary
-    buffer.writeln('🎯 Calorie Summary:');
-    buffer.writeln('• Goal: $calorieGoal cal');
-    buffer.writeln('• Consumed: $totalCalories cal');
-    buffer.writeln('• Burned: $caloriesBurned cal');
-    final netCalories = totalCalories - caloriesBurned;
-    buffer.writeln('• Net: $netCalories cal');
-    buffer.writeln();
-
-    // Food Logs
+    // Food section
     bool hasFoodLogs = false;
+    List<String> allFoodItems = [];
+
     for (var entries in foodEntriesByMeal.values) {
       if (entries.isNotEmpty) {
         hasFoodLogs = true;
-        break;
+        for (var entry in entries) {
+          allFoodItems.add('${entry.foodName} (${entry.totalCalories.round()} calories)');
+        }
       }
     }
 
     if (hasFoodLogs) {
-      buffer.writeln('🍽️ My Meals Today:\n');
-
-      // Breakfast
-      final breakfast = foodEntriesByMeal['Breakfast'] ?? [];
-      if (breakfast.isNotEmpty) {
-        buffer.writeln('☀️ Breakfast:');
-        for (var entry in breakfast) {
-          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
-        }
-        final breakfastTotal = breakfast.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
-        buffer.writeln('   Total: $breakfastTotal cal\n');
-      }
-
-      // Lunch
-      final lunch = foodEntriesByMeal['Lunch'] ?? [];
-      if (lunch.isNotEmpty) {
-        buffer.writeln('🌤️ Lunch:');
-        for (var entry in lunch) {
-          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
-        }
-        final lunchTotal = lunch.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
-        buffer.writeln('   Total: $lunchTotal cal\n');
-      }
-
-      // Dinner
-      final dinner = foodEntriesByMeal['Dinner'] ?? [];
-      if (dinner.isNotEmpty) {
-        buffer.writeln('🌙 Dinner:');
-        for (var entry in dinner) {
-          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
-        }
-        final dinnerTotal = dinner.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
-        buffer.writeln('   Total: $dinnerTotal cal\n');
-      }
-
-      // Snacks
-      final snacks = foodEntriesByMeal['Snack'] ?? [];
-      if (snacks.isNotEmpty) {
-        buffer.writeln('🍿 Snacks:');
-        for (var entry in snacks) {
-          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
-        }
-        final snacksTotal = snacks.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
-        buffer.writeln('   Total: $snacksTotal cal\n');
-      }
+      buffer.write('🍽️ I ate: ');
+      buffer.writeln(allFoodItems.map((item) => '• $item').join(' '));
+      buffer.writeln();
     } else {
-      buffer.writeln('🍽️ No meals logged today.\n');
+      buffer.writeln('🍽️ I ate: No meals logged today.\n');
     }
 
-    // Workouts
+    // Workout section
     if (workouts.isNotEmpty) {
-      buffer.writeln('💪 My Workouts:\n');
+      buffer.write('💪 I worked out: ');
+      List<String> workoutDescriptions = [];
+
       for (var workout in workouts) {
         if (workout.isCardio) {
-          buffer.writeln('🏃 ${workout.exerciseName} (Cardio)');
           if (workout.durationMinutes != null) {
-            buffer.writeln('   Duration: ${workout.durationMinutes} minutes');
+            workoutDescriptions.add('${workout.exerciseName} — ${workout.durationMinutes} minutes');
+          } else {
+            workoutDescriptions.add(workout.exerciseName);
           }
         } else {
-          buffer.writeln('🏋️ ${workout.exerciseName} (Strength)');
           if (workout.sets != null && workout.reps != null) {
-            buffer.writeln('   Sets: ${workout.sets} × ${workout.reps} reps');
+            workoutDescriptions.add('${workout.exerciseName} — ${workout.sets} sets × ${workout.reps} reps');
+          } else {
+            workoutDescriptions.add(workout.exerciseName);
           }
         }
-        if (workout.notes != null && workout.notes!.isNotEmpty) {
-          buffer.writeln('   Notes: ${workout.notes}');
-        }
-        buffer.writeln();
       }
+
+      buffer.writeln(workoutDescriptions.map((desc) => '• $desc').join(' '));
+      buffer.writeln();
     } else {
-      buffer.writeln('💪 No workouts logged today.\n');
+      buffer.writeln('💪 I worked out: No workouts logged today.\n');
+    }
+
+    // Calorie summary
+    buffer.writeln('🔥 Total calories consumed: $totalCalories');
+
+    if (caloriesBurned > 0) {
+      buffer.writeln('🔥 Calories burned: $caloriesBurned');
+      final netCalories = totalCalories - caloriesBurned;
+      buffer.writeln('🔥 Net calories: $netCalories');
     }
 
     return buffer.toString().trim();
@@ -388,16 +350,40 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     try {
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
-      final List<String> notes = [];
+      final List<String> textLogs = []; // 🆕 Collect text logs
 
       // Show loading dialog
       if (!mounted) return;
-      _showLoadingDialog('Preparing images...');
+      _showLoadingDialog('Preparing images and logs...');
 
-      // Prepare files
+      // 🆕 Load daily logs if not already loaded
+      if (_dailyLogs.isEmpty) {
+        await _loadDailyLogs();
+      }
+
+      // Prepare files and text logs
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
-        notes.add(m.notes ?? '');
+
+        // 🆕 Generate summary text for this milestone
+        final logData = _dailyLogs[m.date.toString()];
+        String summaryText = '';
+
+        if (logData != null) {
+          // Format: "MMM d\nXXX cal consumed\nXXX cal burned"
+          final dateStr = DateFormat('MMM d').format(logData.date);
+          summaryText = '$dateStr\n${logData.totalCalories} cal consumed\n${logData.caloriesBurned} cal burned';
+        } else if (m.notes != null && m.notes!.isNotEmpty) {
+          // Fallback to notes if no log data
+          summaryText = m.notes!.length > 100
+              ? '${m.notes!.substring(0, 100)}...'
+              : m.notes!;
+        } else {
+          // Just show date if no data
+          summaryText = DateFormat('MMM d, yyyy').format(m.date);
+        }
+
+        textLogs.add(summaryText);
 
         // Priority 1: Use local imagePath if exists
         if (m.imagePath != null) {
@@ -424,7 +410,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               continue;
             }
           } catch (e) {
-            // Error downloading image
+            print('Error downloading image: $e');
           }
         }
       }
@@ -436,22 +422,29 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         return;
       }
 
+      // 🆕 Ensure text logs match image count
+      while (textLogs.length < filesToUpload.length) {
+        textLogs.add('');
+      }
+
+      print('📝 Prepared ${textLogs.length} text logs for ${filesToUpload.length} images');
+
       // Update loading message
       if (mounted) {
         Navigator.pop(context);
-        _showLoadingDialog('Uploading ${filesToUpload.length} images...');
+        _showLoadingDialog('Uploading ${filesToUpload.length} images with text overlays...');
       }
 
-      // Call API to generate video WITHOUT MUSIC
+      // 🆕 Call API with text logs
       final response = await ApiService.generateVideo(
         images: filesToUpload,
-        notes: notes,
+        notes: textLogs,  // Pass text summaries
         musicFile: null,
         musicUrl: null,
         durationPerImage: _slideshowInterval.inSeconds,
       );
 
-      // Extract render ID correctly from Shotstack response
+      // Extract render ID correctly from response
       String? renderId;
       if (response['success'] == true) {
         final data = response['data'];

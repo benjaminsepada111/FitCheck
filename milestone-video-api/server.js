@@ -346,30 +346,59 @@ setInterval(() => {
 function escapeFFmpegText(text) {
   if (!text) return '';
 
-  return text
-    .replace(/\\/g, '\\\\\\\\')     // Escape backslashes (4 backslashes for FFmpeg)
-    .replace(/'/g, "'\\\\''")       // Escape single quotes
-    .replace(/:/g, '\\:')           // Escape colons
-    .replace(/\n/g, '\\n')          // 🔧 Convert newline to FFmpeg line break
-    .replace(/\r/g, '')             // Remove carriage returns
-    .replace(/[^\x20-\x7E\n\\]/g, '') // Keep printable chars, newlines, and backslashes
-    .substring(0, 300);             // Increased limit for multi-line text
+  // First, replace newlines with a placeholder
+  text = text.replace(/\n/g, '|||NEWLINE|||');
+
+  // Then escape other characters
+  text = text
+    .replace(/\\/g, '\\\\\\\\')     // Backslash
+    .replace(/'/g, "'\\\\''")       // Single quote
+    .replace(/:/g, '\\:')           // Colon
+    .replace(/\r/g, '')             // Remove carriage return
+    .replace(/[^\x20-\x7E|]/g, '') // Keep printable chars and pipe
+    .substring(0, 300);
+
+  // Now restore newlines with proper FFmpeg format
+  text = text.replace(/\|\|\|NEWLINE\|\|\|/g, '\n');
+
+  return text;
 }
 /**
  * Build FFmpeg filter complex with text overlays for each image
+ */
+/**
+ * Build FFmpeg filter complex with WORKING multi-line text overlays
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
   if (imageCount === 1) {
-    const textContent = escapeFFmpegText(textLogs[0] || '');
-    const hasText = textContent.length > 0;
+    const textLines = (textLogs[0] || '').split('\n').filter(line => line.trim());
+    const hasText = textLines.length > 0;
 
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      // 🎯 Multi-line text settings
-      filter += `,drawtext=text='${textContent}':fontsize=28:fontcolor=white:line_spacing=8:box=1:boxcolor=black@0.8:boxborderw=12:x=(w-text_w)/2:y=h-th-120:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      // 🎯 BUILD MULTI-LINE TEXT USING MULTIPLE DRAWTEXT FILTERS
+      const baseY = 1100; // Starting Y position from top
+      const lineHeight = 35; // Space between lines
+
+      textLines.forEach((line, index) => {
+        const escapedLine = line
+          .replace(/\\/g, '\\\\\\\\')
+          .replace(/'/g, "'\\\\''")
+          .replace(/:/g, '\\:');
+
+        const yPos = baseY + (index * lineHeight);
+        const fadeAlpha = `'if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+
+        filter += `,drawtext=text='${escapedLine}':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=${yPos}:alpha=${fadeAlpha}`;
+      });
+
+      // Add background box behind all text
+      const boxY = baseY - 15;
+      const boxHeight = (textLines.length * lineHeight) + 25;
+      filter += `,drawbox=x=(w-tw)/2-20:y=${boxY}:w=tw+40:h=${boxHeight}:color=black@0.75:t=fill`;
     }
 
     filter += `[outv]`;
@@ -386,16 +415,34 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
       ? durationPerImage + totalFadeTimeLost
       : durationPerImage;
 
-    const textContent = escapeFFmpegText(textLogs[i] || '');
-    const hasText = textContent.length > 0;
+    const textLines = (textLogs[i] || '').split('\n').filter(line => line.trim());
+    const hasText = textLines.length > 0;
 
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
     // Add text overlay if text exists
     if (hasText) {
-      // 🎯 Multi-line text with proper line spacing
-      filter += `,drawtext=text='${textContent}':fontsize=26:fontcolor=white:line_spacing=6:box=1:boxcolor=black@0.8:boxborderw=10:x=(w-text_w)/2:y=h-th-100:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      // 🎯 BUILD MULTI-LINE TEXT USING MULTIPLE DRAWTEXT FILTERS
+      const baseY = 1100; // Starting Y position from top
+      const lineHeight = 35; // Space between lines
+
+      textLines.forEach((line, index) => {
+        const escapedLine = line
+          .replace(/\\/g, '\\\\\\\\')
+          .replace(/'/g, "'\\\\''")
+          .replace(/:/g, '\\:');
+
+        const yPos = baseY + (index * lineHeight);
+        const fadeAlpha = `'if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+
+        filter += `,drawtext=text='${escapedLine}':fontsize=26:fontcolor=white:x=(w-text_w)/2:y=${yPos}:alpha=${fadeAlpha}`;
+      });
+
+      // Add background box behind all text
+      const boxY = baseY - 15;
+      const boxHeight = (textLines.length * lineHeight) + 25;
+      filter += `,drawbox=x=(w-400)/2:y=${boxY}:w=400:h=${boxHeight}:color=black@0.75:t=fill`;
     }
 
     filter += `[v${i}]`;

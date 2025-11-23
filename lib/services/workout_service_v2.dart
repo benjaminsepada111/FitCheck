@@ -15,9 +15,11 @@ class WorkoutServiceV2 {
   static const String _challengesCollection = 'challenges';
   static const String _workoutsCollection = 'workouts';
 
-  /// Helper to format date as YYYYMMDD
+  /// Helper to format date as YYYYMMDD (with normalized date)
   static String _formatDateId(DateTime date) {
-    return '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
+    // Normalize date to ignore time component
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    return '${normalizedDate.year}${normalizedDate.month.toString().padLeft(2, '0')}${normalizedDate.day.toString().padLeft(2, '0')}';
   }
 
   /// Add a workout (automatically determines cardio or strength)
@@ -42,8 +44,8 @@ class WorkoutServiceV2 {
           .collection(_workoutsCollection)
           .doc(dateId)
           .set({
-            'date': workout.timestamp.toIso8601String(),
-          }, SetOptions(merge: true));
+        'date': workout.timestamp.toIso8601String(),
+      }, SetOptions(merge: true));
 
       // Add workout to appropriate subcollection
       await _firestore

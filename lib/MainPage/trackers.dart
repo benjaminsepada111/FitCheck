@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
-import 'package:capstone_project/services/workout_service.dart';
 import 'package:capstone_project/services/workout_service_v2.dart';
 import '../app_text_styles.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
@@ -84,7 +83,9 @@ class TrackersState extends State<Trackers>
     setState(() => _isLoading = true);
 
     try {
-      final today = DateTime.now();
+      // Normalize today's date to ignore time component
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
 
       // Get calorie goal (same logic as FoodLogger)
       int goal = 2000;
@@ -100,17 +101,17 @@ class TrackersState extends State<Trackers>
       // Get calories consumed from FoodLogService
       final totalCalories = widget.currentChallenge != null
           ? (await FoodLogService.getDailyCalories(
-              today,
-              challengeId: widget.currentChallenge!.id,
-            )).round()
+        today,
+        challengeId: widget.currentChallenge!.id,
+      )).round()
           : 0;
 
-      // Get calories burned from WorkoutService
+      // Get calories burned from WorkoutServiceV2 (using consistent service)
       int caloriesBurned = 0;
       if (widget.currentChallenge != null) {
-        final workouts = await WorkoutService.getWorkoutsForDate(
-          widget.currentChallenge!.id,
-          today,
+        final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+          challengeId: widget.currentChallenge!.id,
+          date: today,
         );
 
         // Get user weight for calorie calculation
@@ -154,7 +155,9 @@ class TrackersState extends State<Trackers>
   void _setupRealtimeListeners() {
     if (widget.currentChallenge == null) return;
 
-    final today = DateTime.now();
+    // Normalize today's date to ignore time component
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     // Listen to food log changes
     _foodLogSubscription =
@@ -187,6 +190,9 @@ class TrackersState extends State<Trackers>
       date: today,
     ).listen((workouts) async {
       if (!mounted) return;
+
+      // Ignore empty stream events to prevent resetting to 0
+      if (workouts.isEmpty) return;
 
       // Get user weight for calorie calculation
       final userData = await UserDataService.loadUserData();

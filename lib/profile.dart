@@ -341,109 +341,169 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           physics: const BouncingScrollPhysics(),
           slivers: [
             // Custom App Bar with Profile Header
+            // Replace your entire SliverToBoxAdapter section (the profile header) with this:
+
             SliverToBoxAdapter(
               child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.secondary.withOpacity(0.9),
-                      AppColors.secondary.withOpacity(0.6),
-                    ],
-                  ),
-                ),
                 child: SafeArea(
                   bottom: false,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    child: GestureDetector(
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
-                        );
-                        _loadUserData();
-                      },
-                      child: Container(
-                        padding: EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.12),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.10),
-                              blurRadius: 20,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            // Avatar
-                            Hero(
-                              tag: 'profile_avatar',
-                              child: CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.white,
-                                child: ClipOval(
-                                  child: _userData?.profilePictureUrl?.isNotEmpty == true
-                                      ? Image.network(
-                                    _userData!.profilePictureUrl!,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                  )
-                                      : _buildInitials(),
+                  child: Column(
+                    children: [
+                      // Top padding
+                      SizedBox(height: 20),
+
+                      // Profile Card
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        child: GestureDetector(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const PersonalInfoPage()),
+                            );
+                            _loadUserData();
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 30,
+                                  offset: Offset(0, 10),
                                 ),
-                              ),
+                              ],
                             ),
-                            SizedBox(width: 18),
-                            // Name + Email
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _userData?.name ?? user?.displayName ?? "User",
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                            child: Column(
+                              children: [
+                                // Avatar with edit badge
+                                Stack(
+                                  children: [
+                                    Hero(
+                                      tag: 'profile_avatar',
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: AppColors.secondary.withOpacity(0.3),
+                                            width: 3,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppColors.secondary.withOpacity(0.2),
+                                              blurRadius: 20,
+                                              offset: Offset(0, 8),
+                                            ),
+                                          ],
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 50,
+                                          backgroundColor: Colors.white,
+                                          child: ClipOval(
+                                            child: _userData?.profilePictureUrl?.isNotEmpty == true
+                                                ? Image.network(
+                                              _userData!.profilePictureUrl!,
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            )
+                                                : _buildInitials(),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    user?.email ?? "No email",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white.withOpacity(0.8),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.secondary,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 3,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppColors.secondary.withOpacity(0.4),
+                                              blurRadius: 8,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(
+                                          Icons.edit_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
                                     ),
+                                  ],
+                                ),
+
+                                SizedBox(height: 16),
+
+                                // Name
+                                Text(
+                                  _userData?.name ?? user?.displayName ?? "User",
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade900,
+                                    letterSpacing: -0.5,
                                   ),
-                                ],
-                              ),
+                                  textAlign: TextAlign.center,
+                                ),
+
+                                SizedBox(height: 6),
+
+                                // Email with icon
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.email_outlined,
+                                      size: 16,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        user?.email ?? "No email",
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade600,
+                                          letterSpacing: 0.2,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                SizedBox(height: 10),
+
+                                // Verified Badge (if verified)
+                                if (FirebaseAuth.instance.currentUser?.emailVerified == true)
+                                  Container(
+                                  ),
+                              ],
                             ),
-                            // Edit Button
-                            Container(
-                              padding: EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(Icons.edit, color: Colors.white, size: 20),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+
+                      SizedBox(height: 20),
+                    ],
                   ),
                 ),
               ),
             ),
+
 
             // Main Content
             SliverPadding(
@@ -1140,4 +1200,63 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       ),
     );
   }
+}
+
+
+
+Widget _buildStatCard({
+  required IconData icon,
+  required String value,
+  required String label,
+  required Color color,
+}) {
+  return Container(
+    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.08),
+          blurRadius: 15,
+          offset: Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+        ),
+        SizedBox(height: 10),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade900,
+          ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 }

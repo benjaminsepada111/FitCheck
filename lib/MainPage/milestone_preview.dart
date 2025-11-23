@@ -22,13 +22,146 @@ import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:capstone_project/services/food_log_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
+import 'package:capstone_project/models/food_models.dart';
+import 'package:capstone_project/models/workout.dart';
+import 'package:capstone_project/services/user_data_service.dart';
 
+class DailyLogData {
+  final DateTime date;
+  final int totalCalories;
+  final int calorieGoal;
+  final int caloriesBurned;
+  final Map<String, List<FoodEntry>> foodEntriesByMeal;
+  final List<Workout> workouts;
+  final String? notes;
+
+  DailyLogData({
+    required this.date,
+    required this.totalCalories,
+    required this.calorieGoal,
+    required this.caloriesBurned,
+    required this.foodEntriesByMeal,
+    required this.workouts,
+    this.notes,
+  });
+
+  String generateTextLog() {
+    final StringBuffer buffer = StringBuffer();
+    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+
+    buffer.writeln('📅 ${dateFormat.format(date)}\n');
+
+    // Add notes if available
+    if (notes != null && notes!.isNotEmpty) {
+      buffer.writeln('📝 My Thoughts:');
+      buffer.writeln(notes);
+      buffer.writeln();
+    }
+
+    // Calorie Summary
+    buffer.writeln('🎯 Calorie Summary:');
+    buffer.writeln('• Goal: $calorieGoal cal');
+    buffer.writeln('• Consumed: $totalCalories cal');
+    buffer.writeln('• Burned: $caloriesBurned cal');
+    final netCalories = totalCalories - caloriesBurned;
+    buffer.writeln('• Net: $netCalories cal');
+    buffer.writeln();
+
+    // Food Logs
+    bool hasFoodLogs = false;
+    for (var entries in foodEntriesByMeal.values) {
+      if (entries.isNotEmpty) {
+        hasFoodLogs = true;
+        break;
+      }
+    }
+
+    if (hasFoodLogs) {
+      buffer.writeln('🍽️ My Meals Today:\n');
+
+      // Breakfast
+      final breakfast = foodEntriesByMeal['Breakfast'] ?? [];
+      if (breakfast.isNotEmpty) {
+        buffer.writeln('☀️ Breakfast:');
+        for (var entry in breakfast) {
+          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
+        }
+        final breakfastTotal = breakfast.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
+        buffer.writeln('   Total: $breakfastTotal cal\n');
+      }
+
+      // Lunch
+      final lunch = foodEntriesByMeal['Lunch'] ?? [];
+      if (lunch.isNotEmpty) {
+        buffer.writeln('🌤️ Lunch:');
+        for (var entry in lunch) {
+          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
+        }
+        final lunchTotal = lunch.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
+        buffer.writeln('   Total: $lunchTotal cal\n');
+      }
+
+      // Dinner
+      final dinner = foodEntriesByMeal['Dinner'] ?? [];
+      if (dinner.isNotEmpty) {
+        buffer.writeln('🌙 Dinner:');
+        for (var entry in dinner) {
+          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
+        }
+        final dinnerTotal = dinner.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
+        buffer.writeln('   Total: $dinnerTotal cal\n');
+      }
+
+      // Snacks
+      final snacks = foodEntriesByMeal['Snack'] ?? [];
+      if (snacks.isNotEmpty) {
+        buffer.writeln('🍿 Snacks:');
+        for (var entry in snacks) {
+          buffer.writeln('   • ${entry.foodName} - ${entry.totalCalories.round()} cal (${entry.servingSize.toStringAsFixed(0)}g)');
+        }
+        final snacksTotal = snacks.fold<int>(0, (sum, e) => sum + e.totalCalories.round());
+        buffer.writeln('   Total: $snacksTotal cal\n');
+      }
+    } else {
+      buffer.writeln('🍽️ No meals logged today.\n');
+    }
+
+    // Workouts
+    if (workouts.isNotEmpty) {
+      buffer.writeln('💪 My Workouts:\n');
+      for (var workout in workouts) {
+        if (workout.isCardio) {
+          buffer.writeln('🏃 ${workout.exerciseName} (Cardio)');
+          if (workout.durationMinutes != null) {
+            buffer.writeln('   Duration: ${workout.durationMinutes} minutes');
+          }
+        } else {
+          buffer.writeln('🏋️ ${workout.exerciseName} (Strength)');
+          if (workout.sets != null && workout.reps != null) {
+            buffer.writeln('   Sets: ${workout.sets} × ${workout.reps} reps');
+          }
+        }
+        if (workout.notes != null && workout.notes!.isNotEmpty) {
+          buffer.writeln('   Notes: ${workout.notes}');
+        }
+        buffer.writeln();
+      }
+    } else {
+      buffer.writeln('💪 No workouts logged today.\n');
+    }
+
+    return buffer.toString().trim();
+  }
+}
 
 class MilestonePreviewPage extends StatefulWidget {
   final List<Milestone> milestones;
   final int initialIndex;
   final VoidCallback? onMilestonesChanged;
   final String challengeId;
+
 
   const MilestonePreviewPage({
     super.key,
@@ -51,6 +184,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
   // Cache the generated video URL
   String? _cachedVideoUrl;
+
+  bool _isTextLogView = false;
+
+  // Daily log data
+  Map<String, DailyLogData> _dailyLogs = {};
+  bool _isLoadingLogs = false;
 
   @override
   void initState() {
@@ -105,6 +244,84 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       await prefs.remove(cacheKey);
     } catch (e) {
       // Error clearing cached video URL
+    }
+  }
+
+
+  Future<void> _loadDailyLogs() async {
+    if (_isLoadingLogs || widget.milestones.isEmpty) return;
+
+    setState(() => _isLoadingLogs = true);
+
+    try {
+      final Map<String, DailyLogData> logs = {};
+
+      // Get calorie goal
+      int goal = 2000;
+      if (widget.challengeId.isNotEmpty) {
+        final calculatedGoal = await UserDataService.getDailyCalorieGoal();
+        goal = calculatedGoal;
+      }
+
+      for (var milestone in widget.milestones) {
+        final date = milestone.date;
+
+        // Load food logs
+        final foodLogs = await FoodLogService.getFoodLogsForDate(
+          date,
+          challengeId: widget.challengeId,
+        );
+
+        int totalCalories = 0;
+        Map<String, List<FoodEntry>> mealEntries = {
+          'Breakfast': [],
+          'Lunch': [],
+          'Dinner': [],
+          'Snack': [],
+        };
+
+        for (var log in foodLogs) {
+          totalCalories += log.totalCalories.round();
+          if (mealEntries.containsKey(log.mealType)) {
+            mealEntries[log.mealType] = log.entries;
+          }
+        }
+
+        // Load workouts
+        final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+          challengeId: widget.challengeId,
+          date: date,
+        );
+
+        // Calculate calories burned
+        int caloriesBurned = 0;
+        if (workouts.isNotEmpty) {
+          final userData = await UserDataService.loadUserData();
+          final userWeight = userData?.weight?.toDouble() ?? 70.0;
+
+          for (var workout in workouts) {
+            caloriesBurned += workout.calculateCaloriesBurned(userWeight);
+          }
+        }
+
+        logs[date.toString()] = DailyLogData(
+          date: date,
+          totalCalories: totalCalories,
+          calorieGoal: goal,
+          caloriesBurned: caloriesBurned,
+          foodEntriesByMeal: mealEntries,
+          workouts: workouts,
+          notes: milestone.notes,
+        );
+      }
+
+      setState(() {
+        _dailyLogs = logs;
+        _isLoadingLogs = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingLogs = false);
+      _showSnackBar('Failed to load daily logs');
     }
   }
 
@@ -757,13 +974,30 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         actions: [
+          // 👇 NEW: Toggle view button
+          IconButton(
+            icon: Icon(
+              _isTextLogView ? Icons.image : Icons.notes,
+              color: Colors.white,
+            ),
+            onPressed: () async {
+              if (!_isTextLogView && _dailyLogs.isEmpty) {
+                // Load logs when switching to text view for the first time
+                await _loadDailyLogs();
+              }
+              setState(() {
+                _isTextLogView = !_isTextLogView;
+              });
+            },
+          ),
           IconButton(
             icon: Icon(
               _isSlideshow ? Icons.pause : Icons.play_arrow,
               color: Colors.white,
             ),
-            onPressed:
-            _isSlideshow ? _stopSlideshow : () => _showSlideshowSettings(),
+            onPressed: _isTextLogView
+                ? null
+                : (_isSlideshow ? _stopSlideshow : () => _showSlideshowSettings()),
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -825,7 +1059,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           ),
         ],
       ),
-      body: Column(
+      body: _isTextLogView ? _buildTextLogView() : Column(
         children: [
           Expanded(
             child: PageView.builder(
@@ -1225,6 +1459,169 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           height: 80,
           color: Colors.grey.shade200,
           child: const Icon(Icons.image_not_supported));
+    }
+  }
+  Widget _buildTextLogView() {
+    if (_isLoadingLogs) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FitCheckLoader(),
+            SizedBox(height: 20),
+            Text(
+              'Loading daily logs...',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final milestones = widget.milestones;
+
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: milestones.length,
+      onPageChanged: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      itemBuilder: (context, index) {
+        final milestone = milestones[index];
+        final logData = _dailyLogs[milestone.date.toString()];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with date
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.calendar_today_rounded,
+                        color: AppColors.secondary,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            DateFormat('EEEE').format(milestone.date),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            DateFormat('MMMM d, yyyy').format(milestone.date),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Text log content
+                if (logData != null) ...[
+                  SelectableText(
+                    logData.generateTextLog(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.8,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ] else ...[
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.notes_outlined,
+                            size: 64,
+                            color: Colors.white24,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No logs available for this day',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // Share button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: logData != null
+                        ? () => _shareTextLog(logData.generateTextLog())
+                        : null,
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share Log'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _shareTextLog(String logText) async {
+    try {
+      await Share.share(
+        logText,
+        subject: 'My Fitness Log - ${DateFormat('MMM d, yyyy').format(widget.milestones[_currentIndex].date)}',
+      );
+    } catch (e) {
+      _showSnackBar('Failed to share log');
     }
   }
 }

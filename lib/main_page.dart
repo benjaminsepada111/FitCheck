@@ -199,17 +199,31 @@ class _MainPageState extends State<MainPage> {
   /// Refresh challenge data in the background without blocking UI
   Future<void> _refreshChallengeDataInBackground() async {
     try {
+      // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
+      // Get only active (non-cancelled) challenges
       final activeChallenges = await ChallengeService.getActiveChallenges();
 
       if (mounted) {
         setState(() {
           _challengeHistory = allChallenges;
 
+          // Set current challenge only if there's an active one
           if (activeChallenges.isNotEmpty) {
-            _currentChallenge = activeChallenges.first;
-            _selectedChallenge = _currentChallenge!.title;
+            // Filter to ensure we only use truly active challenges
+            final truelyActive = activeChallenges.where((c) =>
+            c.lifecycleStatus == 'active' && c.isActive
+            ).toList();
+
+            if (truelyActive.isNotEmpty) {
+              _currentChallenge = truelyActive.first;
+              _selectedChallenge = _currentChallenge!.title;
+            } else {
+              _currentChallenge = null;
+              _selectedChallenge = "No Active Challenge";
+            }
           } else {
+            // No active challenges found
             _currentChallenge = null;
             _selectedChallenge = "No Active Challenge";
           }
@@ -222,16 +236,29 @@ class _MainPageState extends State<MainPage> {
 
   Future<void> _loadChallengeData() async {
     try {
+      // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
+      // Get only active (non-cancelled) challenges
       final activeChallenges = await ChallengeService.getActiveChallenges();
 
       if (mounted) {
         setState(() {
           _challengeHistory = allChallenges;
 
+          // Set current challenge only if there's an active one
           if (activeChallenges.isNotEmpty) {
-            _currentChallenge = activeChallenges.first;
-            _selectedChallenge = _currentChallenge!.title;
+            // Filter to ensure we only use truly active challenges
+            final truelyActive = activeChallenges.where((c) =>
+            c.lifecycleStatus == 'active' && c.isActive
+            ).toList();
+
+            if (truelyActive.isNotEmpty) {
+              _currentChallenge = truelyActive.first;
+              _selectedChallenge = _currentChallenge!.title;
+            } else {
+              _currentChallenge = null;
+              _selectedChallenge = "No Active Challenge";
+            }
           } else {
             _currentChallenge = null;
             _selectedChallenge = "No Active Challenge";
@@ -455,7 +482,39 @@ class _MainPageState extends State<MainPage> {
     final r = context.responsive;
     List<PopupMenuEntry<String>> items = [];
 
-    if (_currentChallenge == null) {
+    // If there's a current active challenge, only show that one
+    if (_currentChallenge != null && _currentChallenge!.lifecycleStatus != 'cancelled') {
+      items.add(
+        PopupMenuItem(
+          value: _currentChallenge!.title,
+          child: Row(
+            children: [
+              Container(
+                width: r.size(10),
+                height: r.size(10),
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              ResponsiveGap.horizontal(10),
+              Expanded(
+                child: Text(
+                  _currentChallenge!.title,
+                  style: TextStyle(
+                    fontSize: r.font(14, min: 12, max: 16),
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      // No active challenge or current challenge is cancelled
       items.add(
         PopupMenuItem(
           value: "No Active Challenge",
@@ -476,44 +535,6 @@ class _MainPageState extends State<MainPage> {
                   fontSize: r.font(14, min: 12, max: 16),
                   fontWeight: FontWeight.w400,
                   color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    for (Challenge challenge in _challengeHistory.take(3)) {
-      if (_currentChallenge != null && challenge.id != _currentChallenge!.id) {
-        continue;
-      }
-
-      items.add(
-        PopupMenuItem(
-          value: challenge.title,
-          child: Row(
-            children: [
-              Container(
-                width: r.size(10),
-                height: r.size(10),
-                decoration: BoxDecoration(
-                  color: challenge.title == _selectedChallenge
-                      ? Colors.green
-                      : Colors.blue,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              ResponsiveGap.horizontal(10),
-              Expanded(
-                child: Text(
-                  challenge.title,
-                  style: TextStyle(
-                    fontSize: r.font(14, min: 12, max: 16),
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black87,
-                  ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -757,20 +778,19 @@ class _MainPageState extends State<MainPage> {
                           border: Border.all(color: Colors.grey.shade300),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
                               width: r.size(10),
                               height: r.size(10),
                               decoration: BoxDecoration(
-                                color: _currentChallenge != null
-                                    ? Colors.green
-                                    : Colors.grey,
+                                color: _currentChallenge != null ? Colors.green : Colors.grey,
                                 shape: BoxShape.circle,
                               ),
                             ),
                             ResponsiveGap.horizontal(8),
-                            Flexible(
+
+                            /// MAKE TEXT TAKE ALL AVAILABLE SPACE
+                            Expanded(
                               child: Text(
                                 _selectedChallenge,
                                 style: TextStyle(
@@ -782,14 +802,15 @@ class _MainPageState extends State<MainPage> {
                                 maxLines: 1,
                               ),
                             ),
-                            ResponsiveGap.horizontal(4),
+
+                            /// ICON ALWAYS STAYS RIGHT SIDE
                             Icon(
                               Icons.keyboard_arrow_down,
                               color: Colors.black54,
                               size: r.size(18),
                             ),
                           ],
-                        ),
+                        )
                       ),
                     ),
                   ),
@@ -866,18 +887,29 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
     }
   }
 
-  /// Preload challenge data in background
+  /// Preload challenge data in background - prioritize active challenges
   Future<void> _preloadChallengeData() async {
     try {
+      // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
+      // Get only active (non-cancelled) challenges
       final activeChallenges = await ChallengeService.getActiveChallenges();
 
       if (mounted) {
         setState(() {
           _preloadedChallengeHistory = allChallenges;
-          _preloadedChallenge = activeChallenges.isNotEmpty
-              ? activeChallenges.first
-              : null;
+
+          // Set preloaded challenge only if there's a truly active one
+          if (activeChallenges.isNotEmpty) {
+            // Double-check that the challenge is truly active
+            final truelyActive = activeChallenges.where((c) =>
+            c.lifecycleStatus == 'active' && c.isActive
+            ).toList();
+
+            _preloadedChallenge = truelyActive.isNotEmpty ? truelyActive.first : null;
+          } else {
+            _preloadedChallenge = null;
+          }
         });
       }
     } catch (e) {

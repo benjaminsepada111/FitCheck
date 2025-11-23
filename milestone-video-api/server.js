@@ -346,90 +346,35 @@ setInterval(() => {
 function escapeFFmpegText(text) {
   if (!text) return '';
 
-  // First, replace newlines with a placeholder
-  text = text.replace(/\n/g, '|||NEWLINE|||');
-
-  // Then escape other characters
-  text = text
-    .replace(/\\/g, '\\\\\\\\')     // Backslash
-    .replace(/'/g, "'\\\\''")       // Single quote
-    .replace(/:/g, '\\:')           // Colon
-    .replace(/\r/g, '')             // Remove carriage return
-    .replace(/[^\x20-\x7E|]/g, '') // Keep printable chars and pipe
-    .substring(0, 300);
-
-  // Now restore newlines with proper FFmpeg format
-  text = text.replace(/\|\|\|NEWLINE\|\|\|/g, '\n');
-
-  return text;
+  return text
+    .replace(/\\/g, '\\\\\\\\')    // Backslash (needs 4 backslashes for FFmpeg)
+    .replace(/'/g, "'\\\\''")      // Single quote
+    .replace(/:/g, '\\:')          // Colon
+    .replace(/\n/g, '\\n')         // Newline (FFmpeg will render as line break)
+    .replace(/\r/g, '')            // Remove carriage return
+    .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters except newline
+    .substring(0, 250);            // Limit length to prevent overflow
 }
+
 /**
  * Build FFmpeg filter complex with text overlays for each image
  */
-/**
- * Build FFmpeg filter complex with WORKING multi-line text overlays
- */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
-  const fadeDuration = 0.5;
-  const totalFadeLost = (imageCount - 1) * fadeDuration;
 
-  const filters = [];
+  if (imageCount === 1) {
+    const textContent = escapeFFmpegText(textLogs[0] || '');
+    const hasText = textContent.length > 0;
 
-  for (let i = 0; i < imageCount; i++) {
-    const clipDuration = (i === imageCount - 1)
-      ? durationPerImage + totalFadeLost
-      : durationPerImage;
+    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    const textLines = (textLogs[i] || '').split('\n').filter(t => t.trim());
-
-    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,
-                   pad=720:1280:(ow-iw)/2:(oh-ih)/2,
-                   setsar=1,fps=30,
-                   loop=loop=-1:size=1:start=0,
-                   trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
-
-    if (textLines.length > 0) {
-      const baseY = 1040;
-      const lineHeight = 38;
-
-      // Draw background box FIRST
-      const boxHeight = textLines.length * lineHeight + 40;
-
-      filter += `,drawbox=x=60:y=${baseY - 30}:w=600:h=${boxHeight}:color=black@0.55:t=fill`;
-
-      // Draw each line on TOP
-      textLines.forEach((line, index) => {
-        const esc = line
-          .replace(/\\/g, '\\\\\\\\')
-          .replace(/'/g, "'\\\\''")
-          .replace(/:/g, '\\:');
-
-        const y = baseY + (index * lineHeight);
-        const fade = `'if(lt(t,0.5),t/0.5,if(lt(t,${clipDuration - 0.5}),1,(${clipDuration}-t)/0.5))'`;
-
-        filter += `,drawtext=text='${esc}':
-                   fontsize=30:fontcolor=white:
-                   x=(w-text_w)/2:y=${y}:alpha=${fade}`;
-      });
+    if (hasText) {
+      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=h-th-100:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
     }
 
-    filter += `[v${i}]`;
-    filters.push(filter);
+    filter += `[outv]`;
+    return [filter];
   }
-
-  // Apply crossfades
-  let current = 'v0';
-  for (let i = 1; i < imageCount; i++) {
-    const offset = (durationPerImage * i) - fadeDuration;
-    const next = (i === imageCount - 1) ? 'outv' : `v${i}t`;
-    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
-    current = next;
-  }
-
-  return filters;
-}
-
 
   const filters = [];
   const fadeDuration = 0.5;
@@ -441,35 +386,15 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
       ? durationPerImage + totalFadeTimeLost
       : durationPerImage;
 
-    const textLines = (textLogs[i] || '').split('\n').filter(line => line.trim());
-    const hasText = textLines.length > 0;
-
+    const textContent = escapeFFmpegText(textLogs[i] || '');
+    const hasText = textContent.length > 0;
 
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
     // Add text overlay if text exists
     if (hasText) {
-      // 🎯 BUILD MULTI-LINE TEXT USING MULTIPLE DRAWTEXT FILTERS
-      const baseY = 1100; // Starting Y position from top
-      const lineHeight = 35; // Space between lines
-
-      textLines.forEach((line, index) => {
-        const escapedLine = line
-          .replace(/\\/g, '\\\\\\\\')
-          .replace(/'/g, "'\\\\''")
-          .replace(/:/g, '\\:');
-
-        const yPos = baseY + (index * lineHeight);
-        const fadeAlpha = `'if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
-
-        filter += `,drawtext=text='${escapedLine}':fontsize=26:fontcolor=white:x=(w-text_w)/2:y=${yPos}:alpha=${fadeAlpha}`;
-      });
-
-      // Add background box behind all text
-      const boxY = baseY - 15;
-      const boxHeight = (textLines.length * lineHeight) + 25;
-      filter += `,drawbox=x=(w-400)/2:y=${boxY}:w=400:h=${boxHeight}:color=black@0.75:t=fill`;
+      filter += `,drawtext=text='${textContent}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=8:x=(w-text_w)/2:y=h-th-80:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
     }
 
     filter += `[v${i}]`;

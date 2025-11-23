@@ -73,6 +73,14 @@ app.post(
           textLogs = JSON.parse(req.body.textLogs);
           console.log(`📝 Received ${textLogs.length} text logs`);
           console.log(`📄 First log sample: ${textLogs[0]?.substring(0, 100)}...`);
+
+          // 🐛 DEBUG: Check for newlines
+          if (textLogs[0]) {
+            console.log('🐛 DEBUG - First text log analysis:');
+            console.log('   Length:', textLogs[0].length);
+            console.log('   Has newlines:', textLogs[0].includes('\n'));
+            console.log('   Newline count:', (textLogs[0].match(/\n/g) || []).length);
+          }
         } catch (e) {
           console.warn('⚠️ Failed to parse textLogs:', e.message);
           textLogs = [];
@@ -193,36 +201,28 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         console.log(`⏳ Processing: ${percent}%`);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
       })
-  .on('end', () => {
-    console.log(`✅ Video created successfully with FULL text overlays: ${outputPath}`);
-    renderJobs.set(renderId, {
-      status: 'done',
-      progress: 100,
-      url: outputUrl,
-      error: null,
-      createdAt: renderJobs.get(renderId).createdAt
-    });
-
-    setTimeout(() => {
-      // Cleanup images
-      imageFiles.forEach(file => {
-        try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
-      });
-
-      // Cleanup music
-      if (musicPath && musicPath.includes(TEMP_DIR)) {
-        try { if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath); } catch {}
-      }
-
-      // ✅ NEW: Cleanup text files
-      try {
-        const textFiles = fs.readdirSync(TEMP_DIR).filter(f => f.startsWith('text_'));
-        textFiles.forEach(file => {
-          try { fs.unlinkSync(path.join(TEMP_DIR, file)); } catch {}
+      .on('end', () => {
+        console.log(`✅ Video created successfully with FULL text overlays: ${outputPath}`);
+        renderJobs.set(renderId, {
+          status: 'done',
+          progress: 100,
+          url: outputUrl,
+          error: null,
+          createdAt: renderJobs.get(renderId).createdAt
         });
-      } catch {}
-    }, 5 * 60 * 1000);
-  }))
+
+        setTimeout(() => {
+          // Cleanup images
+          imageFiles.forEach(file => {
+            try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
+          });
+
+          // Cleanup music
+          if (musicPath && musicPath.includes(TEMP_DIR)) {
+            try { if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath); } catch {}
+          }
+        }, 5 * 60 * 1000);
+      })
       .on('error', err => {
         console.error('❌ FFmpeg error:', err.message);
         renderJobs.set(renderId, {
@@ -282,33 +282,30 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 /**
- * Escape special characters for FFmpeg drawtext filter
+ * ✅ FIXED: Escape special characters for FFmpeg drawtext filter
+ * Properly handles multi-line text with newlines
  */
 function escapeFFmpegText(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')         // Backslash
-    .replace(/'/g, "'\\\\''")           // Single quote
-    .replace(/:/g, '\\:')               // Colon
-    .replace(/\n/g, '\\n')              // Newline (FFmpeg format)
-    .replace(/\r/g, '')                 // Remove carriage return
-    .replace(/[^\x20-\x7E\n]/g, ' ')    // Replace special chars with space
-    .replace(/\s+/g, ' ')               // Collapse multiple spaces
-    .trim()                             // Remove leading/trailing spaces
-    .substring(0, 500);                 // ✅ Increased from 400 to 500
+    .replace(/\\/g, '\\\\\\\\')           // Escape backslashes
+    .replace(/'/g, "\u2019")              // Replace single quotes with right single quotation mark
+    .replace(/:/g, '\\:')                 // Escape colons
+    .replace(/\n/g, '\\n')                // Convert newlines to FFmpeg format
+    .replace(/\r/g, '')                   // Remove carriage returns
+    .trim()                               // Remove leading/trailing whitespace
+    .substring(0, 600);                   // Increased limit to 600 chars
 }
 
 /**
- * Build FFmpeg filter complex with IMPROVED multi-line text overlays
- */
-/**
- * Build FFmpeg filter complex with IMPROVED multi-line text overlays
- * USES TEXT FILE for better newline handling
+ * ✅ FIXED: Build FFmpeg filter complex with proper multi-line text overlays
+ * Uses inline text with correct escaping for newlines
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
+  // Single image case
   if (imageCount === 1) {
     const textContent = textLogs[0] || '';
     const hasText = textContent.length > 0;
@@ -317,19 +314,20 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 
     if (hasText) {
       const escapedText = escapeFFmpegText(textContent);
-      // ✅ FIXED: Proper syntax for multi-line text
-      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      console.log(`🎨 Adding text overlay (${escapedText.length} chars, ${(escapedText.match(/\\\\n/g) || []).length} lines)`);
+
+      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=13:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
     }
 
     filter += `[outv]`;
     return [filter];
   }
 
+  // Multiple images case
   const filters = [];
   const fadeDuration = 0.5;
   const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
 
-  // Prepare each image with text overlay
   for (let i = 0; i < imageCount; i++) {
     const clipDuration = (i === imageCount - 1)
       ? durationPerImage + totalFadeTimeLost
@@ -341,10 +339,12 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
+    // Add text overlay
     if (hasText) {
       const escapedText = escapeFFmpegText(textContent);
-      // ✅ FIXED: Proper syntax for multi-line text
-      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      console.log(`🎨 Adding text overlay to clip ${i+1} (${escapedText.length} chars, ${(escapedText.match(/\\\\n/g) || []).length} lines)`);
+
+      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=13:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
     }
 
     filter += `[v${i}]`;

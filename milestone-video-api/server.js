@@ -316,11 +316,9 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      // ✅ WRITE TEXT TO FILE for better newline handling
-      const textFile = path.join(TEMP_DIR, `text_${Date.now()}_0.txt`);
-      fs.writeFileSync(textFile, textContent);
-
-      filter += `,drawtext=textfile='${textFile}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-80:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      const escapedText = escapeFFmpegText(textContent);
+      // ✅ FIXED: Proper syntax for multi-line text
+      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
     }
 
     filter += `[outv]`;
@@ -331,7 +329,7 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const fadeDuration = 0.5;
   const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
 
-  // Prepare each image with IMPROVED text overlay
+  // Prepare each image with text overlay
   for (let i = 0; i < imageCount; i++) {
     const clipDuration = (i === imageCount - 1)
       ? durationPerImage + totalFadeTimeLost
@@ -343,13 +341,10 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    // ✅ IMPROVED: Use text file for better multi-line rendering
     if (hasText) {
-      // Write text to temporary file
-      const textFile = path.join(TEMP_DIR, `text_${Date.now()}_${i}.txt`);
-      fs.writeFileSync(textFile, textContent);
-
-      filter += `,drawtext=textfile='${textFile}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-80:line_spacing=3:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      const escapedText = escapeFFmpegText(textContent);
+      // ✅ FIXED: Proper syntax for multi-line text
+      filter += `,drawtext=text='${escapedText}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=10:x=(w-text_w)/2:y=h-th-60:line_spacing=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
     }
 
     filter += `[v${i}]`;

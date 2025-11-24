@@ -9,6 +9,7 @@ import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/notification_service.dart';
+import 'package:capstone_project/services/NotificationHelper.dart'; // ✅ Added
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
@@ -111,26 +112,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
       await _notificationService.cancelMilestoneReminder();
       debugPrint('✅ Milestone exists for today - all reminders cancelled');
     } else {
-      // User hasn't added milestone today - schedule 2 PM and 8 PM reminders
-      await _notificationService.scheduleDailyMilestoneReminders();
-      debugPrint('📅 No milestone today - reminders scheduled for 2 PM and 8 PM');
-    }
-  }
-
-
-  // NEW METHOD: Show immediate notification if user hasn't added photo today
-  Future<void> _showImmediateReminderIfNeeded() async {
-    final now = DateTime.now();
-
-    // Only show immediate notification if it's after 12 PM (noon)
-    // This prevents spamming user early in the morning
-    if (now.hour >= 12) {
-      await _notificationService.showInstantNotification(
-        title: '📸 Time to Add Your Milestone!',
-        body: "You haven't added your milestone photo today. Tap to add now!",
-        payload: 'add_milestone_now',
-      );
-      debugPrint('📢 Immediate milestone reminder shown (after 12 PM)');
+      // User hasn't added milestone today - reminders are handled by settings
+      // Don't automatically schedule here, respect user settings
+      debugPrint('📅 No milestone today - reminders controlled by user settings');
     }
   }
 
@@ -152,8 +136,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
         await _loadMilestones(forceRefresh: true); // Force refresh after adding milestone
 
         if (mounted) {
-          // Show milestone saved notification
-          await _notificationService.showMilestoneSavedNotification();
+          // ✅ FIXED: Only save to NotificationPage (Firestore), no popup notification
+          await NotificationHelper.createMilestonePhotoNotification();
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

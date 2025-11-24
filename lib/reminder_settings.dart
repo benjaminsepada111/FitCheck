@@ -11,7 +11,7 @@ class ReminderSettingsPage extends StatefulWidget {
   State<ReminderSettingsPage> createState() => _ReminderSettingsPageState();
 }
 
-class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
+class _ReminderSettingsPageState extends State<ReminderSettingsPage> with SingleTickerProviderStateMixin {
   // Meal reminder states
   bool _breakfastEnabled = true;
   TimeOfDay _breakfastTime = const TimeOfDay(hour: 8, minute: 0);
@@ -30,12 +30,25 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
   TimeOfDay _milestoneTime = const TimeOfDay(hour: 20, minute: 0);
 
   bool _isLoading = true;
-  bool _notificationsEnabled = true;
+  bool _notificationsEnabled = true; // Master toggle
+  bool _isSaving = false;
+
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   /// Load saved notification settings from SharedPreferences
@@ -45,9 +58,8 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Check if notifications are enabled
-      _notificationsEnabled =
-      await NotificationService().areNotificationsEnabled();
+      // Load master toggle state
+      _notificationsEnabled = prefs.getBool('global_notifications_enabled') ?? true;
 
       // Load breakfast settings
       _breakfastEnabled = prefs.getBool('breakfast_enabled') ?? true;
@@ -90,10 +102,118 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
     }
   }
 
+  /// Toggle master notifications ON/OFF
+  Future<void> _toggleNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('global_notifications_enabled', value);
+
+    setState(() {
+      _notificationsEnabled = value;
+    });
+
+    if (!value) {
+      // Cancel all notifications when disabled
+      await NotificationService().cancelAllMealReminders();
+      await NotificationService().cancelMilestoneReminder();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.notifications_off_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Notifications disabled. All reminders have been turned off.',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: EdgeInsets.all(16),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } else {
+      // Restore notifications when enabled (reschedule based on saved settings)
+      await _rescheduleAllReminders();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.notifications_active_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Notifications enabled! Your reminders are now active.',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: EdgeInsets.all(16),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Reschedule all enabled reminders
+  Future<void> _rescheduleAllReminders() async {
+    if (_breakfastEnabled) {
+      await NotificationService().scheduleMealReminder(
+        'Breakfast',
+        _breakfastTime.hour,
+        _breakfastTime.minute,
+      );
+    }
+    if (_lunchEnabled) {
+      await NotificationService().scheduleMealReminder(
+        'Lunch',
+        _lunchTime.hour,
+        _lunchTime.minute,
+      );
+    }
+    if (_snackEnabled) {
+      await NotificationService().scheduleMealReminder(
+        'Snack',
+        _snackTime.hour,
+        _snackTime.minute,
+      );
+    }
+    if (_dinnerEnabled) {
+      await NotificationService().scheduleMealReminder(
+        'Dinner',
+        _dinnerTime.hour,
+        _dinnerTime.minute,
+      );
+    }
+    if (_milestoneEnabled) {
+      await NotificationService().scheduleMilestoneReminderAt(
+        _milestoneTime.hour,
+        _milestoneTime.minute,
+      );
+    }
+  }
+
   /// Save settings to SharedPreferences
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
+      // Save master toggle
+      await prefs.setBool('global_notifications_enabled', _notificationsEnabled);
 
       // Save breakfast
       await prefs.setBool('breakfast_enabled', _breakfastEnabled);
@@ -126,8 +246,21 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
     }
   }
 
-  /// Apply all notification settings
+  /// Apply all notification settings with enhanced UX
   Future<void> _applyAllSettings() async {
+    if (!_notificationsEnabled) {
+      _showNotificationDisabledDialog();
+      return;
+    }
+
+    // Animate button press
+    await _animationController.forward();
+    await _animationController.reverse();
+
+    setState(() {
+      _isSaving = true;
+    });
+
     try {
       // Cancel all existing meal reminders
       await NotificationService().cancelAllMealReminders();
@@ -177,26 +310,22 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
       // Save settings
       await _saveSettings();
 
+      // Add delay for better UX
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      setState(() {
+        _isSaving = false;
+      });
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text('Reminder settings saved!'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        _showSuccessDialog();
       }
     } catch (e) {
       debugPrint('Error applying settings: $e');
+      setState(() {
+        _isSaving = false;
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -212,8 +341,214 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
     }
   }
 
+  /// Show success dialog with animation
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Animated checkmark
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade400,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 48,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Settings Applied!',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade900,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Your notification preferences have been saved successfully.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'You\'ll receive reminders at your scheduled times daily.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade900,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Done',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Show notification disabled dialog
+  void _showNotificationDisabledDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade400,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.notifications_off_rounded,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Notifications Disabled',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade900,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Please enable notifications using the toggle above to customize your reminder settings.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade600,
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Got It',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Toggle meal reminder and update immediately
   Future<void> _toggleMealReminder(String mealType, bool enabled) async {
+    if (!_notificationsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.notifications_off_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Enable notifications first to set reminders',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       switch (mealType) {
         case 'Breakfast':
@@ -262,6 +597,31 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
 
   /// Pick time for meal reminder
   Future<void> _pickMealTime(String mealType) async {
+    if (!_notificationsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.notifications_off_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Enable notifications first to set times',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     TimeOfDay currentTime;
     switch (mealType) {
       case 'Breakfast':
@@ -346,6 +706,31 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
 
   /// Toggle milestone reminder
   Future<void> _toggleMilestoneReminder(bool enabled) async {
+    if (!_notificationsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.notifications_off_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Enable notifications first to set reminders',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _milestoneEnabled = enabled;
     });
@@ -364,6 +749,31 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
 
   /// Pick time for milestone reminder
   Future<void> _pickMilestoneTime() async {
+    if (!_notificationsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.notifications_off_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Enable notifications first to set times',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _milestoneTime,
@@ -413,34 +823,85 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
     return 'Next reminder at ${_formatTime(time)}';
   }
 
-  /// Request notification permissions
-  Future<void> _requestNotificationPermission() async {
-    final result = await NotificationService().requestExactAlarmPermission();
-    if (result) {
-      final isEnabled = await NotificationService().areNotificationsEnabled();
-      setState(() {
-        _notificationsEnabled = isEnabled;
-      });
-
-      if (isEnabled && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Expanded(child: Text('Notifications enabled successfully!')),
-              ],
+  /// Build master toggle card
+  Widget _buildMasterToggle() {
+    return Container(
+      margin: EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _notificationsEnabled
+              ? [Colors.green.shade400, Colors.green.shade600]
+              : [Colors.grey.shade400, Colors.grey.shade600],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: (_notificationsEnabled ? Colors.green.shade300 : Colors.grey.shade300)
+                .withOpacity(0.4),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(14),
             ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+            child: Icon(
+              _notificationsEnabled
+                  ? Icons.notifications_active_rounded
+                  : Icons.notifications_off_rounded,
+              color: Colors.white,
+              size: 32,
             ),
           ),
-        );
-      }
-    }
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notifications',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  _notificationsEnabled
+                      ? 'All reminders are active'
+                      : 'All reminders are turned off',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Transform.scale(
+            scale: 1.1,
+            child: Switch(
+              value: _notificationsEnabled,
+              onChanged: _toggleNotifications,
+              activeColor: Colors.white,
+              activeTrackColor: Colors.white.withOpacity(0.4),
+              inactiveThumbColor: Colors.white.withOpacity(0.8),
+              inactiveTrackColor: Colors.white.withOpacity(0.3),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -466,226 +927,196 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+          : Column(
         children: [
-          // Enable/Disable Notifications Button
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: _notificationsEnabled
-                    ? null
-                    : _requestNotificationPermission,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _notificationsEnabled
-                              ? AppColors.secondary.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          _notificationsEnabled
-                              ? Icons.notifications_active
-                              : Icons.notifications_off_outlined,
-                          color: _notificationsEnabled
-                              ? AppColors.secondary
-                              : Colors.grey,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _notificationsEnabled
-                                  ? 'Notifications Enabled'
-                                  : 'Notifications Disabled',
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _notificationsEnabled
-                                  ? 'You\'ll receive meal and milestone reminders'
-                                  : 'Tap to enable notifications in settings',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!_notificationsEnabled)
-                        Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey[400],
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Section Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'MEAL REMINDERS',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-
-          // Breakfast Reminder
-          _buildMealReminderCard(
-            emoji: '🍳',
-            title: 'Breakfast Reminder',
-            isEnabled: _breakfastEnabled,
-            time: _breakfastTime,
-            mealType: 'Breakfast',
-          ),
-
-          // Lunch Reminder
-          _buildMealReminderCard(
-            emoji: '🍱',
-            title: 'Lunch Reminder',
-            isEnabled: _lunchEnabled,
-            time: _lunchTime,
-            mealType: 'Lunch',
-          ),
-
-          // Snack Reminder
-          _buildMealReminderCard(
-            emoji: '🍎',
-            title: 'Snack Reminder',
-            isEnabled: _snackEnabled,
-            time: _snackTime,
-            mealType: 'Snack',
-          ),
-
-          // Dinner Reminder
-          _buildMealReminderCard(
-            emoji: '🍽️',
-            title: 'Dinner Reminder',
-            isEnabled: _dinnerEnabled,
-            time: _dinnerTime,
-            mealType: 'Dinner',
-          ),
-
-          const SizedBox(height: 16),
-
-          // Milestone Section Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'MILESTONE REMINDERS',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-
-          // Milestone Reminder Card
-          _buildMilestoneCard(),
-
-          const SizedBox(height: 24),
-
-          // Save All Settings Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _notificationsEnabled ? _applyAllSettings : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey[300],
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Apply All Settings',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Info Card
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.blue[700],
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
+                // Master Toggle Card
+                _buildMasterToggle(),
+
+                // Section Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Text(
-                    'Your reminders will fire daily at the times you set, even when the app is closed. Make sure to allow notifications in your device settings.',
+                    'MEAL REMINDERS',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.blue[900],
-                      height: 1.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
+
+                // Breakfast Reminder
+                _buildMealReminderCard(
+                  emoji: '🍳',
+                  title: 'Breakfast Reminder',
+                  isEnabled: _breakfastEnabled,
+                  time: _breakfastTime,
+                  mealType: 'Breakfast',
+                ),
+
+                // Lunch Reminder
+                _buildMealReminderCard(
+                  emoji: '🍱',
+                  title: 'Lunch Reminder',
+                  isEnabled: _lunchEnabled,
+                  time: _lunchTime,
+                  mealType: 'Lunch',
+                ),
+
+                // Snack Reminder
+                _buildMealReminderCard(
+                  emoji: '🍎',
+                  title: 'Snack Reminder',
+                  isEnabled: _snackEnabled,
+                  time: _snackTime,
+                  mealType: 'Snack',
+                ),
+
+                // Dinner Reminder
+                _buildMealReminderCard(
+                  emoji: '🍽️',
+                  title: 'Dinner Reminder',
+                  isEnabled: _dinnerEnabled,
+                  time: _dinnerTime,
+                  mealType: 'Dinner',
+                ),
+
+                const SizedBox(height: 16),
+
+                // Milestone Section Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'MILESTONE REMINDERS',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+
+                // Milestone Reminder Card
+                _buildMilestoneCard(),
+
+                const SizedBox(height: 16),
+
+                // Info Card
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue[700],
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Your reminders will fire daily at the times you set, even when the app is closed.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.blue[900],
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 100),
               ],
             ),
           ),
 
-          const SizedBox(height: 24),
+          // Apply Button (Fixed at bottom)
+          Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 1.0, end: 0.95).animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeInOut,
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: (_isSaving || !_notificationsEnabled) ? null : _applyAllSettings,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _notificationsEnabled
+                          ? AppColors.secondary
+                          : Colors.grey.shade400,
+                      disabledBackgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isSaving
+                        ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          '⟳ Applying Settings...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    )
+                        : Text(
+                      _notificationsEnabled
+                          ? '✓ Apply All Settings'
+                          : 'Enable Notifications First',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -699,11 +1130,19 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
     required TimeOfDay time,
     required String mealType,
   }) {
+    final isInteractive = _notificationsEnabled;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isInteractive && isEnabled
+              ? AppColors.secondary.withOpacity(0.3)
+              : Colors.grey.shade200,
+          width: 2,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -723,12 +1162,15 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: isInteractive ? Colors.grey[100] : Colors.grey[50],
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     emoji,
-                    style: const TextStyle(fontSize: 24),
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: isInteractive ? Colors.black : Colors.grey,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -739,20 +1181,20 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: isInteractive ? Colors.black87 : Colors.grey.shade400,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        isEnabled
+                        isEnabled && isInteractive
                             ? _getNextReminderText(time)
                             : 'Tap to enable reminder',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: isInteractive ? Colors.grey[600] : Colors.grey.shade400,
                         ),
                       ),
                     ],
@@ -760,8 +1202,8 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 ),
                 // Toggle switch
                 Switch(
-                  value: isEnabled,
-                  onChanged: _notificationsEnabled
+                  value: isEnabled && isInteractive,
+                  onChanged: isInteractive
                       ? (value) => _toggleMealReminder(mealType, value)
                       : null,
                   activeColor: AppColors.secondary,
@@ -770,7 +1212,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
             ),
           ),
           // Time picker section (only visible when enabled)
-          if (isEnabled) ...[
+          if (isEnabled && isInteractive) ...[
             Divider(height: 1, color: Colors.grey[200]),
             Material(
               color: Colors.transparent,
@@ -826,11 +1268,19 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
 
   /// Build milestone reminder card
   Widget _buildMilestoneCard() {
+    final isInteractive = _notificationsEnabled;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isInteractive && _milestoneEnabled
+              ? AppColors.secondary.withOpacity(0.3)
+              : Colors.grey.shade200,
+          width: 2,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -850,12 +1300,15 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: isInteractive ? Colors.grey[100] : Colors.grey[50],
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text(
+                  child: Text(
                     '📸',
-                    style: TextStyle(fontSize: 24),
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: isInteractive ? Colors.black : Colors.grey,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -864,22 +1317,22 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Milestone Photos',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: isInteractive ? Colors.black87 : Colors.grey.shade400,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _milestoneEnabled
+                        _milestoneEnabled && isInteractive
                             ? _getNextReminderText(_milestoneTime)
                             : 'Tap to enable reminders',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: isInteractive ? Colors.grey[600] : Colors.grey.shade400,
                         ),
                       ),
                     ],
@@ -887,16 +1340,15 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> {
                 ),
                 // Toggle switch
                 Switch(
-                  value: _milestoneEnabled,
-                  onChanged:
-                  _notificationsEnabled ? _toggleMilestoneReminder : null,
+                  value: _milestoneEnabled && isInteractive,
+                  onChanged: isInteractive ? _toggleMilestoneReminder : null,
                   activeColor: AppColors.secondary,
                 ),
               ],
             ),
           ),
           // Time picker section (only visible when enabled)
-          if (_milestoneEnabled) ...[
+          if (_milestoneEnabled && isInteractive) ...[
             Divider(height: 1, color: Colors.grey[200]),
             Material(
               color: Colors.transparent,

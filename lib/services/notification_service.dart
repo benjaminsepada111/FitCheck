@@ -7,8 +7,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:capstone_project/services/notification_storage_service.dart';
 
+/// ⚠️ IMPORTANT: This service now handles ONLY scheduled reminder notifications
+/// For activity logging (meals, milestones), use NotificationHelper instead
 class NotificationService {
   // Singleton pattern - ensures only one instance exists
   static final NotificationService _instance = NotificationService._internal();
@@ -140,14 +141,14 @@ class NotificationService {
       _isInitialized = true;
       debugPrint('✅ NotificationService initialized successfully');
 
-      // 🆕 Load and apply saved notification settings (or use defaults)
+      // Load and apply saved notification settings (or use defaults)
       await _loadAndApplySavedSettings();
     } catch (e) {
       debugPrint('❌ Error initializing NotificationService: $e');
     }
   }
 
-  /// 🆕 Load saved settings and apply them, or use defaults
+  /// Load saved settings and apply them, or use defaults
   Future<void> _loadAndApplySavedSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -185,7 +186,7 @@ class NotificationService {
     }
   }
 
-  /// 🆕 Helper to schedule a meal from saved preferences
+  /// Helper to schedule a meal from saved preferences
   Future<void> _scheduleFromSavedPreferences(
       String mealType,
       SharedPreferences prefs,
@@ -321,6 +322,7 @@ class NotificationService {
   }
 
   /// Show an instant notification (appears immediately)
+  /// ⚠️ Only use for general-purpose notifications, NOT for activity logging
   Future<void> showInstantNotification({
     required String title,
     required String body,
@@ -371,7 +373,7 @@ class NotificationService {
     }
   }
 
-  /// 🆕 Schedule a single meal reminder at custom time
+  /// Schedule a single meal reminder at custom time
   Future<void> scheduleMealReminder(
       String mealType,
       int hour,
@@ -476,7 +478,7 @@ class NotificationService {
     }
   }
 
-  /// 🆕 Cancel a specific meal reminder by type
+  /// Cancel a specific meal reminder by type
   Future<void> cancelMealReminderByType(String mealType) async {
     try {
       final int notificationId = _getMealReminderId(mealType);
@@ -487,7 +489,7 @@ class NotificationService {
     }
   }
 
-  /// 🆕 Cancel all meal reminders
+  /// Cancel all meal reminders
   Future<void> cancelAllMealReminders() async {
     try {
       await _notifications.cancel(breakfastReminderId);
@@ -500,7 +502,7 @@ class NotificationService {
     }
   }
 
-  /// 🆕 Schedule milestone reminder at custom time
+  /// Schedule milestone reminder at custom time
   Future<void> scheduleMilestoneReminderAt(int hour, int minute) async {
     if (!_isInitialized) {
       debugPrint('⚠️ NotificationService not initialized');
@@ -568,7 +570,7 @@ class NotificationService {
     }
   }
 
-  /// Schedule daily meal reminders at default times (ORIGINAL METHOD - PRESERVED)
+  /// Schedule daily meal reminders at default times
   Future<void> scheduleDailyMealReminders() async {
     if (!_isInitialized) {
       debugPrint('⚠️ NotificationService not initialized');
@@ -712,13 +714,13 @@ class NotificationService {
     }
   }
 
-  /// Reschedule meal reminders (ORIGINAL METHOD - PRESERVED)
+  /// Reschedule meal reminders (for device reboot)
   Future<void> rescheduleOnReboot() async {
     debugPrint('🔄 Rescheduling meal reminders after reboot...');
     await _loadAndApplySavedSettings();
   }
 
-  /// Cancel all meal reminders (ORIGINAL METHOD - PRESERVED)
+  /// Cancel all meal reminders
   Future<void> cancelMealReminders() async {
     try {
       await _notifications.cancel(breakfastReminderId);
@@ -731,7 +733,7 @@ class NotificationService {
     }
   }
 
-  /// Schedule daily milestone reminders (ORIGINAL METHOD - PRESERVED)
+  /// Schedule daily milestone reminders
   Future<void> scheduleDailyMilestoneReminders() async {
     if (!_isInitialized) {
       debugPrint('⚠️ NotificationService not initialized');
@@ -827,8 +829,6 @@ class NotificationService {
     }
   }
 
-  // ALL ORIGINAL METHODS BELOW ARE PRESERVED ✅
-
   Future<void> showReminderNotification() async {
     await showInstantNotification(
       title: '📸 Milestone Reminder',
@@ -855,41 +855,15 @@ class NotificationService {
     );
   }
 
-  /// 🆕 UPDATED: Save notification to Firestore
+  // ⚠️ DEPRECATED METHODS - Use NotificationHelper instead for activity logging
+  @Deprecated('Use NotificationHelper.createMilestonePhotoNotification() instead')
   Future<void> showMilestoneSavedNotification() async {
-    await showInstantNotification(
-      title: '✅ Milestone Saved!',
-      body: 'Great job! Your progress has been recorded.',
-      payload: 'milestone_saved',
-    );
-
-    // Save to Firestore
-    await NotificationStorageService.saveNotification(
-      type: NotificationStorageService.typeMilestonePhoto,
-      title: 'Milestone Photo Added',
-      description: 'Great progress! Your milestone photo has been saved.',
-      iconName: 'camera_alt',
-      iconColor: 0xFFE91E63,
-    );
+    debugPrint('⚠️ showMilestoneSavedNotification is deprecated. Use NotificationHelper instead.');
   }
 
-  /// 🆕 UPDATED: Save notification to Firestore
+  @Deprecated('Use NotificationHelper.createMealLoggedNotification() instead')
   Future<void> showMealLoggedNotification(String mealType) async {
-    await showInstantNotification(
-      title: '✅ $mealType Logged!',
-      body: 'Great job tracking your nutrition!',
-      payload: 'meal_logged_${mealType.toLowerCase()}',
-    );
-
-    // Save to Firestore
-    await NotificationStorageService.saveNotification(
-      type: NotificationStorageService.typeMealLogged,
-      title: 'Meal Logged Successfully',
-      description: 'You have logged your $mealType. Keep up the great work!',
-      iconName: 'restaurant',
-      iconColor: 0xFFFF9800,
-      metadata: {'mealType': mealType},
-    );
+    debugPrint('⚠️ showMealLoggedNotification is deprecated. Use NotificationHelper instead.');
   }
 
   Future<void> cancelNotification(int id) async {

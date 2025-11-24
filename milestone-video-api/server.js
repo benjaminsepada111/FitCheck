@@ -339,8 +339,8 @@ function splitTextIntoLines(text, maxCharsPerLine = 40) {
 }
 
 /**
- * ✅ WORKING: Build FFmpeg filter complex with REAL multi-line text overlays
- * Uses multiple drawtext filters (one per line) for guaranteed multi-line support
+ * ✅ PROFESSIONAL: Build FFmpeg filter complex with enhanced text overlays
+ * Modern styling with shadows, better positioning, and visual hierarchy
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
@@ -353,15 +353,25 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      const lines = splitTextIntoLines(textContent, 40); // 40 chars per line
-      console.log(`🎨 Adding ${lines.length} text lines to overlay`);
+      const lines = splitTextIntoLinesEnhanced(textContent, 38); // Slightly shorter lines
+      console.log(`🎨 Adding ${lines.length} professional text lines to overlay`);
 
-      // Add each line as a separate drawtext filter
+      // Add each line with enhanced styling
       lines.forEach((line, index) => {
         const escapedLine = escapeFFmpegTextSimple(line);
-        const yPosition = `h-${70 + (lines.length - 1 - index) * 22}`; // 22px spacing between lines, from bottom up
+        const isHeader = index === 0; // First line is date header
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=8:x=(w-text_w)/2:y=${yPosition}:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+        // Position from bottom up with proper spacing
+        const baseY = 140; // Start higher from bottom
+        const lineSpacing = 24; // More spacing between lines
+        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
+
+        // Different styling for header vs content
+        const fontSize = isHeader ? 17 : 14; // Larger font for date
+        const fontWeight = isHeader ? 'Bold' : 'Bold'; // Keep all bold for now
+
+        // Enhanced text with shadow for better readability
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-${fontWeight}.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
       });
     }
 
@@ -385,17 +395,27 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    // Add text overlay as multiple lines
+    // Add text overlay with enhanced styling
     if (hasText) {
-      const lines = splitTextIntoLines(textContent, 40); // 40 chars per line
-      console.log(`🎨 Adding ${lines.length} text lines to clip ${i+1}`);
+      const lines = splitTextIntoLinesEnhanced(textContent, 38);
+      console.log(`🎨 Adding ${lines.length} professional text lines to clip ${i+1}`);
 
-      // Add each line as a separate drawtext filter
+      // Add each line with enhanced styling
       lines.forEach((line, index) => {
         const escapedLine = escapeFFmpegTextSimple(line);
-        const yPosition = `h-${70 + (lines.length - 1 - index) * 22}`; // 22px spacing between lines, from bottom up
+        const isHeader = index === 0; // First line is date header
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.85:boxborderw=8:x=(w-text_w)/2:y=${yPosition}:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+        // Position from bottom up with proper spacing
+        const baseY = 140; // Start higher from bottom
+        const lineSpacing = 24; // More spacing between lines
+        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
+
+        // Different styling for header vs content
+        const fontSize = isHeader ? 17 : 14; // Larger font for date
+        const fontWeight = isHeader ? 'Bold' : 'Bold';
+
+        // Enhanced text with shadow for better readability
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-${fontWeight}.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
       });
     }
 
@@ -413,6 +433,51 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   }
 
   return filters;
+}
+
+/**
+ * ✅ ENHANCED: Split text with better formatting
+ */
+function splitTextIntoLinesEnhanced(text, maxCharsPerLine = 38) {
+  if (!text) return [];
+
+  const lines = [];
+
+  // First split by actual newlines
+  const paragraphs = text.split('\n').filter(p => p.trim().length > 0);
+
+  paragraphs.forEach(paragraph => {
+    // Trim emoji and spaces for better processing
+    const trimmed = paragraph.trim();
+
+    if (trimmed.length <= maxCharsPerLine) {
+      lines.push(trimmed);
+    } else {
+      // Split long lines at word boundaries
+      const words = trimmed.split(' ');
+      let currentLine = '';
+
+      words.forEach(word => {
+        const testLine = currentLine.length > 0 ? `${currentLine} ${word}` : word;
+
+        if (testLine.length <= maxCharsPerLine) {
+          currentLine = testLine;
+        } else {
+          if (currentLine.length > 0) {
+            lines.push(currentLine);
+          }
+          currentLine = word;
+        }
+      });
+
+      if (currentLine.length > 0) {
+        lines.push(currentLine);
+      }
+    }
+  });
+
+  // Limit to 10 lines for cleaner look
+  return lines.slice(0, 10);
 }
 
 app.listen(PORT, '0.0.0.0', () => {

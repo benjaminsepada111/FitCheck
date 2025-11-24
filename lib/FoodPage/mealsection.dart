@@ -6,7 +6,7 @@ import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
-import 'package:capstone_project/services/notification_service.dart';
+import 'package:capstone_project/services/NotificationHelper.dart'; // ✅ Changed from notification_service
 import '../app_text_styles.dart';
 import '../utils/responsive_utils.dart';
 import '../widgets/responsive_widgets.dart';
@@ -99,12 +99,12 @@ class MealsSectionState extends State<MealsSection> {
   }
 
   void _onFoodAdded(
-    String foodName,
-    int calories,
-    String mealType, {
-    double? grams,
-    String? imageUrl,
-  }) async {
+      String foodName,
+      int calories,
+      String mealType, {
+        double? grams,
+        String? imageUrl,
+      }) async {
     try {
       // Create new food entry
       final foodEntry = FoodEntry(
@@ -147,8 +147,11 @@ class MealsSectionState extends State<MealsSection> {
           );
         }
 
-        // 🆕 Show notification for meal logged
-        await NotificationService().showMealLoggedNotification(mealType);
+        // ✅ FIXED: Only save to NotificationPage (Firestore), no popup notification
+        await NotificationHelper.createMealLoggedNotification(
+          mealType,
+          calories: calories,
+        );
 
         // Reload the meal data to show the new entry
         await loadMealData();
@@ -378,7 +381,7 @@ class MealsSectionState extends State<MealsSection> {
 
         ResponsiveGap.vertical(12),
         ...meals.map(
-          (meal) => _MealCard(
+              (meal) => _MealCard(
             name: meal["name"] as String,
             calories: meal["calories"] as String,
             iconPath: meal["icon"] as String,
@@ -426,11 +429,11 @@ class _MealCard extends StatefulWidget {
   final bool isRecommended;
   final List<FoodEntry> foodEntries;
   final Function(
-    String foodName,
-    int calories, {
-    double? grams,
-    String? imageUrl,
-  })
+      String foodName,
+      int calories, {
+      double? grams,
+      String? imageUrl,
+      })
   onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
   final String? challengeId;
@@ -635,160 +638,160 @@ class _MealCardState extends State<_MealCard> {
                       children: widget.foodEntries
                           .map(
                             (entry) => Container(
-                              margin: EdgeInsets.only(bottom: r.size(8)),
-                              padding: EdgeInsets.all(r.size(12)),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(r.size(8)),
-                                border: Border.all(
-                                  color: Colors.grey.shade200,
-                                  width: r.size(1),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Show image thumbnail or default icon
-                                  if (entry.imageUrl != null &&
-                                      entry.imageUrl!.isNotEmpty)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        r.size(6),
-                                      ),
-                                      child: Image.network(
-                                        entry.imageUrl!,
+                          margin: EdgeInsets.only(bottom: r.size(8)),
+                          padding: EdgeInsets.all(r.size(12)),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(r.size(8)),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: r.size(1),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              // Show image thumbnail or default icon
+                              if (entry.imageUrl != null &&
+                                  entry.imageUrl!.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    r.size(6),
+                                  ),
+                                  child: Image.network(
+                                    entry.imageUrl!,
+                                    width: r.size(60),
+                                    height: r.size(80),
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) {
+                                      return Container(
                                         width: r.size(60),
                                         height: r.size(80),
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              return Container(
-                                                width: r.size(60),
-                                                height: r.size(80),
-                                                color: Colors.grey.shade300,
-                                                child: Icon(
-                                                  Icons.broken_image,
-                                                  color: Colors.grey.shade500,
-                                                  size: r.size(24),
-                                                ),
-                                              );
-                                            },
-                                        loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null) {
-                                            return child;
-                                          }
-                                          return Container(
-                                            width: r.size(60),
-                                            height: r.size(80),
-                                            color: Colors.grey.shade200,
-                                            child: Center(
-                                              child: CircularProgressIndicator(
-                                                value:
-                                                    loadingProgress
-                                                            .expectedTotalBytes !=
-                                                        null
-                                                    ? loadingProgress
-                                                              .cumulativeBytesLoaded /
-                                                          loadingProgress
-                                                              .expectedTotalBytes!
-                                                    : null,
-                                                strokeWidth: r.size(2),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    )
-                                  else
-                                    Container(
-                                      width: r.size(60),
-                                      height: r.size(80),
-                                      padding: EdgeInsets.all(r.size(12)),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.secondary.withValues(
-                                          alpha: 0.1,
+                                        color: Colors.grey.shade300,
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          color: Colors.grey.shade500,
+                                          size: r.size(24),
                                         ),
-                                        borderRadius: BorderRadius.circular(
-                                          r.size(6),
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        Icons.restaurant,
-                                        color: AppColors.secondary,
-                                        size: r.size(24),
-                                      ),
-                                    ),
-                                  ResponsiveGap.horizontal(12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          entry.foodName,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: r.font(
-                                              14,
-                                              min: 12,
-                                              max: 16,
-                                            ),
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) {
+                                        return child;
+                                      }
+                                      return Container(
+                                        width: r.size(60),
+                                        height: r.size(80),
+                                        color: Colors.grey.shade200,
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            value:
+                                            loadingProgress
+                                                .expectedTotalBytes !=
+                                                null
+                                                ? loadingProgress
+                                                .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes!
+                                                : null,
+                                            strokeWidth: r.size(2),
                                           ),
                                         ),
-                                        ResponsiveGap.vertical(2),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              '${entry.totalCalories.round()} cal',
-                                              style: TextStyle(
-                                                fontSize: r.font(
-                                                  12,
-                                                  min: 10,
-                                                  max: 14,
-                                                ),
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                            if (entry.servingSize > 0) ...[
-                                              Text(
-                                                ' • ',
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: r.font(
-                                                    12,
-                                                    min: 10,
-                                                    max: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                              Text(
-                                                '${entry.servingSize.toStringAsFixed(0)}g',
-                                                style: TextStyle(
-                                                  fontSize: r.font(
-                                                    12,
-                                                    min: 10,
-                                                    max: 14,
-                                                  ),
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ],
+                                      );
+                                    },
+                                  ),
+                                )
+                              else
+                                Container(
+                                  width: r.size(60),
+                                  height: r.size(80),
+                                  padding: EdgeInsets.all(r.size(12)),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      r.size(6),
                                     ),
                                   ),
-                                  ResponsiveIconButton(
-                                    onPressed: () =>
-                                        _confirmRemoveFood(context, entry),
-                                    icon: Icons.remove_circle_outline,
-                                    color: Colors.red.shade400,
-                                    iconSize: 20,
-                                    minTapTarget: 44,
+                                  child: Icon(
+                                    Icons.restaurant,
+                                    color: AppColors.secondary,
+                                    size: r.size(24),
                                   ),
-                                ],
+                                ),
+                              ResponsiveGap.horizontal(12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      entry.foodName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: r.font(
+                                          14,
+                                          min: 12,
+                                          max: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    ResponsiveGap.vertical(2),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '${entry.totalCalories.round()} cal',
+                                          style: TextStyle(
+                                            fontSize: r.font(
+                                              12,
+                                              min: 10,
+                                              max: 14,
+                                            ),
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        if (entry.servingSize > 0) ...[
+                                          Text(
+                                            ' • ',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: r.font(
+                                                12,
+                                                min: 10,
+                                                max: 14,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${entry.servingSize.toStringAsFixed(0)}g',
+                                            style: TextStyle(
+                                              fontSize: r.font(
+                                                12,
+                                                min: 10,
+                                                max: 14,
+                                              ),
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          )
+                              ResponsiveIconButton(
+                                onPressed: () =>
+                                    _confirmRemoveFood(context, entry),
+                                icon: Icons.remove_circle_outline,
+                                color: Colors.red.shade400,
+                                iconSize: 20,
+                                minTapTarget: 44,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
                           .toList(),
                     ),
                   ] else ...[

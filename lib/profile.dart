@@ -108,38 +108,49 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   Future<void> _logout(BuildContext context) async {
     final r = context.responsive;
+    BuildContext? dialogContext;
+
     try {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(r.size(20)),
-          ),
-          backgroundColor: Colors.white,
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-                strokeWidth: r.size(3),
-              ),
-              ResponsiveGap(20, vertical: false),
-              Text('Signing out...', style: TextStyle(fontSize: r.font(14, min: 12, max: 18))),
-            ],
-          ),
-        ),
+        builder: (context) {
+          dialogContext = context;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(r.size(20)),
+            ),
+            backgroundColor: Colors.white,
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                  strokeWidth: r.size(3),
+                ),
+                ResponsiveGap(20, vertical: false),
+                Text('Signing out...', style: TextStyle(fontSize: r.font(14, min: 12, max: 18))),
+              ],
+            ),
+          );
+        },
       );
 
       await FirebaseAuth.instance.signOut();
 
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
       if (context.mounted) {
-        Navigator.pop(context);
         Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
       }
     } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
       if (context.mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to sign out. Please try again.',

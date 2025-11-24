@@ -195,6 +195,7 @@ class _SignUpPageState extends State<SignUpPage> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF06111D),
+        resizeToAvoidBottomInset: true,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(

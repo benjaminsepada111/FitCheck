@@ -338,6 +338,9 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   }
 
   void _nextPage() {
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
+
     if (_currentPage == 0) {
       if (_validatePage1()) {
         _pageController.nextPage(
@@ -359,6 +362,9 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   }
 
   void _previousPage() {
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
+
     if (_currentPage > 0) {
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),

@@ -59,6 +59,9 @@ class _NicknamePageState extends State<NicknamePage> with TickerProviderStateMix
 
     if (_isLoading) return;
 
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
+
     setState(() => _isLoading = true);
 
     try {
@@ -97,19 +100,25 @@ class _NicknamePageState extends State<NicknamePage> with TickerProviderStateMix
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Column(
             children: [
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Container(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height * 0.6,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                     // Header Section
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -193,7 +202,9 @@ class _NicknamePageState extends State<NicknamePage> with TickerProviderStateMix
                     ),
 
                     const SizedBox(height: 40),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

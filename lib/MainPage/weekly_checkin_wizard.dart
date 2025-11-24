@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/weekly_checkin_service.dart';
+import 'package:capstone_project/services/user_data_service.dart';
 
 class WeeklyCheckInWizard extends StatefulWidget {
   final Challenge challenge;
@@ -29,6 +30,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   String? _selectedFeeling;
   String? _selectedActivityChange;
   String? _weightError;
+  String _userName = 'there'; // Default fallback name
 
   // Animation controllers
   late AnimationController _buttonAnimationController;
@@ -49,10 +51,23 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       parent: _buttonAnimationController,
       curve: Curves.easeInOut,
     ));
+
+    // Load user's name
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final userData = await UserDataService.loadUserData();
+    if (userData?.name != null && mounted) {
+      setState(() {
+        _userName = userData!.name!;
+      });
+    }
   }
 
   List<Widget> _getSlides() {
     return [
+      _buildWelcomePage(),
       _buildWeightPage(),
       _buildFeelingPage(),
       _buildActivityPage(),
@@ -62,12 +77,20 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   }
 
   Widget _buildStepProgressIndicator() {
-    const int totalSteps = 5; // 5 steps (pages 0-4)
+    const int totalSteps = 5; // 5 steps (pages 1-5, excluding welcome page 0)
+
+    // Don't show progress bar on welcome page
+    if (currentIndex == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // Adjust index for progress (welcome page doesn't count)
+    final progressIndex = currentIndex - 1;
 
     return Row(
       children: List.generate(totalSteps, (index) {
-        final bool isCompleted = index < currentIndex;
-        final bool isCurrent = index == currentIndex;
+        final bool isCompleted = index < progressIndex;
+        final bool isCurrent = index == progressIndex;
 
         return Expanded(
           child: Container(
@@ -94,20 +117,20 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   }
 
   String _getButtonText() {
-    if (currentIndex == 0) return "NEXT";
-    if (currentIndex == 4) return "SUBMIT";
-    if (currentIndex == 5) return "DONE";
+    if (currentIndex == 0) return "LET'S START";
+    if (currentIndex == 1) return "NEXT";
+    if (currentIndex == 5) return "SUBMIT";
 
-    // Pages 1, 2, 3 (Feeling, Activity, Notes) - show SKIP if nothing selected
-    if (currentIndex == 1 && _selectedFeeling == null) return "SKIP";
-    if (currentIndex == 2 && _selectedActivityChange == null) return "SKIP";
-    if (currentIndex == 3 && _notesController.text.isEmpty) return "SKIP";
+    // Pages 2, 3, 4 (Feeling, Activity, Notes) - show SKIP if nothing selected
+    if (currentIndex == 2 && _selectedFeeling == null) return "SKIP";
+    if (currentIndex == 3 && _selectedActivityChange == null) return "SKIP";
+    if (currentIndex == 4 && _notesController.text.isEmpty) return "SKIP";
 
     return "CONTINUE";
   }
 
   Future<bool> _validateCurrentPage() async {
-    if (currentIndex == 0 && _weightController.text.isEmpty) {
+    if (currentIndex == 1 && _weightController.text.isEmpty) {
       setState(() {
         _weightError = 'Please enter your current weight';
       });
@@ -121,6 +144,9 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   Future<void> _navigateNext() async {
     if (_isAnimating) return;
+
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
 
     setState(() => _isAnimating = true);
     _buttonAnimationController.forward();
@@ -139,13 +165,13 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
         return;
       }
 
-      if (currentIndex == 4) {
+      if (currentIndex == 5) {
         // Submit check-in - closes wizard and returns to home
         await _submitCheckIn();
         // _submitCheckIn handles the animation state and navigation
         shouldResetAnimation = false;
       } else {
-        // Move to next page (pages 0-3)
+        // Move to next page (pages 0-4)
         await _controller.nextPage(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOutCubic,
@@ -163,6 +189,9 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   Future<void> _navigateBack() async {
     if (_isAnimating || currentIndex <= 0) return;
+
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
 
     setState(() => _isAnimating = true);
 
@@ -260,24 +289,12 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       child: Scaffold(
         key: const ValueKey('weekly_checkin_scaffold'),
         backgroundColor: Colors.white,
+        resizeToAvoidBottomInset: true,
         body: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             children: [
-              // Back Button Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  if (currentIndex > 0)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 28),
-                      color: AppColors.secondary,
-                      onPressed: isProcessing ? null : _navigateBack,
-                    ),
-                ],
-              ),
-
               const SizedBox(height: 10),
 
               // Horizontal Step Progress Indicator
@@ -286,7 +303,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                 child: _buildStepProgressIndicator(),
               ),
 
-              // PageView with slides
+              // PageView with slides - wrapped in SingleChildScrollView per page
               Expanded(
                 child: PageView(
                   controller: _controller,
@@ -304,52 +321,132 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
               const SizedBox(height: 30),
 
-              // Button
-              AnimatedBuilder(
-                animation: _buttonScaleAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _buttonScaleAnimation.value,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isProcessing
-                            ? AppColors.secondary.withOpacity(0.7)
-                            : AppColors.secondary,
-                        minimumSize: const Size(double.infinity, 55),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+              // Navigation Buttons
+              if (currentIndex > 0)
+                Row(
+                  children: [
+                    // Back Button
+                    SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: isProcessing ? null : _navigateBack,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade300,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
                         ),
-                        elevation: isProcessing ? 2 : 4,
-                        shadowColor: AppColors.secondary.withOpacity(0.3),
-                      ),
-                      onPressed: isProcessing ? null : _navigateNext,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: isProcessing
-                            ? const SizedBox(
-                                key: ValueKey('loading'),
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                key: const ValueKey('text'),
-                                _getButtonText(),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                        child: Text(
+                          'BACK',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  );
-                },
-              ),
+
+                    const SizedBox(width: 12),
+
+                    // Next/Submit Button
+                    Expanded(
+                      child: AnimatedBuilder(
+                        animation: _buttonScaleAnimation,
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scale: _buttonScaleAnimation.value,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isProcessing
+                                    ? AppColors.secondary.withOpacity(0.7)
+                                    : AppColors.secondary,
+                                minimumSize: const Size(double.infinity, 55),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: isProcessing ? 2 : 4,
+                                shadowColor: AppColors.secondary.withOpacity(0.3),
+                              ),
+                              onPressed: isProcessing ? null : _navigateNext,
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                child: isProcessing
+                                    ? const SizedBox(
+                                        key: ValueKey('loading'),
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        key: const ValueKey('text'),
+                                        _getButtonText(),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                )
+              else
+                // First page - only Next button
+                AnimatedBuilder(
+                  animation: _buttonScaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _buttonScaleAnimation.value,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isProcessing
+                              ? AppColors.secondary.withOpacity(0.7)
+                              : AppColors.secondary,
+                          minimumSize: const Size(double.infinity, 55),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: isProcessing ? 2 : 4,
+                          shadowColor: AppColors.secondary.withOpacity(0.3),
+                        ),
+                        onPressed: isProcessing ? null : _navigateNext,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: isProcessing
+                              ? const SizedBox(
+                                  key: ValueKey('loading'),
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  key: const ValueKey('text'),
+                                  _getButtonText(),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -358,45 +455,195 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     );
   }
 
-  // Page 1: Weight Input
-  Widget _buildWeightPage() {
+  // Page 0: Welcome Page
+  Widget _buildWelcomePage() {
     return Container(
       width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-              // Header
-              ShaderMask(
-                shaderCallback: (bounds) => LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary],
-                ).createShader(bounds),
-                child: const Text(
-                  "Current Weight",
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Greeting with Name - Biggest
+          RichText(
+            textAlign: TextAlign.left,
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                height: 1.2,
+              ),
+              children: [
+                const TextSpan(text: "Hello "),
+                TextSpan(
+                  text: _userName,
                   style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
+                    color: AppColors.secondary,
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const TextSpan(text: "!"),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Time for weekly check-in - Second level
+          Text(
+            "Time for your weekly check-in",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+              height: 1.2,
+            ),
+            textAlign: TextAlign.left,
+          ),
+
+          const SizedBox(height: 16),
+
+          // Description - Third level
+          Text(
+            "Your answers help us keep you on track.",
+            style: TextStyle(
+              fontSize: 17,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.left,
+          ),
+
+          const SizedBox(height: 40),
+
+          // What to expect section
+          Text(
+            "What to expect:",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+              height: 1.2,
+            ),
+            textAlign: TextAlign.left,
+          ),
+
+          const SizedBox(height: 20),
+
+          // Info items
+          _buildInfoItem(
+            Icons.monitor_weight_outlined,
+            "Current Weight",
+            "Update your weight for accurate calorie calculations",
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildInfoItem(
+            Icons.sentiment_satisfied_alt,
+            "Progress Check",
+            "Share how you're feeling about your journey",
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildInfoItem(
+            Icons.fitness_center,
+            "Activity Update",
+            "Let us know if your activity level has changed",
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildInfoItem(
+            Icons.edit_note,
+            "Personal Notes",
+            "Add any observations or challenges (optional)",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.secondary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.secondary,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                "We use this to recalculate your daily calorie goal.",
+                title,
                 style: TextStyle(
                   fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 14,
                   color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
                   height: 1.3,
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 50),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-              // Weight Input
-              Column(
+  // Page 1: Weight Input
+  Widget _buildWeightPage() {
+    return SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Question Title
+            Text(
+              "What is your current weight?",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "We use this to recalculate your daily calorie goal.",
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+
+            SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+
+            // Weight Input - Centered
+            Center(
+              child: Column(
                 children: [
                   TextField(
                     controller: _weightController,
@@ -467,9 +714,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
     );
   }
 
@@ -477,41 +725,35 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildFeelingPage() {
     return Container(
       width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-              // Header
-              ShaderMask(
-                shaderCallback: (bounds) => LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary],
-                ).createShader(bounds),
-                child: const Text(
-                  "How You Feel",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "How do you feel this week?",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Question Title
+          Text(
+            "How are you feeling about your progress this week?",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Your honest feedback helps us understand what's working.",
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
 
-              // Feeling Options
-              Wrap(
+          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+
+          // Feeling Options - Centered
+          Center(
+            child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 alignment: WrapAlignment.center,
@@ -522,10 +764,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                   _buildFeelingOption('struggling', 'Struggling', Icons.sentiment_dissatisfied),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-    );
+      );
   }
 
   Widget _buildFeelingOption(String value, String label, IconData icon) {
@@ -573,41 +815,35 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildActivityPage() {
     return Container(
       width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-              // Header
-              ShaderMask(
-                shaderCallback: (bounds) => LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary],
-                ).createShader(bounds),
-                child: const Text(
-                  "Activity Level",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Has your activity level changed?",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Question Title
+          Text(
+            "Has your activity level changed this week?",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "This helps us adjust your calorie recommendations.",
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
 
-              // Activity Options
-              Column(
+          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+
+          // Activity Options - Centered
+          Center(
+            child: Column(
                 children: [
                   _buildActivityOption('increased', 'Increased', Icons.trending_up),
                   const SizedBox(height: 12),
@@ -616,10 +852,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                   _buildActivityOption('decreased', 'Decreased', Icons.trending_down),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-    );
+      );
   }
 
   Widget _buildActivityOption(String value, String label, IconData icon) {
@@ -665,43 +901,37 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   // Page 4: Notes
   Widget _buildNotesPage() {
-    return Container(
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+    return SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              // Header
-              ShaderMask(
-                shaderCallback: (bounds) => LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary],
-                ).createShader(bounds),
-                child: const Text(
-                  "Notes",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+            // Question Title
+            Text(
+              "Any additional notes about your week?",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                height: 1.2,
               ),
-              const SizedBox(height: 8),
-              Text(
-                "Anything else you want to note about your week?",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
-                ),
-                textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Share any challenges, victories, or observations (optional).",
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey.shade600,
+                height: 1.4,
               ),
-              const SizedBox(height: 50),
+            ),
 
-              // Notes Input
-              TextField(
+            SizedBox(height: MediaQuery.of(context).size.height * 0.08),
+
+            // Notes Input - Centered
+            TextField(
                 controller: _notesController,
                 maxLines: 5,
                 maxLength: 150,
@@ -750,41 +980,34 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Widget _buildReviewPage() {
     return Container(
       width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-              // Header
-              ShaderMask(
-                shaderCallback: (bounds) => LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary],
-                ).createShader(bounds),
-                child: const Text(
-                  "Review",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Let's update your stats to keep your plan on track.",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Question Title
+          Text(
+            "Ready to submit?",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Here's a summary of your weekly check-in.",
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
 
-              // Review Items
-              Column(
+          const SizedBox(height: 32),
+
+          // Review Items
+          Column(
                 children: [
                   _buildReviewItem(
                     'Weight',
@@ -819,7 +1042,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
               ),
             ],
           ),
-        ),
     );
   }
 

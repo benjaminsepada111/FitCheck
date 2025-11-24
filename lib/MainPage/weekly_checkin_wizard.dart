@@ -58,12 +58,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       _buildActivityPage(),
       _buildNotesPage(),
       _buildReviewPage(),
-      _buildSuccessPage(),
     ];
   }
 
   Widget _buildStepProgressIndicator() {
-    const int totalSteps = 5; // 5 steps (pages 0-4, excluding success page)
+    const int totalSteps = 5; // 5 steps (pages 0-4)
 
     return Row(
       children: List.generate(totalSteps, (index) {
@@ -141,19 +140,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       }
 
       if (currentIndex == 4) {
-        // Submit check-in - handles its own state reset on error
+        // Submit check-in - closes wizard and returns to home
         await _submitCheckIn();
-        // After submission, we either moved to page 5 (success) or stayed on page 4 (error)
-        // In either case, _submitCheckIn handles the animation state
+        // _submitCheckIn handles the animation state and navigation
         shouldResetAnimation = false;
-      } else if (currentIndex == 5) {
-        // Done button on success page
-        if (mounted) {
-          Navigator.of(context).pop();
-          widget.onCheckInComplete();
-        }
-        shouldResetAnimation = false;
-        return;
       } else {
         // Move to next page (pages 0-3)
         await _controller.nextPage(
@@ -279,7 +269,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  if (currentIndex > 0 && currentIndex < 5)
+                  if (currentIndex > 0)
                     IconButton(
                       icon: const Icon(Icons.arrow_back, size: 28),
                       color: AppColors.secondary,
@@ -291,11 +281,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
               const SizedBox(height: 10),
 
               // Horizontal Step Progress Indicator
-              if (currentIndex < 5)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: _buildStepProgressIndicator(),
-                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: _buildStepProgressIndicator(),
+              ),
 
               // PageView with slides
               Expanded(
@@ -315,9 +304,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
               const SizedBox(height: 30),
 
-              // Button (hide on success page)
-              if (currentIndex < 5)
-                AnimatedBuilder(
+              // Button
+              AnimatedBuilder(
                 animation: _buttonScaleAnimation,
                 builder: (context, child) {
                   return Transform.scale(
@@ -873,90 +861,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
           ),
         ],
       ),
-    );
-  }
-
-  // Page 6: Success
-  Widget _buildSuccessPage() {
-    return Container(
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-              const Spacer(),
-
-              // Success Icon
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.green.withValues(alpha: 0.1),
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 80,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              const Text(
-                'You\'re making great progress!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Keep it up.',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              const Spacer(),
-
-              // Done Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                      widget.onCheckInComplete();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 55),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 4,
-                    shadowColor: AppColors.secondary.withValues(alpha: 0.3),
-                  ),
-                  child: const Text(
-                    'DONE',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
     );
   }
 }

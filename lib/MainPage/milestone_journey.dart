@@ -9,7 +9,7 @@ import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/services/notification_service.dart';
-import 'package:capstone_project/services/NotificationHelper.dart'; // ✅ Added
+import 'package:capstone_project/services/NotificationHelper.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
@@ -33,12 +33,12 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     with AutomaticKeepAliveClientMixin {
   List<Milestone> _milestones = [];
   bool _isLoading = false;
-  bool _hasLoadedOnce = false; // Cache flag
-  String? _lastLoadedChallengeId; // Track which challenge we loaded
+  bool _hasLoadedOnce = false;
+  String? _lastLoadedChallengeId;
   final NotificationService _notificationService = NotificationService();
 
   @override
-  bool get wantKeepAlive => true; // Keep state alive
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -49,9 +49,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
   @override
   void didUpdateWidget(MilestoneJourney oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only reload if challenge actually changed
     if (oldWidget.currentChallenge?.id != widget.currentChallenge?.id) {
-      _hasLoadedOnce = false; // Reset cache on challenge change
+      _hasLoadedOnce = false;
       _loadMilestones();
     }
   }
@@ -59,7 +58,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
   Future<void> _loadMilestones({bool forceRefresh = false}) async {
     if (!mounted) return;
 
-    // Skip loading if already loaded for this challenge (unless forced)
     if (!forceRefresh &&
         _hasLoadedOnce &&
         _lastLoadedChallengeId == widget.currentChallenge?.id) {
@@ -80,11 +78,10 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
       if (mounted) {
         setState(() {
           _milestones = milestones;
-          _hasLoadedOnce = true; // Mark as loaded
-          _lastLoadedChallengeId = widget.currentChallenge?.id; // Remember challenge
+          _hasLoadedOnce = true;
+          _lastLoadedChallengeId = widget.currentChallenge?.id;
         });
 
-        // Check if notification should be scheduled or cancelled
         _updateNotificationStatus();
       }
     } catch (e) {
@@ -99,7 +96,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
   }
 
   Future<void> _updateNotificationStatus() async {
-    // Only schedule notifications if there's an active challenge
     if (widget.currentChallenge == null) {
       await _notificationService.cancelMilestoneReminder();
       return;
@@ -108,12 +104,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     final hasToday = _hasTodayMilestone();
 
     if (hasToday) {
-      // User has added milestone today - cancel all reminders
       await _notificationService.cancelMilestoneReminder();
       debugPrint('✅ Milestone exists for today - all reminders cancelled');
     } else {
-      // User hasn't added milestone today - reminders are handled by settings
-      // Don't automatically schedule here, respect user settings
       debugPrint('📅 No milestone today - reminders controlled by user settings');
     }
   }
@@ -133,10 +126,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
         challengeId: widget.currentChallenge!.id,
       );
       if (success) {
-        await _loadMilestones(forceRefresh: true); // Force refresh after adding milestone
+        await _loadMilestones(forceRefresh: true);
 
         if (mounted) {
-          // ✅ FIXED: Only save to NotificationPage (Firestore), no popup notification
           await NotificationHelper.createMilestonePhotoNotification();
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -146,7 +138,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
             ),
           );
 
-          // Cancel today's reminder since milestone is now added
           await _notificationService.cancelMilestoneReminder();
         }
       } else {
@@ -365,12 +356,122 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     return false;
   }
 
+  // NEW: Build timeline with missed days inserted
+  List<dynamic> _buildTimelineWithMissedDays() {
+    if (_milestones.isEmpty) return [];
+
+    List<dynamic> timeline = [];
+
+    // Sort milestones by date descending (newest first) - matching your original order
+    final sortedMilestones = List<Milestone>.from(_milestones)
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    for (int i = 0; i < sortedMilestones.length; i++) {
+      // Add the milestone
+      timeline.add(sortedMilestones[i]);
+
+      // Check if there's a next milestone (older date)
+      if (i < sortedMilestones.length - 1) {
+        final currentDate = DateTime(
+          sortedMilestones[i].date.year,
+          sortedMilestones[i].date.month,
+          sortedMilestones[i].date.day,
+        );
+
+        final nextDate = DateTime(
+          sortedMilestones[i + 1].date.year,
+          sortedMilestones[i + 1].date.month,
+          sortedMilestones[i + 1].date.day,
+        );
+
+        // Add missed days between current and next milestone
+        DateTime checkDate = currentDate.subtract(const Duration(days: 1));
+        while (checkDate.isAfter(nextDate)) {
+          timeline.add(checkDate); // Add DateTime object for missed day
+          checkDate = checkDate.subtract(const Duration(days: 1));
+        }
+      }
+    }
+
+    return timeline;
+  }
+
+  // NEW: Build missed day card UI
+  Widget _buildMissedDayCard(BuildContext context, DateTime date) {
+    final r = context.responsive;
+    return Container(
+      width: r.size(120),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121C29),
+        borderRadius: BorderRadius.circular(r.size(12)),
+
+      ),
+      child: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.event_busy_outlined,
+                  size: r.size(32),
+                  color: AppColors.secondary,
+                ),
+                ResponsiveGap(8),
+                Text(
+                  "Missed",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: r.font(14, min: 12, max: 16),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                ResponsiveGap(2),
+                Text(
+                  "Day",
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: r.font(12, min: 11, max: 14),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                vertical: r.size(6),
+                horizontal: r.size(6),
+              ),
+
+              child: Text(
+                _formatDate(date),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: r.font(12, min: 11, max: 14),
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
     final r = context.responsive;
     final hasToday = _hasTodayMilestone();
     final hasActiveChallenge = widget.currentChallenge != null;
+    final timeline = _buildTimelineWithMissedDays();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,7 +497,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                       ),
                     ),
                   );
-                  // Reload milestones when returning from preview
                   _loadMilestones();
                 }
               },
@@ -447,14 +547,13 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
             height: 180,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _milestones.length + (hasToday ? 0 : 1),
+              itemCount: timeline.length + (hasToday ? 0 : 1),
               separatorBuilder: (context, index) => ResponsiveGap.horizontal(12),
               itemBuilder: (context, index) {
                 if (!hasToday && index == 0) {
                   return GestureDetector(
                     onTap: hasActiveChallenge
                         ? () async {
-                      // Check if today's milestone already exists
                       final todayMilestone =
                       await MilestoneService.getMilestoneForDate(
                         DateTime.now(),
@@ -529,7 +628,10 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                                     color: hasActiveChallenge
                                         ? Colors.grey
                                         : Colors.grey.shade600,
-                                    fontSize: r.font(hasActiveChallenge ? 14 : 12, min: 11, max: 16),
+                                    fontSize: r.font(
+                                        hasActiveChallenge ? 14 : 12,
+                                        min: 11,
+                                        max: 16),
                                     fontWeight: hasActiveChallenge
                                         ? FontWeight.normal
                                         : FontWeight.w500,
@@ -555,7 +657,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(r.size(12)),
+                                  borderRadius:
+                                  BorderRadius.circular(r.size(12)),
                                 ),
                               ),
                             ),
@@ -565,7 +668,17 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                   );
                 }
 
-                final milestone = _milestones[index - (hasToday ? 0 : 1)];
+                // Use timeline with missed days
+                final timelineIndex = index - (hasToday ? 0 : 1);
+                final item = timeline[timelineIndex];
+
+                // Check if item is a DateTime (missed day) or Milestone
+                if (item is DateTime) {
+                  return _buildMissedDayCard(context, item);
+                }
+
+                // Original milestone card code
+                final milestone = item as Milestone;
                 return Container(
                   width: r.size(120),
                   decoration: BoxDecoration(
@@ -575,7 +688,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Image layer with error handling
                       if (milestone.imageUrl != null)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(r.size(12)),
@@ -589,7 +701,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                               );
                             },
                             errorBuilder: (context, error, stackTrace) {
-                              // Try to show local image if network fails
                               if (milestone.imagePath != null) {
                                 return Image.file(
                                   File(milestone.imagePath!),
@@ -640,7 +751,6 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                             size: r.size(40),
                           ),
                         ),
-                      // Date label overlay
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: Container(

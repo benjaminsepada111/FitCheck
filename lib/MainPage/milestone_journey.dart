@@ -356,9 +356,12 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     return false;
   }
 
-  // NEW: Build timeline with missed days inserted
+  // ✅ FIXED: Build timeline with missed days inserted
   List<dynamic> _buildTimelineWithMissedDays() {
     if (_milestones.isEmpty) return [];
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     List<dynamic> timeline = [];
 
@@ -366,6 +369,23 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     final sortedMilestones = List<Milestone>.from(_milestones)
       ..sort((a, b) => b.date.compareTo(a.date));
 
+    // Get the most recent milestone date
+    final mostRecentDate = DateTime(
+      sortedMilestones[0].date.year,
+      sortedMilestones[0].date.month,
+      sortedMilestones[0].date.day,
+    );
+
+    // ✅ FIX: Add missed days between today and most recent milestone (excluding today)
+    if (mostRecentDate.isBefore(today)) {
+      DateTime checkDate = today.subtract(const Duration(days: 1));
+      while (checkDate.isAfter(mostRecentDate)) {
+        timeline.add(checkDate); // Add missed day
+        checkDate = checkDate.subtract(const Duration(days: 1));
+      }
+    }
+
+    // Now add milestones and gaps between them
     for (int i = 0; i < sortedMilestones.length; i++) {
       // Add the milestone
       timeline.add(sortedMilestones[i]);
@@ -396,7 +416,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     return timeline;
   }
 
-  // NEW: Build missed day card UI
+  // Build missed day card UI
   Widget _buildMissedDayCard(BuildContext context, DateTime date) {
     final r = context.responsive;
     return Container(

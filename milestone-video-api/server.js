@@ -339,8 +339,8 @@ function splitTextIntoLines(text, maxCharsPerLine = 40) {
 }
 
 /**
- * ✅ PROFESSIONAL: Full-width bottom banner with text overlay
- * Creates a sleek bottom bar like the example image
+ * ✅ PROFESSIONAL: Build FFmpeg filter complex with enhanced text overlays
+ * Modern styling with shadows, better positioning, and visual hierarchy
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
@@ -353,31 +353,25 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      const lines = splitTextIntoLinesEnhanced(textContent, 45); // Longer lines for full-width
-      console.log(`🎨 Adding ${lines.length} text lines in full-width banner`);
+      const lines = splitTextIntoLinesEnhanced(textContent, 38); // Slightly shorter lines
+      console.log(`🎨 Adding ${lines.length} professional text lines to overlay`);
 
-      // Calculate banner height based on number of lines
-      const lineHeight = 26; // Height per line
-      const topPadding = 20; // Top padding
-      const bottomPadding = 20; // Bottom padding
-      const bannerHeight = (lines.length * lineHeight) + topPadding + bottomPadding;
-
-      // Add full-width semi-transparent box at bottom
-      filter += `,drawbox=x=0:y=h-${bannerHeight}:w=w:h=${bannerHeight}:color=black@0.70:t=fill`;
-
-      // Add each text line on top of the banner
+      // Add each line with enhanced styling
       lines.forEach((line, index) => {
         const escapedLine = escapeFFmpegTextSimple(line);
         const isHeader = index === 0; // First line is date header
 
-        // Position lines from top of banner downward
-        const yPosition = `h-${bannerHeight - topPadding - (index * lineHeight)}`;
+        // Position from bottom up with proper spacing
+        const baseY = 140; // Start higher from bottom
+        const lineSpacing = 24; // More spacing between lines
+        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
 
         // Different styling for header vs content
-        const fontSize = isHeader ? 16 : 13;
+        const fontSize = isHeader ? 17 : 14; // Larger font for date
+        const fontWeight = isHeader ? 'Bold' : 'Bold'; // Keep all bold for now
 
-        // Text without individual boxes (banner is the background)
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.6:shadowx=1:shadowy=1:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+        // Enhanced text with shadow for better readability
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-${fontWeight}.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
       });
     }
 
@@ -401,33 +395,27 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     // Base video processing
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
-    // Add full-width banner with text
+    // Add text overlay with enhanced styling
     if (hasText) {
-      const lines = splitTextIntoLinesEnhanced(textContent, 45); // Longer lines for full-width
-      console.log(`🎨 Adding ${lines.length} text lines in full-width banner to clip ${i+1}`);
+      const lines = splitTextIntoLinesEnhanced(textContent, 38);
+      console.log(`🎨 Adding ${lines.length} professional text lines to clip ${i+1}`);
 
-      // Calculate banner height based on number of lines
-      const lineHeight = 26; // Height per line
-      const topPadding = 20; // Top padding
-      const bottomPadding = 20; // Bottom padding
-      const bannerHeight = (lines.length * lineHeight) + topPadding + bottomPadding;
-
-      // Add full-width semi-transparent box at bottom
-      filter += `,drawbox=x=0:y=h-${bannerHeight}:w=w:h=${bannerHeight}:color=black@0.70:t=fill`;
-
-      // Add each text line on top of the banner
+      // Add each line with enhanced styling
       lines.forEach((line, index) => {
         const escapedLine = escapeFFmpegTextSimple(line);
         const isHeader = index === 0; // First line is date header
 
-        // Position lines from top of banner downward
-        const yPosition = `h-${bannerHeight - topPadding - (index * lineHeight)}`;
+        // Position from bottom up with proper spacing
+        const baseY = 140; // Start higher from bottom
+        const lineSpacing = 24; // More spacing between lines
+        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
 
         // Different styling for header vs content
-        const fontSize = isHeader ? 16 : 13;
+        const fontSize = isHeader ? 17 : 14; // Larger font for date
+        const fontWeight = isHeader ? 'Bold' : 'Bold';
 
-        // Text without individual boxes (banner is the background)
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.6:shadowx=1:shadowy=1:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+        // Enhanced text with shadow for better readability
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-${fontWeight}.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
       });
     }
 
@@ -446,6 +434,7 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 
   return filters;
 }
+
 /**
  * ✅ ENHANCED: Split text with better formatting
  */

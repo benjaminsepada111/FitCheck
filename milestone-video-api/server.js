@@ -73,14 +73,6 @@ app.post(
           textLogs = JSON.parse(req.body.textLogs);
           console.log(`📝 Received ${textLogs.length} text logs`);
           console.log(`📄 First log sample: ${textLogs[0]?.substring(0, 100)}...`);
-
-          // 🐛 DEBUG: Check for newlines
-          if (textLogs[0]) {
-            console.log('🐛 DEBUG - First text log analysis:');
-            console.log('   Length:', textLogs[0].length);
-            console.log('   Has newlines:', textLogs[0].includes('\n'));
-            console.log('   Newline count:', (textLogs[0].match(/\n/g) || []).length);
-          }
         } catch (e) {
           console.warn('⚠️ Failed to parse textLogs:', e.message);
           textLogs = [];
@@ -128,7 +120,7 @@ app.post(
         createdAt: new Date()
       });
 
-      console.log(`🎬 Starting FFmpeg render with FULL text overlays: ${renderId}`);
+      console.log(`🎬 Starting FFmpeg render: ${renderId}`);
 
       res.json({
         success: true,
@@ -162,7 +154,7 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       progress: 10
     });
 
-    console.log(`🎥 Creating video from ${imageFiles.length} images with FULL text overlays...`);
+    console.log(`🎥 Creating video from ${imageFiles.length} images...`);
 
     const filterComplex = buildFilterComplexWithText(imageFiles, textLogs, durationPerImage);
     const totalDuration = imageFiles.length * durationPerImage;
@@ -195,14 +187,14 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         '-movflags', '+faststart'
       ])
       .output(outputPath)
-      .on('start', cmd => console.log('🎬 FFmpeg command:', cmd))
+      .on('start', cmd => console.log('🎬 FFmpeg command started'))
       .on('progress', progress => {
         const percent = Math.min(Math.round(progress.percent || 0), 95);
         console.log(`⏳ Processing: ${percent}%`);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
       })
       .on('end', () => {
-        console.log(`✅ Video created successfully with FULL text overlays: ${outputPath}`);
+        console.log(`✅ Video created successfully: ${outputPath}`);
         renderJobs.set(renderId, {
           status: 'done',
           progress: 100,
@@ -212,12 +204,9 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         });
 
         setTimeout(() => {
-          // Cleanup images
           imageFiles.forEach(file => {
             try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
           });
-
-          // Cleanup music
           if (musicPath && musicPath.includes(TEMP_DIR)) {
             try { if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath); } catch {}
           }
@@ -255,7 +244,7 @@ app.get('/api/render-status/:id', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Render ID not found' });
   }
 
-  console.log(`🔍 Checking status for ${id}: ${job.status} (${job.progress}%)`);
+  console.log(`🔍 Status for ${id}: ${job.status} (${job.progress}%)`);
   return res.json({
     success: true,
     data: { response: job }
@@ -282,178 +271,35 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 /**
- * ✅ SIMPLE: Escape text for FFmpeg (no newline handling needed)
+ * ✅ Escape text for FFmpeg
  */
 function escapeFFmpegTextSimple(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')     // Escape backslashes
-    .replace(/'/g, "\u2019")        // Replace quotes with Unicode right single quotation mark
-    .replace(/:/g, '\\:')           // Escape colons
-    .replace(/\n/g, ' ')            // Replace newlines with spaces (we handle lines separately)
-    .replace(/\r/g, '')             // Remove carriage returns
+    .replace(/\\/g, '\\\\\\\\')
+    .replace(/'/g, "\u2019")
+    .replace(/:/g, '\\:')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '')
     .trim();
 }
 
 /**
- * ✅ NEW: Split text into lines intelligently
- * Splits by newlines first, then by character limit
- */
-function splitTextIntoLines(text, maxCharsPerLine = 40) {
-  if (!text) return [];
-
-  const lines = [];
-
-  // First split by actual newlines
-  const paragraphs = text.split('\n').filter(p => p.trim().length > 0);
-
-  // Then split long paragraphs by character limit
-  paragraphs.forEach(paragraph => {
-    if (paragraph.length <= maxCharsPerLine) {
-      lines.push(paragraph.trim());
-    } else {
-      // Split long lines at word boundaries
-      const words = paragraph.split(' ');
-      let currentLine = '';
-
-      words.forEach(word => {
-        if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
-          currentLine += (currentLine.length > 0 ? ' ' : '') + word;
-        } else {
-          if (currentLine.length > 0) {
-            lines.push(currentLine.trim());
-          }
-          currentLine = word;
-        }
-      });
-
-      if (currentLine.length > 0) {
-        lines.push(currentLine.trim());
-      }
-    }
-  });
-
-  // Limit to max 12 lines to avoid overcrowding
-  return lines.slice(0, 12);
-}
-
-/**
- * ✅ PROFESSIONAL: Build FFmpeg filter complex with enhanced text overlays
- * Modern styling with shadows, better positioning, and visual hierarchy
- */
-function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
-  const imageCount = imageFiles.length;
-
-  // Single image case
-  if (imageCount === 1) {
-    const textContent = textLogs[0] || '';
-    const hasText = textContent.length > 0;
-
-    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
-
-    if (hasText) {
-      const lines = splitTextIntoLinesEnhanced(textContent, 38); // Slightly shorter lines
-      console.log(`🎨 Adding ${lines.length} professional text lines to overlay`);
-
-      // Add each line with enhanced styling
-      lines.forEach((line, index) => {
-        const escapedLine = escapeFFmpegTextSimple(line);
-        const isHeader = index === 0; // First line is date header
-
-        // Position from bottom up with proper spacing
-        const baseY = 140; // Start higher from bottom
-        const lineSpacing = 24; // More spacing between lines
-        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-
-        // Different styling for header vs content
-        const fontSize = isHeader ? 17 : 14; // Larger font for date
-        const fontWeight = isHeader ? 'Bold' : 'Bold'; // Keep all bold for now
-
-        // Enhanced text with shadow for better readability
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-${fontWeight}.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
-      });
-    }
-
-    filter += `[outv]`;
-    return [filter];
-  }
-
-  // Multiple images case
-  const filters = [];
-  const fadeDuration = 0.5;
-  const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
-
-  for (let i = 0; i < imageCount; i++) {
-    const clipDuration = (i === imageCount - 1)
-      ? durationPerImage + totalFadeTimeLost
-      : durationPerImage;
-
-    const textContent = textLogs[i] || '';
-    const hasText = textContent.length > 0;
-
-    // Base video processing
-    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
-
-    // Add text overlay with enhanced styling
-    if (hasText) {
-      const lines = splitTextIntoLinesEnhanced(textContent, 38);
-      console.log(`🎨 Adding ${lines.length} professional text lines to clip ${i+1}`);
-
-      // Add each line with enhanced styling
-      lines.forEach((line, index) => {
-        const escapedLine = escapeFFmpegTextSimple(line);
-        const isHeader = index === 0; // First line is date header
-
-        // Position from bottom up with proper spacing
-        const baseY = 140; // Start higher from bottom
-        const lineSpacing = 24; // More spacing between lines
-        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-
-        // Different styling for header vs content
-        const fontSize = isHeader ? 17 : 14; // Larger font for date
-        const fontWeight = isHeader ? 'Bold' : 'Bold';
-
-        // Enhanced text with shadow for better readability
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-${fontWeight}.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
-      });
-    }
-
-    filter += `[v${i}]`;
-    filters.push(filter);
-  }
-
-  // Apply crossfade transitions
-  let current = 'v0';
-  for (let i = 1; i < imageCount; i++) {
-    const offset = (durationPerImage * i) - fadeDuration;
-    const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
-    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
-    current = next;
-  }
-
-  return filters;
-}
-
-/**
- * ✅ ENHANCED: Split text with better formatting
+ * ✅ Split text into lines intelligently
  */
 function splitTextIntoLinesEnhanced(text, maxCharsPerLine = 38) {
   if (!text) return [];
 
   const lines = [];
-
-  // First split by actual newlines
   const paragraphs = text.split('\n').filter(p => p.trim().length > 0);
 
   paragraphs.forEach(paragraph => {
-    // Trim emoji and spaces for better processing
     const trimmed = paragraph.trim();
 
     if (trimmed.length <= maxCharsPerLine) {
       lines.push(trimmed);
     } else {
-      // Split long lines at word boundaries
       const words = trimmed.split(' ');
       let currentLine = '';
 
@@ -476,12 +322,90 @@ function splitTextIntoLinesEnhanced(text, maxCharsPerLine = 38) {
     }
   });
 
-  // Limit to 10 lines for cleaner look
   return lines.slice(0, 10);
 }
 
+/**
+ * ✅ Build FFmpeg filter with text overlays
+ */
+function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
+  const imageCount = imageFiles.length;
+
+  if (imageCount === 1) {
+    const textContent = textLogs[0] || '';
+    const hasText = textContent.length > 0;
+
+    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
+
+    if (hasText) {
+      const lines = splitTextIntoLinesEnhanced(textContent, 38);
+      console.log(`🎨 Adding ${lines.length} text lines`);
+
+      lines.forEach((line, index) => {
+        const escapedLine = escapeFFmpegTextSimple(line);
+        const isHeader = index === 0;
+
+        const baseY = 140;
+        const lineSpacing = 24;
+        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
+        const fontSize = isHeader ? 17 : 14;
+
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+      });
+    }
+
+    filter += `[outv]`;
+    return [filter];
+  }
+
+  const filters = [];
+  const fadeDuration = 0.5;
+  const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
+
+  for (let i = 0; i < imageCount; i++) {
+    const clipDuration = (i === imageCount - 1)
+      ? durationPerImage + totalFadeTimeLost
+      : durationPerImage;
+
+    const textContent = textLogs[i] || '';
+    const hasText = textContent.length > 0;
+
+    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
+
+    if (hasText) {
+      const lines = splitTextIntoLinesEnhanced(textContent, 38);
+      console.log(`🎨 Adding ${lines.length} text lines to clip ${i+1}`);
+
+      lines.forEach((line, index) => {
+        const escapedLine = escapeFFmpegTextSimple(line);
+        const isHeader = index === 0;
+
+        const baseY = 140;
+        const lineSpacing = 24;
+        const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
+        const fontSize = isHeader ? 17 : 14;
+
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+      });
+    }
+
+    filter += `[v${i}]`;
+    filters.push(filter);
+  }
+
+  let current = 'v0';
+  for (let i = 1; i < imageCount; i++) {
+    const offset = (durationPerImage * i) - fadeDuration;
+    const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
+    filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
+    current = next;
+  }
+
+  return filters;
+}
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('🚀 Milestone Video API with FFmpeg started');
+  console.log('🚀 Milestone Video API started');
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🎥 FFmpeg: Enabled with MULTI-LINE text overlay support ✅`);
+  console.log(`🎥 FFmpeg: Enabled ✅`);
 });

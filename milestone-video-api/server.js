@@ -360,7 +360,8 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const fontSize = isHeader ? 22 : 18;         // 🆕 LARGER FONTS (was 17/14)
 
         // 🆕 STROKE EFFECT: borderw=3 creates the black outline like reference image
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+        // 🆕 LEFT ALIGNED: x=40 (40px padding from left edge)
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
       });
     }
 
@@ -397,7 +398,8 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const fontSize = isHeader ? 22 : 18;         // 🆕 LARGER FONTS
 
         // 🆕 STROKE EFFECT: borderw=3 creates the black outline
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+        // 🆕 LEFT ALIGNED: x=40 (40px padding from left edge)
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
       });
     }
 

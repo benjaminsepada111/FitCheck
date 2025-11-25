@@ -165,10 +165,26 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   // PERSISTENT VIDEO CACHE
   // ======================
 
-  String _getCacheKey() {
-    return 'video_cache_${widget.challengeId}_${widget.milestones.length}';
+  String _getImageHash() {
+    // Create a hash from all image URLs/paths to detect changes
+    final imageData = widget.milestones.map((m) {
+      return '${m.imageUrl ?? m.imagePath ?? ''}';
+    }).join('|');
+
+    // Simple hash: sum of all character codes
+    int hash = 0;
+    for (int i = 0; i < imageData.length; i++) {
+      hash = (hash + imageData.codeUnitAt(i)) % 1000000;
+    }
+
+    return hash.toString();
   }
 
+  String _getCacheKey() {
+    // ✅ NOW includes image hash to detect image changes!
+    final imageHash = _getImageHash();
+    return 'video_cache_${widget.challengeId}_${widget.milestones.length}_$imageHash';
+  }
   String _getTextLogsCacheKey() {
     return 'text_logs_cache_${widget.challengeId}_${widget.milestones.length}';
   }
@@ -229,6 +245,18 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     } catch (e) {
       print('❌ Error clearing cache: $e');
     }
+  }
+
+  Future<void> _regenerateVideo() async {
+    // Force regenerate by clearing cache and immediately exporting
+    setState(() {
+      _cachedVideoUrl = null;
+      _cachedTextLogs = null;
+    });
+    await _clearCachedVideoUrl();
+
+    _showSnackBar('Regenerating video with updated images...');
+    await _exportMilestones();
   }
 
 
@@ -841,6 +869,41 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     );
   }
 
+  void _showRegenerateDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.refresh, color: AppColors.secondary),
+            const SizedBox(width: 12),
+            Expanded(child: Text(title)),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _regenerateVideo();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Regenerate'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 // Helper widget for feature items
   Widget _buildFeatureItem({
     required IconData icon,
@@ -1059,6 +1122,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (value) => _handleMenuAction(value),
             itemBuilder: (context) => [
+              // Change Image option
               const PopupMenuItem(
                 value: 'change_image',
                 child: Row(
@@ -1069,6 +1133,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                   ],
                 ),
               ),
+
+              // Delete Image option
               const PopupMenuItem(
                 value: 'delete_image',
                 child: Row(
@@ -1079,7 +1145,26 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                   ],
                 ),
               ),
+
+              // First divider
               const PopupMenuDivider(),
+
+              // ✅ NEW: Force Regenerate Video option
+              const PopupMenuItem(
+                value: 'force_regenerate',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, size: 20),
+                    SizedBox(width: 12),
+                    Text('Force Regenerate Video'),
+                  ],
+                ),
+              ),
+
+              // Second divider
+              const PopupMenuDivider(),
+
+              // Export to Video option
               PopupMenuItem(
                 value: 'export',
                 enabled: !_isExporting,
@@ -1112,7 +1197,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 ),
               ),
             ],
-          ),
+          )
         ],
       ),
       body: _isTextLogView ? _buildTextLogView() : Column(
@@ -1269,7 +1354,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   void _handleMenuAction(String action) {
-    if (_isExporting && action != 'export') return;
+    if (_isExporting && action != 'export' && action != 'force_regenerate') return;
 
     switch (action) {
       case 'change_image':
@@ -1277,6 +1362,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         break;
       case 'delete_image':
         _deleteCurrentImage();
+        break;
+      case 'force_regenerate':
+        _regenerateVideo();
         break;
       case 'export':
         _exportMilestones();
@@ -1402,16 +1490,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
             _cachedVideoUrl = null;
-            _cachedTextLogs = null;  // 🆕 Clear cached text logs too
+            _cachedTextLogs = null;
           });
           await _clearCachedVideoUrl();
 
           widget.onMilestonesChanged?.call();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Image updated successfully! Video cache cleared.'),
-                backgroundColor: Colors.green),
-          );
+
+          // ✅ NEW: Show dialog asking to regenerate video
+          if (mounted) {
+            _showRegenerateDialog('Image Updated',
+                'Would you like to regenerate your milestone video with the new image?');
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1463,7 +1552,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
           _cachedVideoUrl = null;
-          _cachedTextLogs = null;  // 🆕 Clear cached text logs too
+          _cachedTextLogs = null;
 
           if (widget.milestones.isEmpty) {
             Navigator.pop(context);
@@ -1478,9 +1567,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         await _clearCachedVideoUrl();
 
         widget.onMilestonesChanged?.call();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Image deleted successfully! Video cache cleared.'),
-            backgroundColor: Colors.green));
+
+        // ✅ NEW: Show dialog asking to regenerate video
+        if (mounted && widget.milestones.isNotEmpty) {
+          _showRegenerateDialog('Image Deleted',
+              'Would you like to regenerate your milestone video without the deleted image?');
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Failed to delete image. Please try again.'),

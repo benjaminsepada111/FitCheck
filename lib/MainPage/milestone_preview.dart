@@ -50,11 +50,11 @@ class DailyLogData {
   String generateTextLog() {
     final StringBuffer buffer = StringBuffer();
 
-    buffer.writeln('📅 ${DateFormat('MMMM d, yyyy').format(date)}\n');
+    buffer.writeln('${DateFormat('MMMM d, yyyy').format(date)}\n');
 
     // Add notes if available
     if (notes != null && notes!.isNotEmpty) {
-      buffer.writeln('📝 ${notes}\n');
+      buffer.writeln('${notes}\n');
     }
 
     // Food section
@@ -71,18 +71,18 @@ class DailyLogData {
     }
 
     if (hasFoodLogs) {
-      buffer.writeln('🍽️ I ate:');
+      buffer.writeln('I ate:');
       for (var item in allFoodItems) {
         buffer.writeln('  • $item');
       }
       buffer.writeln();
     } else {
-      buffer.writeln('🍽️ No meals logged today\n');
+      buffer.writeln('No meals logged today\n');
     }
 
     // Workout section
     if (workouts.isNotEmpty) {
-      buffer.writeln('💪 I worked out:');
+      buffer.writeln('I worked out:');
 
       for (var workout in workouts) {
         if (workout.isCardio) {
@@ -101,16 +101,16 @@ class DailyLogData {
       }
       buffer.writeln();
     } else {
-      buffer.writeln('💪 No workouts logged today\n');
+      buffer.writeln('No workouts logged today\n');
     }
 
     // Calorie summary
-    buffer.writeln('🔥 Consumed: $totalCalories cal');
+    buffer.writeln('Consumed: $totalCalories cal');
 
     if (caloriesBurned > 0) {
-      buffer.writeln('🔥 Burned: $caloriesBurned cal');
+      buffer.writeln('Burned: $caloriesBurned cal');
       final netCalories = totalCalories - caloriesBurned;
-      buffer.writeln('🔥 Net: $netCalories cal');
+      buffer.writeln('Net: $netCalories cal');
     }
 
     return buffer.toString().trim();

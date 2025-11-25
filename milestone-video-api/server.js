@@ -72,7 +72,6 @@ app.post(
         try {
           textLogs = JSON.parse(req.body.textLogs);
           console.log(`📝 Received ${textLogs.length} text logs`);
-          console.log(`📄 First log sample: ${textLogs[0]?.substring(0, 100)}...`);
         } catch (e) {
           console.warn('⚠️ Failed to parse textLogs:', e.message);
           textLogs = [];
@@ -190,7 +189,6 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       .on('start', cmd => console.log('🎬 FFmpeg command started'))
       .on('progress', progress => {
         const percent = Math.min(Math.round(progress.percent || 0), 95);
-        console.log(`⏳ Processing: ${percent}%`);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
       })
       .on('end', () => {
@@ -244,7 +242,6 @@ app.get('/api/render-status/:id', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Render ID not found' });
   }
 
-  console.log(`🔍 Status for ${id}: ${job.status} (${job.progress}%)`);
   return res.json({
     success: true,
     data: { response: job }
@@ -271,24 +268,30 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 /**
- * ✅ Escape text for FFmpeg
+ * ✅ Escape text for FFmpeg with proper handling
  */
-function escapeFFmpegTextSimple(text) {
+function escapeFFmpegText(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')
-    .replace(/'/g, "\u2019")
-    .replace(/:/g, '\\:')
-    .replace(/\n/g, ' ')
-    .replace(/\r/g, '')
+    .replace(/\\/g, '\\\\\\\\')      // Escape backslashes
+    .replace(/'/g, "\u2019")          // Replace apostrophes with right single quotation mark
+    .replace(/:/g, '\\:')             // Escape colons
+    .replace(/\[/g, '\\[')            // Escape square brackets
+    .replace(/\]/g, '\\]')
+    .replace(/\(/g, '\\(')            // Escape parentheses
+    .replace(/\)/g, '\\)')
+    .replace(/\n/g, ' ')              // Replace newlines with spaces
+    .replace(/\r/g, '')               // Remove carriage returns
+    .replace(/×/g, 'x')               // Replace multiplication sign
+    .replace(/•/g, '-')               // Replace bullet with dash
     .trim();
 }
 
 /**
- * ✅ Split text into lines intelligently
+ * ✅ Split text into lines - INCREASED CAPACITY
  */
-function splitTextIntoLinesEnhanced(text, maxCharsPerLine = 38) {
+function splitTextIntoLines(text, maxCharsPerLine = 45) {
   if (!text) return [];
 
   const lines = [];
@@ -322,11 +325,16 @@ function splitTextIntoLinesEnhanced(text, maxCharsPerLine = 38) {
     }
   });
 
-  return lines.slice(0, 10);
+  // 🆕 INCREASED from 10 to 20 lines to show ALL workout text
+  return lines.slice(0, 20);
 }
 
 /**
- * ✅ Build FFmpeg filter with text overlays
+ * ✅ Build FFmpeg filter with ENHANCED text overlays
+ * - Larger font sizes
+ * - Stroke/outline effect (borderw)
+ * - No box background
+ * - More lines supported
  */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
@@ -338,19 +346,21 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      const lines = splitTextIntoLinesEnhanced(textContent, 38);
-      console.log(`🎨 Adding ${lines.length} text lines`);
+      const lines = splitTextIntoLines(textContent, 45);
+      console.log(`🎨 Adding ${lines.length} text lines (single image)`);
 
       lines.forEach((line, index) => {
-        const escapedLine = escapeFFmpegTextSimple(line);
+        const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
-        const baseY = 140;
-        const lineSpacing = 24;
+        // 🆕 ENHANCED STYLING
+        const baseY = 160;                           // Start higher from bottom
+        const lineSpacing = 28;                      // More space between lines
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-        const fontSize = isHeader ? 17 : 14;
+        const fontSize = isHeader ? 22 : 18;         // 🆕 LARGER FONTS (was 17/14)
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+        // 🆕 STROKE EFFECT: borderw=3 creates the black outline like reference image
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
       });
     }
 
@@ -373,19 +383,21 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
-      const lines = splitTextIntoLinesEnhanced(textContent, 38);
+      const lines = splitTextIntoLines(textContent, 45);
       console.log(`🎨 Adding ${lines.length} text lines to clip ${i+1}`);
 
       lines.forEach((line, index) => {
-        const escapedLine = escapeFFmpegTextSimple(line);
+        const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
-        const baseY = 140;
-        const lineSpacing = 24;
+        // 🆕 ENHANCED STYLING
+        const baseY = 160;                           // Start higher from bottom
+        const lineSpacing = 28;                      // More space between lines
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-        const fontSize = isHeader ? 17 : 14;
+        const fontSize = isHeader ? 22 : 18;         // 🆕 LARGER FONTS
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:box=1:boxcolor=black@0.75:boxborderw=10:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+        // 🆕 STROKE EFFECT: borderw=3 creates the black outline
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
       });
     }
 
@@ -408,4 +420,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 Milestone Video API started');
   console.log(`📍 Port: ${PORT}`);
   console.log(`🎥 FFmpeg: Enabled ✅`);
+  console.log(`📝 Text overlay: Enhanced with stroke effect`);
 });

@@ -38,6 +38,10 @@ const PUBLIC_BASE_OVERRIDE = process.env.BASE_URL || null;
 
 const renderJobs = new Map();
 
+// ✅ MEMORY OPTIMIZATION: Limit concurrent renders
+const MAX_CONCURRENT_RENDERS = 2;
+let activeRenders = 0;
+
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use('/videos', express.static(VIDEO_DIR));
 
@@ -52,6 +56,15 @@ app.post(
   async (req, res) => {
     try {
       console.log('📥 Received generate-video request');
+
+      // ✅ MEMORY CHECK: Reject if too many concurrent renders
+      if (activeRenders >= MAX_CONCURRENT_RENDERS) {
+        console.log('⚠️ Too many concurrent renders, rejecting request');
+        return res.status(503).json({
+          success: false,
+          error: 'Server is busy processing other videos. Please try again in a moment.'
+        });
+      }
 
       const durationPerImage = parseInt(req.body.duration ?? '2', 10) || 2;
       let musicPath = null;
@@ -146,6 +159,9 @@ app.post(
 );
 
 async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, musicPath, outputPath, outputUrl, renderId) {
+  activeRenders++;
+  console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+
   try {
     renderJobs.set(renderId, {
       ...renderJobs.get(renderId),
@@ -179,20 +195,35 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
           `-af`, `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(totalDuration - 1, 1)}:d=1,volume=0.5`
         ] : ['-an']),
         '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', '23',
+        '-preset', 'veryfast',  // ✅ FASTER preset = less memory
+        '-crf', '25',            // ✅ Slightly lower quality = less memory
         '-pix_fmt', 'yuv420p',
         '-r', '30',
-        '-movflags', '+faststart'
+        '-movflags', '+faststart',
+        // ✅ MEMORY OPTIMIZATION: Limit threads and buffer
+        '-threads', '2',
+        '-max_muxing_queue_size', '1024'
       ])
       .output(outputPath)
-      .on('start', cmd => console.log('🎬 FFmpeg command started'))
+      .on('start', cmd => {
+        console.log('🎬 FFmpeg command started');
+        console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB used`);
+      })
       .on('progress', progress => {
         const percent = Math.min(Math.round(progress.percent || 0), 95);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
+
+        // Log memory usage periodically
+        if (percent % 20 === 0) {
+          const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+          console.log(`⏳ Processing: ${percent}% | Memory: ${memUsage}MB`);
+        }
       })
       .on('end', () => {
         console.log(`✅ Video created successfully: ${outputPath}`);
+        const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`💾 Final memory usage: ${memUsage}MB`);
+
         renderJobs.set(renderId, {
           status: 'done',
           progress: 100,
@@ -200,6 +231,9 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
           error: null,
           createdAt: renderJobs.get(renderId).createdAt
         });
+
+        activeRenders--;
+        console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
 
         setTimeout(() => {
           imageFiles.forEach(file => {
@@ -212,6 +246,9 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       })
       .on('error', err => {
         console.error('❌ FFmpeg error:', err.message);
+        const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`💾 Memory at error: ${memUsage}MB`);
+
         renderJobs.set(renderId, {
           status: 'failed',
           progress: 0,
@@ -219,6 +256,9 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
           error: err.message,
           createdAt: renderJobs.get(renderId).createdAt
         });
+
+        activeRenders--;
+        console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
       })
       .run();
 
@@ -231,6 +271,9 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       error: err.message,
       createdAt: renderJobs.get(renderId).createdAt
     });
+
+    activeRenders--;
+    console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
   }
 }
 
@@ -249,10 +292,13 @@ app.get('/api/render-status/:id', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+  const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   res.json({
     status: 'ok',
     ffmpeg_available: true,
-    active_renders: renderJobs.size,
+    active_renders: activeRenders,
+    memory_usage_mb: memUsage,
+    max_memory_mb: 512,
     timestamp: new Date().toISOString()
   });
 });
@@ -267,30 +313,25 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
-/**
- * ✅ Escape text for FFmpeg with proper handling
- */
 function escapeFFmpegText(text) {
   if (!text) return '';
 
   return text
-    .replace(/\\/g, '\\\\\\\\')      // Escape backslashes
-    .replace(/'/g, "\u2019")          // Replace apostrophes with right single quotation mark
-    .replace(/:/g, '\\:')             // Escape colons
-    .replace(/\[/g, '\\[')            // Escape square brackets
+    .replace(/\\/g, '\\\\\\\\')
+    .replace(/'/g, "\u2019")
+    .replace(/:/g, '\\:')
+    .replace(/\[/g, '\\[')
     .replace(/\]/g, '\\]')
-    .replace(/\(/g, '\\(')            // Escape parentheses
+    .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)')
-    .replace(/\n/g, ' ')              // Replace newlines with spaces
-    .replace(/\r/g, '')               // Remove carriage returns
-    .replace(/×/g, 'x')               // Replace multiplication sign
-    .replace(/•/g, '-')               // Replace bullet with dash
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/×/g, 'x')
+    .replace(/•/g, '-')
     .trim();
 }
 
-/**
- * ✅ Split text into lines - INCREASED CAPACITY
- */
+// ✅ MEMORY OPTIMIZATION: Reduced max lines from 20 to 15
 function splitTextIntoLines(text, maxCharsPerLine = 45) {
   if (!text) return [];
 
@@ -325,17 +366,10 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
     }
   });
 
-  // 🆕 INCREASED from 10 to 20 lines to show ALL workout text
-  return lines.slice(0, 20);
+  // ✅ Reduced from 20 to 15 lines to save memory
+  return lines.slice(0, 15);
 }
 
-/**
- * ✅ Build FFmpeg filter with ENHANCED text overlays
- * - Larger font sizes
- * - Stroke/outline effect (borderw)
- * - No box background
- * - More lines supported
- */
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
@@ -353,14 +387,11 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
-        // 🆕 ENHANCED STYLING
-        const baseY = 160;                           // Start higher from bottom
-        const lineSpacing = 28;                      // More space between lines
+        const baseY = 160;
+        const lineSpacing = 28;
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-        const fontSize = isHeader ? 22 : 18;         // 🆕 LARGER FONTS (was 17/14)
+        const fontSize = isHeader ? 22 : 18;
 
-        // 🆕 STROKE EFFECT: borderw=3 creates the black outline like reference image
-        // 🆕 LEFT ALIGNED: x=40 (40px padding from left edge)
         filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
       });
     }
@@ -391,14 +422,11 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
-        // 🆕 ENHANCED STYLING
-        const baseY = 160;                           // Start higher from bottom
-        const lineSpacing = 28;                      // More space between lines
+        const baseY = 160;
+        const lineSpacing = 28;
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-        const fontSize = isHeader ? 22 : 18;         // 🆕 LARGER FONTS
+        const fontSize = isHeader ? 22 : 18;
 
-        // 🆕 STROKE EFFECT: borderw=3 creates the black outline
-        // 🆕 LEFT ALIGNED: x=40 (40px padding from left edge)
         filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
       });
     }
@@ -422,5 +450,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 Milestone Video API started');
   console.log(`📍 Port: ${PORT}`);
   console.log(`🎥 FFmpeg: Enabled ✅`);
-  console.log(`📝 Text overlay: Enhanced with stroke effect`);
+  console.log(`💾 Memory-optimized mode active`);
+  console.log(`📝 Text overlay: Left-aligned with stroke effect`);
 });

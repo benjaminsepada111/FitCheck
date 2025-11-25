@@ -351,7 +351,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
       _showSnackBar('Opening existing video...');
 
-      // Navigate directly to video preview with cached text logs
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -360,7 +359,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             videoTitle: 'Milestone Journey',
             milestones: widget.milestones,
             slideshowInterval: _slideshowInterval,
-            textLogs: _cachedTextLogs,  // 🆕 Pass cached text logs
+            textLogs: _cachedTextLogs,
           ),
         ),
       );
@@ -377,46 +376,57 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
       // Show loading dialog
       if (!mounted) return;
-      _showLoadingDialog('Preparing images and logs...');
+      _showLoadingDialog('Loading daily logs and preparing video...');
 
-      // 🆕 Load daily logs if not already loaded
-      if (_dailyLogs.isEmpty) {
-        await _loadDailyLogs();
-      }
+      // ✅ CRITICAL FIX: ALWAYS load daily logs FIRST
+      print('📊 Loading daily logs for ${widget.milestones.length} milestones...');
+      await _loadDailyLogs();
 
-      // Prepare files and text logs
+      print('✅ Daily logs loaded: ${_dailyLogs.length} entries');
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showLoadingDialog('Preparing ${widget.milestones.length} images with text overlays...');
+
+      // ✅ CRITICAL: Process ALL milestones and generate text logs FIRST
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
 
-        // 🆕 Generate FULL text log for this milestone
+        // Generate FULL text log for EVERY milestone
         final logData = _dailyLogs[m.date.toString()];
         String fullTextLog = '';
 
         if (logData != null) {
-          // Use the complete generated text log
           fullTextLog = logData.generateTextLog();
+          print('📝 Milestone ${i+1}/${widget.milestones.length}: Generated full log (${fullTextLog.length} chars)');
         } else if (m.notes != null && m.notes!.isNotEmpty) {
-          // Fallback to notes if no log data
           final dateStr = DateFormat('MMM d, yyyy').format(m.date);
           fullTextLog = '$dateStr\n\n${m.notes!}';
+          print('📝 Milestone ${i+1}/${widget.milestones.length}: Using notes fallback');
         } else {
-          // Just show date if no data
-          fullTextLog = DateFormat('MMM d, yyyy').format(m.date);
+          final dateStr = DateFormat('MMMM d, yyyy').format(m.date);
+          fullTextLog = '$dateStr\n\nNo activity logged for this day';
+          print('📝 Milestone ${i+1}/${widget.milestones.length}: Using minimal fallback');
         }
 
+        // ✅ Add text log BEFORE checking images
         textLogs.add(fullTextLog);
+
+        // Now try to get the image
+        bool imageAdded = false;
 
         // Priority 1: Use local imagePath if exists
         if (m.imagePath != null) {
           final f = File(m.imagePath!);
           if (await f.exists()) {
             filesToUpload.add(f);
-            continue;
+            imageAdded = true;
+            print('🖼️ Milestone ${i+1}: Using local image');
           }
         }
 
         // Priority 2: Download from imageUrl if exists
-        if (m.imageUrl != null) {
+        if (!imageAdded && m.imageUrl != null) {
           try {
             final resp = await http.get(
               Uri.parse(m.imageUrl!),
@@ -428,13 +438,21 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
               await saved.writeAsBytes(resp.bodyBytes);
               filesToUpload.add(saved);
-              continue;
+              imageAdded = true;
+              print('🖼️ Milestone ${i+1}: Downloaded from URL');
             }
           } catch (e) {
-            print('Error downloading image: $e');
+            print('❌ Error downloading image ${i+1}: $e');
           }
         }
+
+        if (!imageAdded) {
+          print('⚠️ WARNING: No image found for milestone ${i+1}');
+        }
       }
+
+      // ✅ CRITICAL VALIDATION: Ensure counts match
+      print('📊 Validation: ${filesToUpload.length} images, ${textLogs.length} text logs');
 
       if (filesToUpload.isEmpty) {
         if (mounted) Navigator.pop(context);
@@ -443,24 +461,42 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         return;
       }
 
-      // 🆕 Ensure text logs match image count
-      while (textLogs.length < filesToUpload.length) {
-        textLogs.add('');
+      if (filesToUpload.length != textLogs.length) {
+        print('⚠️ WARNING: Image/text log count mismatch! ${filesToUpload.length} images vs ${textLogs.length} logs');
+
+        // ✅ FIX: Adjust text logs to match image count
+        if (textLogs.length > filesToUpload.length) {
+          // Too many text logs - trim to match images
+          textLogs.removeRange(filesToUpload.length, textLogs.length);
+          print('✂️ Trimmed text logs to ${textLogs.length}');
+        } else {
+          // Too few text logs - pad with minimal entries
+          while (textLogs.length < filesToUpload.length) {
+            final missingIndex = textLogs.length;
+            final fallbackDate = widget.milestones[missingIndex].date;
+            textLogs.add(DateFormat('MMMM d, yyyy').format(fallbackDate));
+            print('➕ Added fallback text log for index ${missingIndex}');
+          }
+        }
       }
 
-      print('📝 Prepared ${textLogs.length} FULL text logs for ${filesToUpload.length} images');
-      print('📄 First log preview: ${textLogs.first.substring(0, textLogs.first.length > 100 ? 100 : textLogs.first.length)}...');
+      print('✅ Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
+      print('📄 Text log samples:');
+      for (int i = 0; i < textLogs.length && i < 3; i++) {
+        final preview = textLogs[i].substring(0, textLogs[i].length > 80 ? 80 : textLogs[i].length);
+        print('  Log ${i+1}: $preview...');
+      }
 
       // Update loading message
       if (mounted) {
         Navigator.pop(context);
-        _showLoadingDialog('Uploading ${filesToUpload.length} images with detailed text overlays...');
+        _showLoadingDialog('Uploading ${filesToUpload.length} images with text overlays...');
       }
 
-      // 🆕 Call API with FULL text logs
+      // ✅ Call API with validated text logs
       final response = await ApiService.generateVideo(
         images: filesToUpload,
-        notes: textLogs,  // Pass FULL text logs
+        notes: textLogs,
         musicFile: null,
         musicUrl: null,
         durationPerImage: _slideshowInterval.inSeconds,
@@ -533,12 +569,16 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         // CACHE THE VIDEO URL AND TEXT LOGS
         setState(() {
           _cachedVideoUrl = resultUrl;
-          _cachedTextLogs = textLogs;  // 🆕 Cache the text logs
+          _cachedTextLogs = textLogs;
           _isExporting = false;
         });
 
         // Save to SharedPreferences for persistence
         await _saveCachedVideoUrl(resultUrl, textLogs);
+
+        print('✅ Video generation complete!');
+        print('📹 Video URL: $resultUrl');
+        print('📝 Cached ${textLogs.length} text logs');
 
         // Show video ready dialog with navigation option
         _showVideoReadyDialog(resultUrl, textLogs);
@@ -551,6 +591,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         Navigator.pop(context);
       }
 
+      print('❌ Export failed: ${e.toString()}');
       _showSnackBar('Export failed: ${e.toString()}');
     } finally {
       if (mounted) {

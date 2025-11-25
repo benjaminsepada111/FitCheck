@@ -96,6 +96,17 @@ app.post(
         textLogs.push('');
       }
 
+      // ✅ NEW: Add validation logging
+      console.log('\n📊 Validation before processing:');
+      console.log(`   Images: ${imageFiles.length}`);
+      console.log(`   Text logs: ${textLogs.length}`);
+
+      for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
+        const preview = (textLogs[i] || '').substring(0, 60);
+        console.log(`   Image ${i+1} text: "${preview}${textLogs[i] && textLogs[i].length > 60 ? '...' : ''}"`);
+      }
+      console.log('');
+
       // Handle music
       const musicFiles = req.files?.['music'] || [];
       if (musicFiles.length > 0) {
@@ -195,12 +206,11 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
           `-af`, `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(totalDuration - 1, 1)}:d=1,volume=0.5`
         ] : ['-an']),
         '-c:v', 'libx264',
-        '-preset', 'veryfast',  // ✅ FASTER preset = less memory
-        '-crf', '25',            // ✅ Slightly lower quality = less memory
+        '-preset', 'veryfast',
+        '-crf', '25',
         '-pix_fmt', 'yuv420p',
         '-r', '30',
         '-movflags', '+faststart',
-        // ✅ MEMORY OPTIMIZATION: Limit threads and buffer
         '-threads', '2',
         '-max_muxing_queue_size', '1024'
       ])
@@ -209,11 +219,16 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         console.log('🎬 FFmpeg command started');
         console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB used`);
       })
+      .on('stderr', (stderrLine) => {
+        // ✅ NEW: Log FFmpeg errors for debugging
+        if (stderrLine.includes('Error') || stderrLine.includes('Failed')) {
+          console.error('⚠️ FFmpeg stderr:', stderrLine);
+        }
+      })
       .on('progress', progress => {
         const percent = Math.min(Math.round(progress.percent || 0), 95);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
 
-        // Log memory usage periodically
         if (percent % 20 === 0) {
           const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
           console.log(`⏳ Processing: ${percent}% | Memory: ${memUsage}MB`);
@@ -331,9 +346,9 @@ function escapeFFmpegText(text) {
     .trim();
 }
 
-// ✅ MEMORY OPTIMIZATION: Reduced max lines from 20 to 15
+// ✅ IMPROVED: Better empty string handling
 function splitTextIntoLines(text, maxCharsPerLine = 45) {
-  if (!text) return [];
+  if (!text || text.trim().length === 0) return [];
 
   const lines = [];
   const paragraphs = text.split('\n').filter(p => p.trim().length > 0);
@@ -344,7 +359,7 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
     if (trimmed.length <= maxCharsPerLine) {
       lines.push(trimmed);
     } else {
-      const words = trimmed.split(' ');
+      const words = trimmed.split(' ').filter(w => w.length > 0); // ✅ Filter empty words
       let currentLine = '';
 
       words.forEach(word => {
@@ -366,22 +381,33 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
     }
   });
 
-  // ✅ Reduced from 20 to 15 lines to save memory
   return lines.slice(0, 15);
 }
 
+// ✅ COMPLETELY REWRITTEN: Better text overlay handling with improved logging
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
+  console.log(`\n🎬 Building filter complex:`);
+  console.log(`   Images: ${imageCount}`);
+  console.log(`   Text logs: ${textLogs.length}`);
+  console.log(`   Duration per image: ${durationPerImage}s`);
+
+  // ✅ SAFETY CHECK: Ensure text logs match image count
+  while (textLogs.length < imageCount) {
+    console.log(`⚠️ Padding text log ${textLogs.length + 1}`);
+    textLogs.push('');
+  }
+
   if (imageCount === 1) {
     const textContent = textLogs[0] || '';
-    const hasText = textContent.length > 0;
+    const hasText = textContent.trim().length > 0;
 
     let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
       const lines = splitTextIntoLines(textContent, 45);
-      console.log(`🎨 Adding ${lines.length} text lines (single image)`);
+      console.log(`🎨 Clip 1: Adding ${lines.length} text lines`);
 
       lines.forEach((line, index) => {
         const escapedLine = escapeFFmpegText(line);
@@ -394,6 +420,8 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
 
         filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
       });
+    } else {
+      console.log(`ℹ️ Clip 1: No text content`);
     }
 
     filter += `[outv]`;
@@ -404,21 +432,24 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const fadeDuration = 0.5;
   const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
 
+  // ✅ Create individual video clips with text overlays
   for (let i = 0; i < imageCount; i++) {
     const clipDuration = (i === imageCount - 1)
       ? durationPerImage + totalFadeTimeLost
       : durationPerImage;
 
     const textContent = textLogs[i] || '';
-    const hasText = textContent.length > 0;
+    const hasText = textContent.trim().length > 0;
 
     let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
 
     if (hasText) {
       const lines = splitTextIntoLines(textContent, 45);
-      console.log(`🎨 Adding ${lines.length} text lines to clip ${i+1}`);
+      console.log(`🎨 Clip ${i+1}/${imageCount}: Adding ${lines.length} text lines`);
 
       lines.forEach((line, index) => {
+        if (!line || line.trim().length === 0) return; // Skip empty lines
+
         const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
@@ -427,14 +458,21 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
         const fontSize = isHeader ? 22 : 18;
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${clipDuration-0.8}),1,(${clipDuration}-t)/0.8))'`;
+        // ✅ FIX: Use clipDuration for proper timing
+        const fadeInEnd = Math.min(0.8, clipDuration * 0.4);
+        const fadeOutStart = Math.max(clipDuration - 0.8, clipDuration * 0.6);
+
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,${fadeInEnd}),t/${fadeInEnd},if(lt(t,${fadeOutStart}),1,(${clipDuration}-t)/${clipDuration - fadeOutStart}))'`;
       });
+    } else {
+      console.log(`ℹ️ Clip ${i+1}/${imageCount}: No text content`);
     }
 
     filter += `[v${i}]`;
     filters.push(filter);
   }
 
+  // ✅ Chain xfade transitions
   let current = 'v0';
   for (let i = 1; i < imageCount; i++) {
     const offset = (durationPerImage * i) - fadeDuration;
@@ -443,6 +481,7 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     current = next;
   }
 
+  console.log(`✅ Filter complex built with ${filters.length} filters\n`);
   return filters;
 }
 
@@ -452,4 +491,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎥 FFmpeg: Enabled ✅`);
   console.log(`💾 Memory-optimized mode active`);
   console.log(`📝 Text overlay: Left-aligned with stroke effect`);
+  console.log(`🔧 Improved text overlay alignment and error handling`);
 });

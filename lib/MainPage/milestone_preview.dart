@@ -419,35 +419,15 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       // ✅ CRITICAL: Process ALL milestones and generate text logs FIRST
       for (int i = 0; i < widget.milestones.length; i++) {
         final m = widget.milestones[i];
-
-        // Generate FULL text log for EVERY milestone
-        final logData = _dailyLogs[m.date.toString()];
-        String fullTextLog = '';
-
-        if (logData != null) {
-          fullTextLog = logData.generateTextLog();
-          print('📝 Milestone ${i+1}/${widget.milestones.length}: Generated full log (${fullTextLog.length} chars)');
-        } else if (m.notes != null && m.notes!.isNotEmpty) {
-          final dateStr = DateFormat('MMM d, yyyy').format(m.date);
-          fullTextLog = '$dateStr\n\n${m.notes!}';
-          print('📝 Milestone ${i+1}/${widget.milestones.length}: Using notes fallback');
-        } else {
-          final dateStr = DateFormat('MMMM d, yyyy').format(m.date);
-          fullTextLog = '$dateStr\n\nNo activity logged for this day';
-          print('📝 Milestone ${i+1}/${widget.milestones.length}: Using minimal fallback');
-        }
-
-        // ✅ Add text log BEFORE checking images
-        textLogs.add(fullTextLog);
-
-        // Now try to get the image
+        File? imageFile;
         bool imageAdded = false;
 
+        // Try to get the image FIRST
         // Priority 1: Use local imagePath if exists
         if (m.imagePath != null) {
           final f = File(m.imagePath!);
           if (await f.exists()) {
-            filesToUpload.add(f);
+            imageFile = f;
             imageAdded = true;
             print('🖼️ Milestone ${i+1}: Using local image');
           }
@@ -465,7 +445,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               final ext = _getImageExtensionFromUrl(m.imageUrl!) ?? '.jpg';
               final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
               await saved.writeAsBytes(resp.bodyBytes);
-              filesToUpload.add(saved);
+              imageFile = saved;
               imageAdded = true;
               print('🖼️ Milestone ${i+1}: Downloaded from URL');
             }
@@ -474,9 +454,59 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           }
         }
 
-        if (!imageAdded) {
-          print('⚠️ WARNING: No image found for milestone ${i+1}');
+        // ✅ CRITICAL: Only add text log if image was successfully obtained
+        if (imageAdded && imageFile != null) {
+          // Generate FULL text log for this milestone
+          final logData = _dailyLogs[m.date.toString()];
+          String fullTextLog = '';
+
+          if (logData != null) {
+            fullTextLog = logData.generateTextLog();
+            print('📝 Milestone ${i+1}: Generated full log (${fullTextLog.length} chars)');
+          } else if (m.notes != null && m.notes!.isNotEmpty) {
+            final dateStr = DateFormat('MMM d, yyyy').format(m.date);
+            fullTextLog = '$dateStr\n\n${m.notes!}';
+            print('📝 Milestone ${i+1}: Using notes fallback');
+          } else {
+            final dateStr = DateFormat('MMMM d, yyyy').format(m.date);
+            fullTextLog = '$dateStr\n\nNo activity logged for this day';
+            print('📝 Milestone ${i+1}: Using minimal fallback');
+          }
+
+          // Add BOTH image and text log together
+          filesToUpload.add(imageFile);
+          textLogs.add(fullTextLog);
+
+          print('✅ Milestone ${i+1}: Added image + text log (${filesToUpload.length} total)');
+        } else {
+          print('⚠️ WARNING: Skipping milestone ${i+1} - no valid image');
         }
+      }
+
+      // ✅ VALIDATION: Counts should now always match
+      print('📊 Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
+
+      if (filesToUpload.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        _showSnackBar('No image files available to upload');
+        setState(() => _isExporting = false);
+        return;
+      }
+
+      // This should never happen now, but keep as safety check
+      if (filesToUpload.length != textLogs.length) {
+        print('❌ CRITICAL ERROR: Mismatch after collection! ${filesToUpload.length} vs ${textLogs.length}');
+        // Ensure they match by padding text logs
+        while (textLogs.length < filesToUpload.length) {
+          textLogs.add('');
+        }
+      }
+
+      print('✅ Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
+      print('📄 Text log samples:');
+      for (int i = 0; i < textLogs.length && i < 3; i++) {
+        final preview = textLogs[i].substring(0, textLogs[i].length > 80 ? 80 : textLogs[i].length);
+        print('  Log ${i+1}: $preview...');
       }
 
       // ✅ CRITICAL VALIDATION: Ensure counts match

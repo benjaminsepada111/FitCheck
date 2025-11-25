@@ -388,7 +388,7 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
-  console.log(`\n🎬 Building filter complex:`);
+  console.log(`\n🎬 Building filter complex (FIXED VERSION):`);
   console.log(`   Images: ${imageCount}`);
   console.log(`   Text logs: ${textLogs.length}`);
   console.log(`   Duration per image: ${durationPerImage}s`);
@@ -399,11 +399,14 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     textLogs.push('');
   }
 
+  // ============================================================================
+  // SPECIAL CASE: Single image
+  // ============================================================================
   if (imageCount === 1) {
     const textContent = textLogs[0] || '';
     const hasText = textContent.trim().length > 0;
 
-    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${durationPerImage},setpts=PTS-STARTPTS,format=yuv420p`;
+    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p`;
 
     if (hasText) {
       const lines = splitTextIntoLines(textContent, 45);
@@ -428,27 +431,36 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     return [filter];
   }
 
+  // ============================================================================
+  // CRITICAL FIX: For multiple images, make ALL clips long enough!
+  // Each clip must be extended to cover its position in the final timeline
+  // ============================================================================
+
   const filters = [];
   const fadeDuration = 0.5;
-  const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
+  const totalDuration = imageCount * durationPerImage;
 
-  // ✅ Create individual video clips with text overlays
+  // ✅ FIX: Create clips with EXTENDED duration based on their position
   for (let i = 0; i < imageCount; i++) {
-    const clipDuration = (i === imageCount - 1)
-      ? durationPerImage + totalFadeTimeLost
-      : durationPerImage;
-
     const textContent = textLogs[i] || '';
     const hasText = textContent.trim().length > 0;
 
-    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS,format=yuv420p`;
+    // ✅ CRITICAL: Calculate how long THIS clip needs to be
+    // Each clip starts at: i * durationPerImage
+    // And needs to last until at least: (i+1) * durationPerImage + fadeDuration
+    // BUT we make all clips the SAME extended duration to avoid issues
+    const extendedDuration = totalDuration; // Make all clips full duration!
 
+    // Create base clip with loop to extend duration
+    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,loop=loop=-1:size=1:start=0,trim=duration=${extendedDuration},setpts=PTS-STARTPTS`;
+
+    // Add text overlays if present
     if (hasText) {
       const lines = splitTextIntoLines(textContent, 45);
-      console.log(`🎨 Clip ${i+1}/${imageCount}: Adding ${lines.length} text lines`);
+      console.log(`🎨 Clip ${i+1}/${imageCount}: Adding ${lines.length} text lines (extended to ${extendedDuration}s)`);
 
       lines.forEach((line, index) => {
-        if (!line || line.trim().length === 0) return; // Skip empty lines
+        if (!line || line.trim().length === 0) return;
 
         const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
@@ -458,30 +470,42 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
         const fontSize = isHeader ? 22 : 18;
 
-        // ✅ FIX: Use clipDuration for proper timing
-        const fadeInEnd = Math.min(0.8, clipDuration * 0.4);
-        const fadeOutStart = Math.max(clipDuration - 0.8, clipDuration * 0.6);
+        // ✅ Text should only be visible during THIS clip's time window
+        const clipStartTime = i * durationPerImage;
+        const clipEndTime = (i + 1) * durationPerImage;
+        const fadeInStart = clipStartTime;
+        const fadeInEnd = clipStartTime + 0.8;
+        const fadeOutStart = clipEndTime - 0.8;
+        const fadeOutEnd = clipEndTime;
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,${fadeInEnd}),t/${fadeInEnd},if(lt(t,${fadeOutStart}),1,(${clipDuration}-t)/${clipDuration - fadeOutStart}))'`;
+        // ✅ CRITICAL: Text visibility is controlled by time ranges
+        // Text fades IN at clip start, stays visible during clip, fades OUT at clip end
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,${fadeInStart}),0,if(lt(t,${fadeInEnd}),(t-${fadeInStart})/0.8,if(lt(t,${fadeOutStart}),1,if(lt(t,${fadeOutEnd}),(${fadeOutEnd}-t)/0.8,0))))'`;
       });
     } else {
-      console.log(`ℹ️ Clip ${i+1}/${imageCount}: No text content`);
+      console.log(`ℹ️ Clip ${i+1}/${imageCount}: No text content (extended to ${extendedDuration}s)`);
     }
 
     filter += `[v${i}]`;
     filters.push(filter);
   }
 
-  // ✅ Chain xfade transitions
+  // ✅ Now overlay clips in sequence using xfade
+  // Since all clips are full duration, xfade offsets will work correctly!
   let current = 'v0';
   for (let i = 1; i < imageCount; i++) {
     const offset = (durationPerImage * i) - fadeDuration;
     const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
+
+    console.log(`🔗 Xfade ${i}: [${current}] → [v${i}] at offset ${offset}s → [${next}]`);
+
     filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
     current = next;
   }
 
-  console.log(`✅ Filter complex built with ${filters.length} filters\n`);
+  console.log(`✅ Filter complex built with ${filters.length} filters`);
+  console.log(`   Total expected duration: ${totalDuration}s\n`);
+
   return filters;
 }
 

@@ -935,11 +935,17 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
   Widget _buildGooglePhotosTimeline() {
     final milestones = widget.milestones ?? [];
-    // Reverse the milestones to match video order (3.jpg → 2.jpg → 1.jpg)
-    final reversedMilestones = milestones.reversed.toList();
+    // ✅ NO REVERSE: Milestones are in chronological order (oldest → newest) matching video playback
+    // Video shows: Nov 25 → Nov 26 → Nov 27
+    // Timeline shows: Nov 25 → Nov 26 → Nov 27
     final videoDuration = _isInitialized ? _videoController.value.duration : Duration.zero;
     final currentPosition = _isInitialized ? _videoController.value.position : Duration.zero;
     final slideshowDuration = widget.slideshowInterval ?? const Duration(seconds: 2);
+
+    // Timeline layout constants
+    const double thumbnailWidth = 80.0;
+    const double thumbnailGap = 4.0;
+    const double horizontalPadding = 8.0; // Left padding for ListView
 
     return Container(
       height: 120,
@@ -950,9 +956,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       ),
       child: Row(
         children: [
-
           Expanded(
-            child: reversedMilestones.isEmpty
+            child: milestones.isEmpty
                 ? Center(
               child: Text(
                 'No milestone photos',
@@ -961,26 +966,25 @@ class _VideoEditorPageState extends State<VideoEditorPage>
             )
                 : Stack(
               children: [
-                // Thumbnails
+                // Thumbnails in chronological order
                 ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: reversedMilestones.length,
+                  padding: const EdgeInsets.only(left: horizontalPadding, top: 8, bottom: 8),
+                  itemCount: milestones.length,
                   itemBuilder: (context, index) {
-                    final milestone = reversedMilestones[index];
-                    final thumbnailDuration = slideshowDuration * (index + 1);
-                    final isActive = currentPosition >= slideshowDuration * index &&
-                        currentPosition < thumbnailDuration;
+                    final milestone = milestones[index];
+                    final startTime = slideshowDuration * index;
+                    final endTime = slideshowDuration * (index + 1);
+                    final isActive = currentPosition >= startTime && currentPosition < endTime;
 
                     return GestureDetector(
                       onTap: () {
                         // Seek to this milestone's timestamp
-                        final seekPosition = slideshowDuration * index;
-                        _videoController.seekTo(seekPosition);
+                        _videoController.seekTo(startTime);
                       },
                       child: Container(
-                        width: 80,
-                        margin: const EdgeInsets.only(right: 4),
+                        width: thumbnailWidth,
+                        margin: EdgeInsets.only(right: index < milestones.length - 1 ? thumbnailGap : 0),
                         decoration: BoxDecoration(
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(8),
@@ -1022,13 +1026,16 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                     );
                   },
                 ),
-                // Playhead indicator - SYNCED WITH VIDEO
-                if (_isInitialized && videoDuration.inMilliseconds > 0 && reversedMilestones.isNotEmpty)
+                // ✅ FIXED: Playhead indicator with proper horizontal padding offset
+                if (_isInitialized && videoDuration.inMilliseconds > 0 && milestones.isNotEmpty)
                   Positioned(
-                    // Calculate actual visual timeline width: (thumbnail width * count) + (gap width * gaps between)
-                    // For 3 items: (80 * 3) + (4 * 2) = 240 + 8 = 248px
-                    left: (currentPosition.inMilliseconds / videoDuration.inMilliseconds) *
-                        (reversedMilestones.length * 80.0 + (reversedMilestones.length - 1) * 4.0),
+                    // Calculate position: (progress %) × (total timeline width) + horizontal padding offset
+                    // Timeline width = (thumbnails × width) + (gaps × spacing)
+                    // For 3 items: (3 × 80) + (2 × 4) = 248px
+                    // Add horizontal padding to align with first thumbnail start
+                    left: horizontalPadding +
+                        (currentPosition.inMilliseconds / videoDuration.inMilliseconds) *
+                            (milestones.length * thumbnailWidth + (milestones.length - 1) * thumbnailGap),
                     top: 0,
                     bottom: 0,
                     child: Container(

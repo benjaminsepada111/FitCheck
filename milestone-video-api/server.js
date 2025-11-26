@@ -387,7 +387,7 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
   return lines.slice(0, 15);
 }
 
-// ✅ COMPLETELY REWRITTEN: Better text overlay handling with improved logging
+// ✅ FIXED: Corrected xfade offset and clip duration logic
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
@@ -435,15 +435,13 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   }
 
   // ============================================================================
-  // MULTIPLE IMAGES: The CORRECT Approach
-  // Key: Create complete clips with text BEFORE xfade, use setpts to sync
+  // MULTIPLE IMAGES: Proper xfade implementation
   // ============================================================================
 
   const filters = [];
   const fadeDuration = 0.5;
 
   // ✅ STEP 1: Create each clip as a complete video segment with text overlay
-  // These clips are self-contained and ready to be transitioned
   for (let i = 0; i < imageCount; i++) {
     const textContent = textLogs[i] || '';
     const hasText = textContent.trim().length > 0;
@@ -467,19 +465,16 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
         const fontSize = isHeader ? 22 : 18;
 
-        // ✅ Text visible for the full duration of this clip's display time
-        // Simple fade in/out relative to THIS clip's timeline
         filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2`;
       });
     } else {
       console.log(`ℹ️ Clip ${i+1}/${imageCount}: No text content`);
     }
 
-    // ✅ CRITICAL: Convert to video stream with proper duration
-    // Last clip needs extra time to cover all the fade overlaps
-    const isLastClip = (i === imageCount - 1);
-    const totalFadeTimeLost = (imageCount - 1) * fadeDuration;
-    const clipDuration = isLastClip ? (durationPerImage + totalFadeTimeLost) : durationPerImage;
+    // ✅ CRITICAL FIX: All clips should have the SAME duration
+    // The xfade filter automatically handles output duration calculation
+    // Making the last clip longer causes timing issues and can cut off the last frame
+    const clipDuration = durationPerImage;
 
     // Loop the frame, trim to duration, reset PTS
     filter += `,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS[v${i}]`;
@@ -491,8 +486,11 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   // ✅ STEP 2: Chain the clips together with xfade transitions
   let current = 'v0';
   for (let i = 1; i < imageCount; i++) {
-    // Calculate the offset for this transition
-    const offset = (durationPerImage * i) - fadeDuration;
+    // ✅ CRITICAL FIX: Correct offset calculation
+    // The offset must account for accumulated overlaps from previous fades
+    // Formula: i * (durationPerImage - fadeDuration)
+    // This ensures each fade starts at the right position in the chained timeline
+    const offset = i * (durationPerImage - fadeDuration);
     const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
 
     console.log(`🔗 Xfade ${i}: [${current}] + [v${i}] at ${offset}s → [${next}]`);
@@ -501,7 +499,7 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
     current = next;
   }
 
-  const expectedDuration = imageCount * durationPerImage;
+  const expectedDuration = imageCount * durationPerImage - (imageCount - 1) * fadeDuration;
   console.log(`✅ Filter complex built: ${filters.length} filters`);
   console.log(`   Expected duration: ${expectedDuration}s\n`);
 
@@ -515,5 +513,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`💾 Memory-optimized mode active`);
   console.log(`📝 Text overlay: Left-aligned with stroke effect`);
   console.log(`🎯 Video order: CHRONOLOGICAL (oldest → newest)`);
-  console.log(`🔧 Improved text overlay alignment and error handling`);
+  console.log(`✅ FIXED: Clip duration bug - all clips now have equal duration`);
+  console.log(`✅ FIXED: Xfade offset calculation for proper transitions`);
 });

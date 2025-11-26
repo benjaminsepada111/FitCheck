@@ -96,14 +96,15 @@ app.post(
         textLogs.push('');
       }
 
-      // ✅ NEW: Add validation logging
-      console.log('\n📊 Validation before processing:');
+      // ✅ Validation logging
+      console.log('\n📊 Video Order Validation:');
       console.log(`   Images: ${imageFiles.length}`);
       console.log(`   Text logs: ${textLogs.length}`);
+      console.log(`   Duration per image: ${durationPerImage}s`);
 
       for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
         const preview = (textLogs[i] || '').substring(0, 60);
-        console.log(`   Image ${i+1} text: "${preview}${textLogs[i] && textLogs[i].length > 60 ? '...' : ''}"`);
+        console.log(`   Frame ${i+1} text: "${preview}${textLogs[i] && textLogs[i].length > 60 ? '...' : ''}"`);
       }
       console.log('');
 
@@ -126,9 +127,10 @@ app.post(
         }
       }
 
-      // Reverse order (last milestone first)
-      const reversedImages = [...imageFiles].reverse();
-      const reversedTextLogs = [...textLogs].reverse();
+      // ✅ NO REVERSE: Images are already in chronological order from client (oldest to newest)
+      // Video will show: Nov 25 → Nov 26 → Nov 27
+      console.log('📹 Processing images in CHRONOLOGICAL ORDER (oldest to newest)');
+      console.log('   This creates a proper milestone journey timeline');
 
       const renderId = uuidv4();
       const outputFileName = `video-${renderId}.mp4`;
@@ -152,9 +154,10 @@ app.post(
         }
       });
 
+      // ✅ Pass imageFiles and textLogs directly (no reverse)
       processVideoWithFFmpeg(
-        reversedImages,
-        reversedTextLogs,
+        imageFiles,
+        textLogs,
         durationPerImage,
         musicPath,
         outputPath,
@@ -220,7 +223,7 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB used`);
       })
       .on('stderr', (stderrLine) => {
-        // ✅ NEW: Log FFmpeg errors for debugging
+        // Log FFmpeg errors for debugging
         if (stderrLine.includes('Error') || stderrLine.includes('Failed')) {
           console.error('⚠️ FFmpeg stderr:', stderrLine);
         }
@@ -359,7 +362,7 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
     if (trimmed.length <= maxCharsPerLine) {
       lines.push(trimmed);
     } else {
-      const words = trimmed.split(' ').filter(w => w.length > 0); // ✅ Filter empty words
+      const words = trimmed.split(' ').filter(w => w.length > 0);
       let currentLine = '';
 
       words.forEach(word => {
@@ -388,7 +391,7 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
 function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
   const imageCount = imageFiles.length;
 
-  console.log(`\n🎬 Building filter complex (ALL CLIPS FIX):`);
+  console.log(`\n🎬 Building filter complex (CHRONOLOGICAL ORDER):`);
   console.log(`   Images: ${imageCount}`);
   console.log(`   Text logs: ${textLogs.length}`);
   console.log(`   Duration per image: ${durationPerImage}s`);
@@ -511,5 +514,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎥 FFmpeg: Enabled ✅`);
   console.log(`💾 Memory-optimized mode active`);
   console.log(`📝 Text overlay: Left-aligned with stroke effect`);
+  console.log(`🎯 Video order: CHRONOLOGICAL (oldest → newest)`);
   console.log(`🔧 Improved text overlay alignment and error handling`);
 });

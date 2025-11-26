@@ -1,23 +1,11 @@
 // lib/pages/milestone_preview_page.dart
 import 'dart:io';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
-import 'package:capstone_project/services/api_service.dart';
-import 'video_preview_page.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:gal/gal.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -123,7 +111,6 @@ class MilestonePreviewPage extends StatefulWidget {
   final VoidCallback? onMilestonesChanged;
   final String challengeId;
 
-
   const MilestonePreviewPage({
     super.key,
     required this.milestones,
@@ -140,12 +127,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   late PageController _pageController;
   int _currentIndex = 0;
   bool _isSlideshow = false;
-  bool _isExporting = false;
+  bool _isUpdating = false;
   Duration _slideshowInterval = const Duration(seconds: 2);
-
-  // Cache the generated video URL AND text logs
-  String? _cachedVideoUrl;
-  List<String>? _cachedTextLogs;  // 🆕 Store the text logs used for video
 
   bool _isTextLogView = false;
 
@@ -158,107 +141,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    _loadCachedVideoUrl();
   }
-
-  // ======================
-  // PERSISTENT VIDEO CACHE
-  // ======================
-
-  String _getImageHash() {
-    // Create a hash from all image URLs/paths to detect changes
-    final imageData = widget.milestones.map((m) {
-      return '${m.imageUrl ?? m.imagePath ?? ''}';
-    }).join('|');
-
-    // Simple hash: sum of all character codes
-    int hash = 0;
-    for (int i = 0; i < imageData.length; i++) {
-      hash = (hash + imageData.codeUnitAt(i)) % 1000000;
-    }
-
-    return hash.toString();
-  }
-
-  String _getCacheKey() {
-    // ✅ NOW includes image hash to detect image changes!
-    final imageHash = _getImageHash();
-    return 'video_cache_${widget.challengeId}_${widget.milestones.length}_$imageHash';
-  }
-  String _getTextLogsCacheKey() {
-    return 'text_logs_cache_${widget.challengeId}_${widget.milestones.length}';
-  }
-
-  Future<void> _loadCachedVideoUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cacheKey = _getCacheKey();
-      final textLogsCacheKey = _getTextLogsCacheKey();
-
-      final cachedUrl = prefs.getString(cacheKey);
-      final cachedLogsJson = prefs.getString(textLogsCacheKey);
-
-      if (cachedUrl != null && cachedUrl.isNotEmpty) {
-        setState(() {
-          _cachedVideoUrl = cachedUrl;
-
-          // Load cached text logs if available
-          if (cachedLogsJson != null) {
-            try {
-              _cachedTextLogs = List<String>.from(jsonDecode(cachedLogsJson));
-            } catch (e) {
-              print('⚠️ Failed to decode cached text logs: $e');
-            }
-          }
-        });
-      }
-    } catch (e) {
-      print('❌ Error loading cached data: $e');
-    }
-  }
-
-  Future<void> _saveCachedVideoUrl(String url, List<String> textLogs) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cacheKey = _getCacheKey();
-      final textLogsCacheKey = _getTextLogsCacheKey();
-
-      await prefs.setString(cacheKey, url);
-      await prefs.setString(textLogsCacheKey, jsonEncode(textLogs));
-
-      print('✅ Cached video URL and text logs');
-    } catch (e) {
-      print('❌ Error saving cached data: $e');
-    }
-  }
-
-  Future<void> _clearCachedVideoUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cacheKey = _getCacheKey();
-      final textLogsCacheKey = _getTextLogsCacheKey();
-
-      await prefs.remove(cacheKey);
-      await prefs.remove(textLogsCacheKey);
-
-      print('✅ Cleared video and text logs cache');
-    } catch (e) {
-      print('❌ Error clearing cache: $e');
-    }
-  }
-
-  Future<void> _regenerateVideo() async {
-    // Force regenerate by clearing cache and immediately exporting
-    setState(() {
-      _cachedVideoUrl = null;
-      _cachedTextLogs = null;
-    });
-    await _clearCachedVideoUrl();
-
-    _showSnackBar('Regenerating video with updated images...');
-    await _exportMilestones();
-  }
-
 
   Future<void> _loadDailyLogs() async {
     if (_isLoadingLogs || widget.milestones.isEmpty) return;
@@ -365,643 +248,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   void _stopSlideshow() => setState(() => _isSlideshow = false);
-
-  // ======================
-  // EXPORT TO VIDEO (WITH VIDEO CACHING)
-  // ======================
-  Future<void> _exportMilestones() async {
-    if (widget.milestones.isEmpty) {
-      _showSnackBar('No milestones to export');
-      return;
-    }
-
-    // CHECK IF VIDEO ALREADY EXISTS
-    if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
-      _showSnackBar('Opening existing video...');
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VideoEditorPage(
-            videoUrl: _cachedVideoUrl!,
-            videoTitle: 'Milestone Journey',
-            milestones: widget.milestones,
-            slideshowInterval: _slideshowInterval,
-            textLogs: _cachedTextLogs,
-          ),
-        ),
-      );
-      return;
-    }
-
-    // If no video exists, create a new one
-    setState(() => _isExporting = true);
-
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final List<File> filesToUpload = [];
-      final List<String> textLogs = [];
-
-      // Show loading dialog
-      if (!mounted) return;
-      _showLoadingDialog('Loading daily logs and preparing video...');
-
-      // ✅ CRITICAL FIX: ALWAYS load daily logs FIRST
-      print('📊 Loading daily logs for ${widget.milestones.length} milestones...');
-      await _loadDailyLogs();
-
-      print('✅ Daily logs loaded: ${_dailyLogs.length} entries');
-
-      if (!mounted) return;
-      Navigator.pop(context);
-      _showLoadingDialog('Preparing ${widget.milestones.length} images with text overlays...');
-
-      // ✅ CRITICAL: Process ALL milestones and generate text logs FIRST
-      for (int i = 0; i < widget.milestones.length; i++) {
-        final m = widget.milestones[i];
-        File? imageFile;
-        bool imageAdded = false;
-
-        // Try to get the image FIRST
-        // Priority 1: Use local imagePath if exists
-        if (m.imagePath != null) {
-          final f = File(m.imagePath!);
-          if (await f.exists()) {
-            imageFile = f;
-            imageAdded = true;
-            print('🖼️ Milestone ${i+1}: Using local image');
-          }
-        }
-
-        // Priority 2: Download from imageUrl if exists
-        if (!imageAdded && m.imageUrl != null) {
-          try {
-            final resp = await http.get(
-              Uri.parse(m.imageUrl!),
-              headers: {'Accept': 'image/*'},
-            ).timeout(const Duration(seconds: 15));
-
-            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
-              final ext = _getImageExtensionFromUrl(m.imageUrl!) ?? '.jpg';
-              final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
-              await saved.writeAsBytes(resp.bodyBytes);
-              imageFile = saved;
-              imageAdded = true;
-              print('🖼️ Milestone ${i+1}: Downloaded from URL');
-            }
-          } catch (e) {
-            print('❌ Error downloading image ${i+1}: $e');
-          }
-        }
-
-        // ✅ CRITICAL: Only add text log if image was successfully obtained
-        if (imageAdded && imageFile != null) {
-          // Generate FULL text log for this milestone
-          final logData = _dailyLogs[m.date.toString()];
-          String fullTextLog = '';
-
-          if (logData != null) {
-            fullTextLog = logData.generateTextLog();
-            print('📝 Milestone ${i+1}: Generated full log (${fullTextLog.length} chars)');
-          } else if (m.notes != null && m.notes!.isNotEmpty) {
-            final dateStr = DateFormat('MMM d, yyyy').format(m.date);
-            fullTextLog = '$dateStr\n\n${m.notes!}';
-            print('📝 Milestone ${i+1}: Using notes fallback');
-          } else {
-            final dateStr = DateFormat('MMMM d, yyyy').format(m.date);
-            fullTextLog = '$dateStr\n\nNo activity logged for this day';
-            print('📝 Milestone ${i+1}: Using minimal fallback');
-          }
-
-          // Add BOTH image and text log together
-          filesToUpload.add(imageFile);
-          textLogs.add(fullTextLog);
-
-          print('✅ Milestone ${i+1}: Added image + text log (${filesToUpload.length} total)');
-        } else {
-          print('⚠️ WARNING: Skipping milestone ${i+1} - no valid image');
-        }
-      }
-
-      // ✅ VALIDATION: Counts should now always match
-      print('📊 Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
-
-      if (filesToUpload.isEmpty) {
-        if (mounted) Navigator.pop(context);
-        _showSnackBar('No image files available to upload');
-        setState(() => _isExporting = false);
-        return;
-      }
-
-      // This should never happen now, but keep as safety check
-      if (filesToUpload.length != textLogs.length) {
-        print('❌ CRITICAL ERROR: Mismatch after collection! ${filesToUpload.length} vs ${textLogs.length}');
-        // Ensure they match by padding text logs
-        while (textLogs.length < filesToUpload.length) {
-          textLogs.add('');
-        }
-      }
-
-      print('✅ Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
-      print('📄 Text log samples:');
-      for (int i = 0; i < textLogs.length && i < 3; i++) {
-        final preview = textLogs[i].substring(0, textLogs[i].length > 80 ? 80 : textLogs[i].length);
-        print('  Log ${i+1}: $preview...');
-      }
-
-      // ✅ CRITICAL VALIDATION: Ensure counts match
-      print('📊 Validation: ${filesToUpload.length} images, ${textLogs.length} text logs');
-
-      if (filesToUpload.isEmpty) {
-        if (mounted) Navigator.pop(context);
-        _showSnackBar('No image files available to upload');
-        setState(() => _isExporting = false);
-        return;
-      }
-
-      if (filesToUpload.length != textLogs.length) {
-        print('⚠️ WARNING: Image/text log count mismatch! ${filesToUpload.length} images vs ${textLogs.length} logs');
-
-        // ✅ FIX: Adjust text logs to match image count
-        if (textLogs.length > filesToUpload.length) {
-          // Too many text logs - trim to match images
-          textLogs.removeRange(filesToUpload.length, textLogs.length);
-          print('✂️ Trimmed text logs to ${textLogs.length}');
-        } else {
-          // Too few text logs - pad with minimal entries
-          while (textLogs.length < filesToUpload.length) {
-            final missingIndex = textLogs.length;
-            final fallbackDate = widget.milestones[missingIndex].date;
-            textLogs.add(DateFormat('MMMM d, yyyy').format(fallbackDate));
-            print('➕ Added fallback text log for index ${missingIndex}');
-          }
-        }
-      }
-
-      print('✅ Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
-      print('📄 Text log samples:');
-      for (int i = 0; i < textLogs.length && i < 3; i++) {
-        final preview = textLogs[i].substring(0, textLogs[i].length > 80 ? 80 : textLogs[i].length);
-        print('  Log ${i+1}: $preview...');
-      }
-
-      // Update loading message
-      if (mounted) {
-        Navigator.pop(context);
-        _showLoadingDialog('Uploading ${filesToUpload.length} images with text overlays...');
-      }
-
-      // ✅ Call API with validated text logs
-      final response = await ApiService.generateVideo(
-        images: filesToUpload,
-        notes: textLogs,
-        musicFile: null,
-        musicUrl: null,
-        durationPerImage: _slideshowInterval.inSeconds,
-      );
-
-      // Extract render ID correctly from response
-      String? renderId;
-      if (response['success'] == true) {
-        final data = response['data'];
-        if (data is Map) {
-          final responseObj = data['response'];
-          if (responseObj is Map && responseObj['id'] != null) {
-            renderId = responseObj['id'].toString();
-          }
-        }
-      }
-
-      if (renderId == null || renderId.isEmpty) {
-        if (mounted) Navigator.pop(context);
-        throw Exception('Could not get render ID from response: $response');
-      }
-
-      // Update loading message
-      if (mounted) {
-        Navigator.pop(context);
-        _showRenderProgressDialog(renderId);
-      }
-
-      // Poll for completion
-      String? resultUrl;
-      int maxAttempts = 90;
-      int attempt = 0;
-
-      while (attempt < maxAttempts && mounted) {
-        await Future.delayed(const Duration(seconds: 3));
-        attempt++;
-
-        try {
-          final statusResp = await ApiService.checkRenderStatus(renderId);
-
-          if (statusResp['success'] == true) {
-            final data = statusResp['data'];
-            if (data is Map) {
-              final responseObj = data['response'];
-              if (responseObj is Map) {
-                final status = responseObj['status']?.toString();
-                final url = responseObj['url']?.toString();
-
-                if (status == 'done' && url != null && url.isNotEmpty) {
-                  resultUrl = url;
-                  break;
-                } else if (status == 'failed') {
-                  final error = responseObj['error'] ?? 'Unknown error';
-                  throw Exception('Render failed: $error');
-                }
-              }
-            }
-          }
-        } catch (e) {
-          if (attempt >= maxAttempts - 1) {
-            throw Exception(
-                'Failed to check render status after $attempt attempts: $e');
-          }
-        }
-      }
-
-      if (mounted) Navigator.pop(context);
-
-      if (resultUrl != null && resultUrl.isNotEmpty) {
-        // CACHE THE VIDEO URL AND TEXT LOGS
-        setState(() {
-          _cachedVideoUrl = resultUrl;
-          _cachedTextLogs = textLogs;
-          _isExporting = false;
-        });
-
-        // Save to SharedPreferences for persistence
-        await _saveCachedVideoUrl(resultUrl, textLogs);
-
-        print('✅ Video generation complete!');
-        print('📹 Video URL: $resultUrl');
-        print('📝 Cached ${textLogs.length} text logs');
-
-        // Show video ready dialog with navigation option
-        _showVideoReadyDialog(resultUrl, textLogs);
-      } else {
-        _showSnackBar(
-            'Render timeout after $attempt attempts. Video may still be processing.');
-      }
-    } catch (e) {
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
-      print('❌ Export failed: ${e.toString()}');
-      _showSnackBar('Export failed: ${e.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() => _isExporting = false);
-      }
-    }
-  }
-
-  // ======================
-  // LOADING DIALOGS
-  // ======================
-  void _showLoadingDialog(String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const FitCheckLoader(),
-              const SizedBox(height: 20),
-              Text(message, textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showRenderProgressDialog(String renderId) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
-          title: const Text('Creating Video'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const FitCheckLoader(),
-              const SizedBox(height: 20),
-              const Text(
-                'Please wait while we create your milestone video...',
-                textAlign: TextAlign.center,
-              ),
-
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ======================
-  // VIDEO READY DIALOG (UPDATED)
-  // ======================
-  void _showVideoReadyDialog(String videoUrl, List<String> textLogs) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 30,
-                offset: const Offset(0, 15),
-                spreadRadius: -5,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Elegant Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(32, 40, 32, 32),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.05),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(28),
-                    topRight: Radius.circular(28),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // Success Icon with Animation Effect
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.secondary.withOpacity(0.2),
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.secondary.withOpacity(0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.secondary,
-                        size: 52,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Video Successfully Created',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A1A),
-                        letterSpacing: -0.5,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your milestone journey is ready',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content Section
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Feature List
-                    _buildFeatureItem(
-                      icon: Icons.video_library_rounded,
-                      title: 'Preview & Edit',
-                      description: 'Review your video and customize it with background music',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFeatureItem(
-                      icon: Icons.cloud_done_rounded,
-                      title: 'Auto-Saved',
-                      description: 'Your video is securely stored and accessible anytime',
-                    ),
-
-                    const SizedBox(height: 28),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: Text(
-                              'Later',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[600],
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => VideoEditorPage(
-                                    videoUrl: videoUrl,
-                                    videoTitle: 'Milestone Journey',
-                                    milestones: widget.milestones,
-                                    slideshowInterval: _slideshowInterval,
-                                    textLogs: textLogs,  // 🆕 Pass text logs to video editor
-                                  ),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.secondary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              elevation: 0,
-                              shadowColor: AppColors.secondary.withOpacity(0.3),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(Icons.play_circle_filled, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Preview',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showRegenerateDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.refresh, color: AppColors.secondary),
-            const SizedBox(width: 12),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Later'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _regenerateVideo();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Regenerate'),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-// Helper widget for feature items
-  Widget _buildFeatureItem({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.secondary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: AppColors.secondary,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1A1A1A),
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                  height: 1.4,
-                  letterSpacing: -0.1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String? _getImageExtensionFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final path = uri.path;
-      final segments = path.split('/');
-      if (segments.isNotEmpty) {
-        final fileName = segments.last.split('?').first;
-        if (fileName.contains('.')) {
-          return '.${fileName.split('.').last}';
-        }
-      }
-    } catch (e) {
-      // Error parsing URL extension
-    }
-    return null;
-  }
 
   void _showSnackBar(String message) {
     if (!mounted) return;
@@ -1175,57 +421,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                   ],
                 ),
               ),
-
-              // First divider
-              const PopupMenuDivider(),
-
-              // ✅ NEW: Force Regenerate Video option
-              const PopupMenuItem(
-                value: 'force_regenerate',
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh, size: 20),
-                    SizedBox(width: 12),
-                    Text('Force Regenerate Video'),
-                  ],
-                ),
-              ),
-
-              // Second divider
-              const PopupMenuDivider(),
-
-              // Export to Video option
-              PopupMenuItem(
-                value: 'export',
-                enabled: !_isExporting,
-                child: Row(
-                  children: [
-                    _isExporting
-                        ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                        : Icon(
-                      _cachedVideoUrl != null ? Icons.video_library : Icons.video_call,
-                      size: 20,
-                      color: _cachedVideoUrl != null ? Colors.green : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _isExporting
-                          ? 'Exporting...'
-                          : _cachedVideoUrl != null
-                          ? 'Open Video'
-                          : 'Export to Video',
-                      style: TextStyle(
-                        color: _cachedVideoUrl != null ? Colors.green : null,
-                        fontWeight: _cachedVideoUrl != null ? FontWeight.w600 : null,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           )
         ],
@@ -1384,7 +579,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   }
 
   void _handleMenuAction(String action) {
-    if (_isExporting && action != 'export' && action != 'force_regenerate') return;
+    if (_isUpdating) return;
 
     switch (action) {
       case 'change_image':
@@ -1392,12 +587,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         break;
       case 'delete_image':
         _deleteCurrentImage();
-        break;
-      case 'force_regenerate':
-        _regenerateVideo();
-        break;
-      case 'export':
-        _exportMilestones();
         break;
     }
   }
@@ -1504,7 +693,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
       if (pickedFile != null) {
-        setState(() => _isExporting = true);
+        setState(() => _isUpdating = true);
         final updatedMilestone = milestone.copyWith(
           imagePath: pickedFile.path,
           updatedAt: DateTime.now(),
@@ -1519,32 +708,18 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         if (success) {
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
-            _cachedVideoUrl = null;
-            _cachedTextLogs = null;
           });
-          await _clearCachedVideoUrl();
 
           widget.onMilestonesChanged?.call();
-
-          // ✅ NEW: Show dialog asking to regenerate video
-          if (mounted) {
-            _showRegenerateDialog('Image Updated',
-                'Would you like to regenerate your milestone video with the new image?');
-          }
+          _showSnackBar('Image updated successfully');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Failed to update image. Please try again.'),
-                backgroundColor: Colors.red),
-          );
+          _showSnackBar('Failed to update image. Please try again.');
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red));
+      _showSnackBar('Error: ${e.toString()}');
     } finally {
-      setState(() => _isExporting = false);
+      setState(() => _isUpdating = false);
     }
   }
 
@@ -1574,15 +749,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   void _confirmDelete(Milestone milestone) async {
     Navigator.pop(context);
     try {
-      setState(() => _isExporting = true);
+      setState(() => _isUpdating = true);
       final success = await MilestoneService.deleteMilestone(milestone.id,
           challengeId: widget.challengeId);
       if (success) {
         setState(() {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
-          _cachedVideoUrl = null;
-          _cachedTextLogs = null;
 
           if (widget.milestones.isEmpty) {
             Navigator.pop(context);
@@ -1594,26 +767,16 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                 curve: Curves.easeInOut);
           }
         });
-        await _clearCachedVideoUrl();
 
         widget.onMilestonesChanged?.call();
-
-        // ✅ NEW: Show dialog asking to regenerate video
-        if (mounted && widget.milestones.isNotEmpty) {
-          _showRegenerateDialog('Image Deleted',
-              'Would you like to regenerate your milestone video without the deleted image?');
-        }
+        _showSnackBar('Image deleted successfully');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Failed to delete image. Please try again.'),
-            backgroundColor: Colors.red));
+        _showSnackBar('Failed to delete image. Please try again.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red));
+      _showSnackBar('Error: ${e.toString()}');
     } finally {
-      setState(() => _isExporting = false);
+      setState(() => _isUpdating = false);
     }
   }
 
@@ -1632,6 +795,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           child: const Icon(Icons.image_not_supported));
     }
   }
+
   Widget _buildTextLogView() {
     if (_isLoadingLogs) {
       return const Center(

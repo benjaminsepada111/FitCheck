@@ -5,6 +5,109 @@ import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/weekly_checkin_service.dart';
 import 'package:capstone_project/models/weekly_checkin.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/services/milestone_service.dart';
+import 'package:capstone_project/models/milestone.dart';
+import 'package:capstone_project/services/api_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
+import 'package:capstone_project/services/user_data_service.dart';
+import 'package:capstone_project/models/food_models.dart';
+import 'package:capstone_project/models/workout.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'video_preview_page.dart';
+
+class DailyLogData {
+  final DateTime date;
+  final int totalCalories;
+  final int calorieGoal;
+  final int caloriesBurned;
+  final Map<String, List<FoodEntry>> foodEntriesByMeal;
+  final List<Workout> workouts;
+  final String? notes;
+
+  DailyLogData({
+    required this.date,
+    required this.totalCalories,
+    required this.calorieGoal,
+    required this.caloriesBurned,
+    required this.foodEntriesByMeal,
+    required this.workouts,
+    this.notes,
+  });
+
+  String generateTextLog() {
+    final StringBuffer buffer = StringBuffer();
+
+    buffer.writeln('${DateFormat('MMMM d, yyyy').format(date)}\n');
+
+    // Add notes if available
+    if (notes != null && notes!.isNotEmpty) {
+      buffer.writeln('${notes}\n');
+    }
+
+    // Food section
+    bool hasFoodLogs = false;
+    List<String> allFoodItems = [];
+
+    for (var entries in foodEntriesByMeal.values) {
+      if (entries.isNotEmpty) {
+        hasFoodLogs = true;
+        for (var entry in entries) {
+          allFoodItems.add('${entry.foodName} (${entry.totalCalories.round()} cal)');
+        }
+      }
+    }
+
+    if (hasFoodLogs) {
+      buffer.writeln('I ate:');
+      for (var item in allFoodItems) {
+        buffer.writeln('  • $item');
+      }
+      buffer.writeln();
+    } else {
+      buffer.writeln('No meals logged today\n');
+    }
+
+    // Workout section
+    if (workouts.isNotEmpty) {
+      buffer.writeln('I worked out:');
+
+      for (var workout in workouts) {
+        if (workout.isCardio) {
+          if (workout.durationMinutes != null) {
+            buffer.writeln('  • ${workout.exerciseName} (${workout.durationMinutes} min)');
+          } else {
+            buffer.writeln('  • ${workout.exerciseName}');
+          }
+        } else {
+          if (workout.sets != null && workout.reps != null) {
+            buffer.writeln('  • ${workout.exerciseName} (${workout.sets}×${workout.reps})');
+          } else {
+            buffer.writeln('  • ${workout.exerciseName}');
+          }
+        }
+      }
+      buffer.writeln();
+    } else {
+      buffer.writeln('No workouts logged today\n');
+    }
+
+    // Calorie summary
+    buffer.writeln('Consumed: $totalCalories cal');
+
+    if (caloriesBurned > 0) {
+      buffer.writeln('Burned: $caloriesBurned cal');
+      final netCalories = totalCalories - caloriesBurned;
+      buffer.writeln('Net: $netCalories cal');
+    }
+
+    return buffer.toString().trim();
+  }
+}
 
 class ChallengeSummaryPage extends StatefulWidget {
   final Map<String, dynamic> challenge;
@@ -37,10 +140,812 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   bool _useMonthsForOverall = false;
   List<WeeklyCheckIn> _weeklyCheckIns = []; // Weekly check-in history
 
+  // Video generation state
+  bool _isExporting = false;
+  String? _cachedVideoUrl;
+  List<String>? _cachedTextLogs;
+  List<Milestone> _milestones = [];
+  Map<String, DailyLogData> _dailyLogs = {};
+  bool _isLoadingLogs = false;
+
   @override
   void initState() {
     super.initState();
     _loadChallengeData();
+    _loadMilestones(); // This will also load cached video URL after milestones load
+  }
+
+  // ======================
+  // VIDEO GENERATION - CACHE MANAGEMENT
+  // ======================
+
+  String _getImageHash() {
+    // Create a hash from all image URLs/paths to detect changes
+    final imageData = _milestones.map((m) {
+      return '${m.imageUrl ?? m.imagePath ?? ''}';
+    }).join('|');
+
+    // Simple hash: sum of all character codes
+    int hash = 0;
+    for (int i = 0; i < imageData.length; i++) {
+      hash = (hash + imageData.codeUnitAt(i)) % 1000000;
+    }
+
+    return hash.toString();
+  }
+
+  String _getCacheKey() {
+    final challengeId = widget.challenge['challengeId'] as String?;
+    final imageHash = _getImageHash();
+    return 'video_cache_${challengeId}_${_milestones.length}_$imageHash';
+  }
+
+  String _getTextLogsCacheKey() {
+    final challengeId = widget.challenge['challengeId'] as String?;
+    return 'text_logs_cache_${challengeId}_${_milestones.length}';
+  }
+
+  Future<void> _loadCachedVideoUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getCacheKey();
+      final textLogsCacheKey = _getTextLogsCacheKey();
+
+      print('🎥 Loading cached video URL...');
+      print('   Cache key: $cacheKey');
+
+      final cachedUrl = prefs.getString(cacheKey);
+      final cachedLogsJson = prefs.getString(textLogsCacheKey);
+
+      print('   Cached URL: ${cachedUrl != null ? "Found" : "Not found"}');
+      print('   Cached Logs: ${cachedLogsJson != null ? "Found" : "Not found"}');
+
+      if (cachedUrl != null && cachedUrl.isNotEmpty) {
+        setState(() {
+          _cachedVideoUrl = cachedUrl;
+
+          // Load cached text logs if available
+          if (cachedLogsJson != null) {
+            try {
+              _cachedTextLogs = List<String>.from(jsonDecode(cachedLogsJson));
+              print('   ✅ Loaded ${_cachedTextLogs?.length} cached text logs');
+            } catch (e) {
+              print('   ⚠️ Failed to decode cached text logs: $e');
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading cached data: $e');
+    }
+  }
+
+  Future<void> _saveCachedVideoUrl(String url, List<String> textLogs) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getCacheKey();
+      final textLogsCacheKey = _getTextLogsCacheKey();
+
+      await prefs.setString(cacheKey, url);
+      await prefs.setString(textLogsCacheKey, jsonEncode(textLogs));
+
+      print('✅ Cached video URL and text logs');
+    } catch (e) {
+      print('❌ Error saving cached data: $e');
+    }
+  }
+
+  Future<void> _clearCachedVideoUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getCacheKey();
+      final textLogsCacheKey = _getTextLogsCacheKey();
+
+      await prefs.remove(cacheKey);
+      await prefs.remove(textLogsCacheKey);
+
+      print('✅ Cleared video and text logs cache');
+    } catch (e) {
+      print('❌ Error clearing cache: $e');
+    }
+  }
+
+  // ======================
+  // MILESTONE & DAILY LOGS LOADING
+  // ======================
+
+  Future<void> _loadMilestones() async {
+    try {
+      final challengeId = widget.challenge['challengeId'] as String?;
+      print('📸 Loading milestones for challenge: $challengeId');
+
+      if (challengeId == null) {
+        print('❌ Challenge ID is null');
+        return;
+      }
+
+      // Load ALL milestones (not just those with imageUrl)
+      final allMilestones = await MilestoneService.getAllMilestones(
+        challengeId: challengeId,
+        limit: 100,
+      );
+
+      print('📊 Loaded ${allMilestones.length} total milestones');
+
+      // Filter client-side for milestones that have either imageUrl OR imagePath
+      final milestonesWithImages = allMilestones.where((m) {
+        final hasImage = (m.imageUrl != null && m.imageUrl!.isNotEmpty) ||
+            (m.imagePath != null && m.imagePath!.isNotEmpty);
+        if (hasImage) {
+          print('   ✅ Milestone ${m.id}: imageUrl=${m.imageUrl != null}, imagePath=${m.imagePath != null}');
+        }
+        return hasImage;
+      }).toList();
+
+      // ✅ CRITICAL: Sort by date in ASCENDING order (oldest to newest)
+      // This creates a chronological milestone journey: Dec 6 → Dec 7 → Dec 8
+      milestonesWithImages.sort((a, b) => a.date.compareTo(b.date));
+
+      print('✅ Found ${milestonesWithImages.length} milestones with images (sorted chronologically)');
+      if (milestonesWithImages.isNotEmpty) {
+        print('   📅 First: ${DateFormat('MMM d').format(milestonesWithImages.first.date)}');
+        print('   📅 Last: ${DateFormat('MMM d').format(milestonesWithImages.last.date)}');
+      }
+
+      setState(() {
+        _milestones = milestonesWithImages;
+      });
+
+      // Load cached video URL after milestones are loaded
+      // (cache key depends on milestones)
+      if (milestonesWithImages.isNotEmpty) {
+        await _loadCachedVideoUrl();
+      }
+    } catch (e) {
+      print('❌ Error loading milestones: $e');
+    }
+  }
+
+  Future<void> _loadDailyLogs() async {
+    if (_isLoadingLogs || _milestones.isEmpty) return;
+
+    setState(() => _isLoadingLogs = true);
+
+    try {
+      final Map<String, DailyLogData> logs = {};
+      final challengeId = widget.challenge['challengeId'] as String? ?? '';
+
+      // Get calorie goal
+      int goal = widget.challenge['originalCalorieGoal'] ??
+          widget.challenge['dailyCalorieGoal'] ??
+          2000;
+
+      for (var milestone in _milestones) {
+        final date = milestone.date;
+
+        // Load food logs
+        final foodLogs = await FoodLogService.getFoodLogsForDate(
+          date,
+          challengeId: challengeId,
+        );
+
+        int totalCalories = 0;
+        Map<String, List<FoodEntry>> mealEntries = {
+          'Breakfast': [],
+          'Lunch': [],
+          'Dinner': [],
+          'Snack': [],
+        };
+
+        for (var log in foodLogs) {
+          totalCalories += log.totalCalories.round();
+          if (mealEntries.containsKey(log.mealType)) {
+            mealEntries[log.mealType] = log.entries;
+          }
+        }
+
+        // Load workouts
+        final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+          challengeId: challengeId,
+          date: date,
+        );
+
+        // Calculate calories burned
+        int caloriesBurned = 0;
+        if (workouts.isNotEmpty) {
+          final userData = await UserDataService.loadUserData();
+          final userWeight = userData?.weight?.toDouble() ?? 70.0;
+
+          for (var workout in workouts) {
+            caloriesBurned += workout.calculateCaloriesBurned(userWeight);
+          }
+        }
+
+        logs[date.toString()] = DailyLogData(
+          date: date,
+          totalCalories: totalCalories,
+          calorieGoal: goal,
+          caloriesBurned: caloriesBurned,
+          foodEntriesByMeal: mealEntries,
+          workouts: workouts,
+          notes: milestone.notes,
+        );
+      }
+
+      setState(() {
+        _dailyLogs = logs;
+        _isLoadingLogs = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingLogs = false);
+      _showSnackBar('Failed to load daily logs');
+    }
+  }
+
+  // ======================
+  // VIDEO GENERATION - MAIN LOGIC
+  // ======================
+
+  Future<void> _generateMilestoneVideo() async {
+    if (_milestones.isEmpty) {
+      _showSnackBar('No milestone photos available. Add photos to your milestones first!');
+      return;
+    }
+
+    // CHECK IF VIDEO ALREADY EXISTS
+    if (_cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty) {
+      _showSnackBar('Opening existing video...');
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoEditorPage(
+            videoUrl: _cachedVideoUrl!,
+            videoTitle: 'Milestone Journey',
+            milestones: _milestones,
+            slideshowInterval: const Duration(seconds: 2),
+            textLogs: _cachedTextLogs,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // If no video exists, create a new one
+    setState(() => _isExporting = true);
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final List<File> filesToUpload = [];
+      final List<String> textLogs = [];
+
+      // Show loading dialog
+      if (!mounted) return;
+      _showLoadingDialog('Loading daily logs and preparing video...');
+
+      // ✅ CRITICAL: Load daily logs FIRST
+      print('📊 Loading daily logs for ${_milestones.length} milestones...');
+      await _loadDailyLogs();
+
+      print('✅ Daily logs loaded: ${_dailyLogs.length} entries');
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showLoadingDialog('Preparing ${_milestones.length} images with text overlays...');
+
+      // ✅ Milestones are already sorted chronologically (oldest to newest)
+      // No need to reverse - video will show: Dec 6 → Dec 7 → Dec 8
+      print('📹 Creating video with ${_milestones.length} milestones in chronological order');
+      if (_milestones.isNotEmpty) {
+        print('   📅 Video starts: ${DateFormat('MMM d').format(_milestones.first.date)}');
+        print('   📅 Video ends: ${DateFormat('MMM d').format(_milestones.last.date)}');
+      }
+
+      // Process ALL milestones and generate text logs
+      for (int i = 0; i < _milestones.length; i++) {
+        final m = _milestones[i];
+        File? imageFile;
+        bool imageAdded = false;
+
+        // Priority 1: Use local imagePath if exists
+        if (m.imagePath != null) {
+          final f = File(m.imagePath!);
+          if (await f.exists()) {
+            imageFile = f;
+            imageAdded = true;
+            print('🖼️ Milestone ${i+1}: Using local image');
+          }
+        }
+
+        // Priority 2: Download from imageUrl if exists
+        if (!imageAdded && m.imageUrl != null) {
+          try {
+            final resp = await http.get(
+              Uri.parse(m.imageUrl!),
+              headers: {'Accept': 'image/*'},
+            ).timeout(const Duration(seconds: 15));
+
+            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+              final ext = _getImageExtensionFromUrl(m.imageUrl!) ?? '.jpg';
+              final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
+              await saved.writeAsBytes(resp.bodyBytes);
+              imageFile = saved;
+              imageAdded = true;
+              print('🖼️ Milestone ${i+1}: Downloaded from URL');
+            }
+          } catch (e) {
+            print('❌ Error downloading image ${i+1}: $e');
+          }
+        }
+
+        // ✅ Only add text log if image was successfully obtained
+        if (imageAdded && imageFile != null) {
+          // Generate FULL text log for this milestone
+          final logData = _dailyLogs[m.date.toString()];
+          String fullTextLog = '';
+
+          if (logData != null) {
+            fullTextLog = logData.generateTextLog();
+            print('📝 Milestone ${i+1}: Generated full log (${fullTextLog.length} chars)');
+          } else if (m.notes != null && m.notes!.isNotEmpty) {
+            final dateStr = DateFormat('MMM d, yyyy').format(m.date);
+            fullTextLog = '$dateStr\n\n${m.notes!}';
+            print('📝 Milestone ${i+1}: Using notes fallback');
+          } else {
+            final dateStr = DateFormat('MMMM d, yyyy').format(m.date);
+            fullTextLog = '$dateStr\n\nNo activity logged for this day';
+            print('📝 Milestone ${i+1}: Using minimal fallback');
+          }
+
+          // Add BOTH image and text log together
+          filesToUpload.add(imageFile);
+          textLogs.add(fullTextLog);
+
+          print('✅ Milestone ${i+1}: Added image + text log (${filesToUpload.length} total)');
+        } else {
+          print('⚠️ WARNING: Skipping milestone ${i+1} - no valid image');
+        }
+      }
+
+      print('📊 Final validation: ${filesToUpload.length} images = ${textLogs.length} text logs');
+
+      if (filesToUpload.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        _showSnackBar('No image files available to upload');
+        setState(() => _isExporting = false);
+        return;
+      }
+
+      // Update loading message
+      if (mounted) {
+        Navigator.pop(context);
+        _showLoadingDialog('Uploading ${filesToUpload.length} images with text overlays...');
+      }
+
+      // Call API to generate video
+      final response = await ApiService.generateVideo(
+        images: filesToUpload,
+        notes: textLogs,
+        musicFile: null,
+        musicUrl: null,
+        durationPerImage: 2,
+      );
+
+      // Extract render ID
+      String? renderId;
+      if (response['success'] == true) {
+        final data = response['data'];
+        if (data is Map) {
+          final responseObj = data['response'];
+          if (responseObj is Map && responseObj['id'] != null) {
+            renderId = responseObj['id'].toString();
+          }
+        }
+      }
+
+      if (renderId == null || renderId.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        throw Exception('Could not get render ID from response: $response');
+      }
+
+      // Update loading message
+      if (mounted) {
+        Navigator.pop(context);
+        _showRenderProgressDialog(renderId);
+      }
+
+      // Poll for completion
+      String? resultUrl;
+      int maxAttempts = 90;
+      int attempt = 0;
+
+      while (attempt < maxAttempts && mounted) {
+        await Future.delayed(const Duration(seconds: 3));
+        attempt++;
+
+        try {
+          final statusResp = await ApiService.checkRenderStatus(renderId);
+
+          if (statusResp['success'] == true) {
+            final data = statusResp['data'];
+            if (data is Map) {
+              final responseObj = data['response'];
+              if (responseObj is Map) {
+                final status = responseObj['status']?.toString();
+                final url = responseObj['url']?.toString();
+
+                if (status == 'done' && url != null && url.isNotEmpty) {
+                  resultUrl = url;
+                  break;
+                } else if (status == 'failed') {
+                  final error = responseObj['error'] ?? 'Unknown error';
+                  throw Exception('Render failed: $error');
+                }
+              }
+            }
+          }
+        } catch (e) {
+          if (attempt >= maxAttempts - 1) {
+            throw Exception(
+                'Failed to check render status after $attempt attempts: $e');
+          }
+        }
+      }
+
+      if (mounted) Navigator.pop(context);
+
+      if (resultUrl != null && resultUrl.isNotEmpty) {
+        // CACHE THE VIDEO URL AND TEXT LOGS
+        setState(() {
+          _cachedVideoUrl = resultUrl;
+          _cachedTextLogs = textLogs;
+          _isExporting = false;
+        });
+
+        // Save to SharedPreferences for persistence
+        await _saveCachedVideoUrl(resultUrl, textLogs);
+
+        print('✅ Video generation complete!');
+        print('📹 Video URL: $resultUrl');
+        print('📝 Cached ${textLogs.length} text logs');
+
+        // Show video ready dialog with navigation option
+        _showVideoReadyDialog(resultUrl, textLogs);
+      } else {
+        _showSnackBar(
+            'Render timeout after $attempt attempts. Video may still be processing.');
+      }
+    } catch (e) {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('❌ Export failed: ${e.toString()}');
+      _showSnackBar('Export failed: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
+  }
+
+  // ======================
+  // HELPER METHODS
+  // ======================
+
+  String? _getImageExtensionFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final path = uri.path;
+      final segments = path.split('/');
+      if (segments.isNotEmpty) {
+        final fileName = segments.last.split('?').first;
+        if (fileName.contains('.')) {
+          return '.${fileName.split('.').last}';
+        }
+      }
+    } catch (e) {
+      // Error parsing URL extension
+    }
+    return null;
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const FitCheckLoader(),
+              const SizedBox(height: 20),
+              Text(message, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRenderProgressDialog(String renderId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          title: const Text('Creating Video'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              FitCheckLoader(),
+              SizedBox(height: 20),
+              Text(
+                'Please wait while we create your milestone video...',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showVideoReadyDialog(String videoUrl, List<String> textLogs) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+                spreadRadius: -5,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Elegant Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(32, 40, 32, 32),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.05),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Success Icon with Animation Effect
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.secondary.withOpacity(0.2),
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.secondary.withOpacity(0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.secondary,
+                        size: 52,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Video Successfully Created',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.5,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your milestone journey is ready',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content Section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Feature List
+                    _buildFeatureItem(
+                      icon: Icons.video_library_rounded,
+                      title: 'Preview & Edit',
+                      description: 'Review your video and customize it with background music',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFeatureItem(
+                      icon: Icons.cloud_done_rounded,
+                      title: 'Auto-Saved',
+                      description: 'Your video is securely stored and accessible anytime',
+                    ),
+
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: Text(
+                              'Later',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[600],
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => VideoEditorPage(
+                                    videoUrl: videoUrl,
+                                    videoTitle: 'Milestone Journey',
+                                    milestones: _milestones,
+                                    slideshowInterval: const Duration(seconds: 2),
+                                    textLogs: textLogs,
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              elevation: 0,
+                              shadowColor: AppColors.secondary.withOpacity(0.3),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.play_circle_filled, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Preview',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.secondary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: AppColors.secondary,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A1A),
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.black87,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _loadChallengeData() async {
@@ -66,8 +971,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       // Loop through each day of the challenge
       int dayIndex = 0;
       for (DateTime date = startDate;
-           date.isBefore(endDate.add(const Duration(days: 1)));
-           date = date.add(const Duration(days: 1))) {
+      date.isBefore(endDate.add(const Duration(days: 1)));
+      date = date.add(const Duration(days: 1))) {
 
         // Get calories for this day
         final dailyCalories = await FoodLogService.getDailyCalories(date, challengeId: challengeId);
@@ -177,8 +1082,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
         // Fill in the data
         for (DateTime date = startDate;
-             date.isBefore(endDate.add(const Duration(days: 1)));
-             date = date.add(const Duration(days: 1))) {
+        date.isBefore(endDate.add(const Duration(days: 1)));
+        date = date.add(const Duration(days: 1))) {
 
           String monthKey = '${date.year}-${date.month}';
 
@@ -195,8 +1100,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           monthIndex++;
           monthKeys.add(key);
           double avgCalories = monthlyData[key]!.isEmpty
-            ? 0
-            : monthlyData[key]!.reduce((a, b) => a + b) / monthlyData[key]!.length;
+              ? 0
+              : monthlyData[key]!.reduce((a, b) => a + b) / monthlyData[key]!.length;
           monthlyDataPoints.add(FlSpot(monthIndex.toDouble(), avgCalories));
           monthlyCalorieValues.add(avgCalories);
         }
@@ -254,6 +1159,32 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
     return endDate.difference(startDate).inDays + 1;
   }
 
+  bool _isChallengeCompleted() {
+    final endDate = widget.challenge['endDate'] as DateTime?;
+    final status = widget.challenge['status'] as String?;
+
+    print('🔍 Checking if challenge is completed:');
+    print('   End Date: $endDate');
+    print('   Status: $status');
+    print('   Current Date: ${DateTime.now()}');
+
+    if (endDate == null) {
+      print('   ❌ End date is null');
+      return false;
+    }
+
+    final isAfterEndDate = DateTime.now().isAfter(endDate.add(const Duration(days: 1)));
+    print('   Is after end date: $isAfterEndDate');
+
+    // Also check status field if available
+    if (status != null && status.toLowerCase() == 'completed') {
+      print('   ✅ Challenge marked as completed');
+      return true;
+    }
+
+    return isAfterEndDate;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -277,26 +1208,173 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          // Refresh button to reload milestones
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black87),
+            onPressed: () async {
+              print('🔄 Manual refresh triggered');
+              await _loadMilestones();
+              _showSnackBar('Milestones refreshed');
+            },
+            tooltip: 'Refresh milestones',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            _buildChallengeCard(widget.challenge),
-            const SizedBox(height: 24),
-            _buildSummaryButtons(),
-            const SizedBox(height: 16),
-            _buildPeriodNavigation(),
-            const SizedBox(height: 24),
-            _buildCalorieProgressChart(),
-            const SizedBox(height: 24),
-            // Show Weight Progress chart only in Overall view
-            if (isMonthlySelected) ...[
-              _buildWeightProgressChart(),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          print('🔄 Pull-to-refresh triggered');
+          await Future.wait([
+            _loadChallengeData(),
+            _loadMilestones(),
+          ]);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              _buildChallengeCard(widget.challenge),
               const SizedBox(height: 24),
+
+              // ✅ Generate Video Button - Show when challenge is completed
+              if (_isChallengeCompleted()) ...[
+                Builder(
+                  builder: (context) {
+                    print('🎬 Rendering video button:');
+                    print('   Milestones count: ${_milestones.length}');
+                    print('   Is loading: $_isLoading');
+                    print('   Is exporting: $_isExporting');
+                    return _buildGenerateVideoButton();
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              _buildSummaryButtons(),
+              const SizedBox(height: 16),
+              _buildPeriodNavigation(),
+              const SizedBox(height: 24),
+              _buildCalorieProgressChart(),
+              const SizedBox(height: 24),
+              // Show Weight Progress chart only in Overall view
+              if (isMonthlySelected) ...[
+                _buildWeightProgressChart(),
+                const SizedBox(height: 24),
+              ],
+              _buildWeeklyProgressSection(),
             ],
-            _buildWeeklyProgressSection(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✅ Generate Video Button Widget
+  Widget _buildGenerateVideoButton() {
+    final hasVideo = _cachedVideoUrl != null && _cachedVideoUrl!.isNotEmpty;
+    final hasMilestones = _milestones.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: hasMilestones
+            ? LinearGradient(
+          colors: [
+            AppColors.secondary,
+            AppColors.secondary.shade600,
           ],
+        )
+            : null,
+        color: hasMilestones ? null : Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: hasMilestones
+            ? [
+          BoxShadow(
+            color: AppColors.secondary.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: (_isExporting || !hasMilestones) ? null : _generateMilestoneVideo,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: hasMilestones
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _isExporting
+                        ? Icons.hourglass_empty
+                        : hasMilestones
+                        ? (hasVideo ? Icons.video_library : Icons.video_call)
+                        : Icons.photo_library_outlined,
+                    color: hasMilestones ? Colors.white : Colors.grey.shade600,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isExporting
+                            ? 'Generating Video...'
+                            : hasMilestones
+                            ? (hasVideo ? 'Open Milestone Video' : 'Generate Milestone Video')
+                            : 'No Milestone Photos',
+                        style: TextStyle(
+                          color: hasMilestones ? Colors.white : Colors.grey.shade700,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _isExporting
+                            ? 'Please wait while we create your video'
+                            : hasMilestones
+                            ? (hasVideo
+                            ? 'Your milestone journey video is ready'
+                            : '${_milestones.length} milestone photos available')
+                            : 'Add photos to your milestone journey to create a video',
+                        style: TextStyle(
+                          color: hasMilestones
+                              ? Colors.white.withValues(alpha: 0.9)
+                              : Colors.grey.shade600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _isExporting
+                      ? Icons.more_horiz
+                      : hasMilestones
+                      ? Icons.arrow_forward_ios
+                      : Icons.info_outline,
+                  color: hasMilestones ? Colors.white : Colors.grey.shade600,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -424,32 +1502,32 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
             // Stats
             _isLoading
-              ? const Center(child: FitCheckLoader())
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildStatItem(
-                      icon: Icons.restaurant,
-                      label: 'Daily Calorie',
-                      value: '${widget.challenge['originalCalorieGoal'] ?? widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
-                      color: AppColors.secondary,
-                    ),
-                    _buildStatItem(
-                      icon: Icons.monitor_weight_outlined,
-                      label: 'Starting Weight',
-                      value: widget.challenge['originalWeight'] != null
-                          ? '${widget.challenge['originalWeight']}kg'
-                          : 'N/A',
-                      color: AppColors.secondary,
-                    ),
-                    _buildStatItem(
-                      icon: Icons.access_time,
-                      label: 'Duration',
-                      value: '${_calculateDuration(widget.challenge)} Days',
-                      color: AppColors.secondary,
-                    ),
-                  ],
+                ? const Center(child: FitCheckLoader())
+                : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatItem(
+                  icon: Icons.restaurant,
+                  label: 'Daily Calorie',
+                  value: '${widget.challenge['originalCalorieGoal'] ?? widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
+                  color: AppColors.secondary,
                 ),
+                _buildStatItem(
+                  icon: Icons.monitor_weight_outlined,
+                  label: 'Starting Weight',
+                  value: widget.challenge['originalWeight'] != null
+                      ? '${widget.challenge['originalWeight']}kg'
+                      : 'N/A',
+                  color: AppColors.secondary,
+                ),
+                _buildStatItem(
+                  icon: Icons.access_time,
+                  label: 'Duration',
+                  value: '${_calculateDuration(widget.challenge)} Days',
+                  color: AppColors.secondary,
+                ),
+              ],
+            ),
 
             const SizedBox(height: 24),
 
@@ -581,12 +1659,12 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: !isMonthlySelected
                       ? [
-                          BoxShadow(
-                            color: AppColors.secondary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
+                    BoxShadow(
+                      color: AppColors.secondary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                       : null,
                 ),
                 child: Text(
@@ -618,12 +1696,12 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: isMonthlySelected
                       ? [
-                          BoxShadow(
-                            color: AppColors.secondary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
+                    BoxShadow(
+                      color: AppColors.secondary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                       : null,
                 ),
                 child: Text(
@@ -675,11 +1753,11 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   decoration: BoxDecoration(
                     gradient: isSelected
                         ? LinearGradient(
-                            colors: [
-                              AppColors.secondary,
-                              AppColors.secondary.shade600,
-                            ],
-                          )
+                      colors: [
+                        AppColors.secondary,
+                        AppColors.secondary.shade600,
+                      ],
+                    )
                         : null,
                     color: isSelected ? null : Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -691,12 +1769,12 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                     ),
                     boxShadow: isSelected
                         ? [
-                            BoxShadow(
-                              color: AppColors.secondary.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
+                      BoxShadow(
+                        color: AppColors.secondary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
                         : null,
                   ),
                   child: Text(
@@ -1002,122 +2080,122 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                           );
                         },
                       ),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: interval,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            value.toInt().toString(),
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          );
-                        },
-                        reservedSize: 40,
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 30,
-                        getTitlesWidget: (value, meta) {
-                          // Only show labels for integer values to avoid duplicates
-                          if (value != value.roundToDouble()) {
-                            return const Text('');
-                          }
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: interval,
+                            getTitlesWidget: (value, meta) {
+                              return Text(
+                                value.toInt().toString(),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              );
+                            },
+                            reservedSize: 40,
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (value, meta) {
+                              // Only show labels for integer values to avoid duplicates
+                              if (value != value.roundToDouble()) {
+                                return const Text('');
+                              }
 
-                          final period = value.toInt();
-                          if (period >= 1 && period <= totalPeriods) {
-                            // Show month names if using monthly view
-                            if (!isWeekly && _useMonthsForOverall) {
-                              // Get month from stored keys
-                              if (period - 1 < _monthKeys.length) {
-                                final monthKey = _monthKeys[period - 1];
-                                final parts = monthKey.split('-');
-                                if (parts.length == 2) {
-                                  final month = int.parse(parts[1]);
-                                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      months[month - 1],
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
+                              final period = value.toInt();
+                              if (period >= 1 && period <= totalPeriods) {
+                                // Show month names if using monthly view
+                                if (!isWeekly && _useMonthsForOverall) {
+                                  // Get month from stored keys
+                                  if (period - 1 < _monthKeys.length) {
+                                    final monthKey = _monthKeys[period - 1];
+                                    final parts = monthKey.split('-');
+                                    if (parts.length == 2) {
+                                      final month = int.parse(parts[1]);
+                                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          months[month - 1],
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  // Show numbers for weekly or daily view
+                                  // For weekly/daily: show all numbers if <= 10 periods, otherwise show first and last
+                                  if (totalPeriods <= 10) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        period.toString(),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  } else if (period == 1 || period == totalPeriods) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        period.toString(),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 }
                               }
-                            } else {
-                              // Show numbers for weekly or daily view
-                              // For weekly/daily: show all numbers if <= 10 periods, otherwise show first and last
-                              if (totalPeriods <= 10) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    period.toString(),
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                );
-                              } else if (period == 1 || period == totalPeriods) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    period.toString(),
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                          return const Text('');
-                        },
-                      ),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  minX: 1,
-                  maxX: totalPeriods.toDouble(),
-                  minY: minCalories,
-                  maxY: maxCalories,
-                  lineBarsData: dataPoints.isEmpty
-                      ? []
-                      : [
-                          LineChartBarData(
-                            spots: dataPoints,
-                            isCurved: false,
-                            color: AppColors.secondary,
-                            barWidth: 3,
-                            dotData: FlDotData(
-                              show: true,
-                              getDotPainter: (spot, percent, barData, index) {
-                                return FlDotCirclePainter(
-                                  radius: 4,
-                                  color: AppColors.secondary,
-                                  strokeColor: Colors.white,
-                                  strokeWidth: 2,
-                                );
-                              },
-                            ),
-                            belowBarData: BarAreaData(show: false),
+                              return const Text('');
+                            },
                           ),
-                        ],
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      minX: 1,
+                      maxX: totalPeriods.toDouble(),
+                      minY: minCalories,
+                      maxY: maxCalories,
+                      lineBarsData: dataPoints.isEmpty
+                          ? []
+                          : [
+                        LineChartBarData(
+                          spots: dataPoints,
+                          isCurved: false,
+                          color: AppColors.secondary,
+                          barWidth: 3,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: AppColors.secondary,
+                                strokeColor: Colors.white,
+                                strokeWidth: 2,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                      ],
                     ),
                   ),
                   // Transparent overlay when no data in Overall view
@@ -1567,14 +2645,14 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   Widget _buildCheckInCard(WeeklyCheckIn checkIn) {
     final weightChangeText = checkIn.weightChange != null
         ? checkIn.weightChange! >= 0
-            ? '+${checkIn.weightChange!.toStringAsFixed(1)}kg'
-            : '${checkIn.weightChange!.toStringAsFixed(1)}kg'
+        ? '+${checkIn.weightChange!.toStringAsFixed(1)}kg'
+        : '${checkIn.weightChange!.toStringAsFixed(1)}kg'
         : 'N/A';
 
     final calorieChangeText = checkIn.calorieAdjustment != null && checkIn.calorieAdjustment != 0
         ? checkIn.calorieAdjustment! > 0
-            ? '+${checkIn.calorieAdjustment}'
-            : '${checkIn.calorieAdjustment}'
+        ? '+${checkIn.calorieAdjustment}'
+        : '${checkIn.calorieAdjustment}'
         : '0';
 
     return Container(
@@ -1650,8 +2728,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               checkIn.weightChange != null && checkIn.weightChange! < 0
                   ? Colors.green.shade600
                   : checkIn.weightChange != null && checkIn.weightChange! > 0
-                      ? Colors.orange.shade600
-                      : Colors.grey.shade600,
+                  ? Colors.orange.shade600
+                  : Colors.grey.shade600,
             ),
             const SizedBox(height: 12),
             _buildInfoRow(

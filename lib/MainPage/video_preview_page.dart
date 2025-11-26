@@ -15,6 +15,8 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 // ============================================================================
 // MAIN VIDEO EDITOR PAGE
@@ -35,7 +37,6 @@ class VideoEditorPage extends StatefulWidget {
     this.slideshowInterval,
     this.textLogs,
     super.key,
-
   });
 
   @override
@@ -71,8 +72,94 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   void initState() {
     super.initState();
     _currentVideoUrl = widget.videoUrl;
-    _initializeVideo();
     _textLogs = widget.textLogs;
+    _loadCachedMusicVideo();
+  }
+
+  // ======================
+  // MUSIC VIDEO CACHE MANAGEMENT
+  // ======================
+
+  String _getMusicVideoCacheKey() {
+    return 'music_video_${widget.videoUrl.hashCode}';
+  }
+
+  String _getMusicVideoTextLogsCacheKey() {
+    return 'music_video_logs_${widget.videoUrl.hashCode}';
+  }
+
+  Future<void> _loadCachedMusicVideo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getMusicVideoCacheKey();
+      final textLogsCacheKey = _getMusicVideoTextLogsCacheKey();
+
+      print('🎵 Checking for cached music-enhanced video...');
+
+      final cachedMusicVideoUrl = prefs.getString(cacheKey);
+      final cachedLogsJson = prefs.getString(textLogsCacheKey);
+
+      if (cachedMusicVideoUrl != null && cachedMusicVideoUrl.isNotEmpty) {
+        print('✅ Found cached music-enhanced video!');
+
+        if (cachedLogsJson != null) {
+          try {
+            _textLogs = List<String>.from(jsonDecode(cachedLogsJson));
+            print('📝 Loaded ${_textLogs?.length} cached text logs');
+          } catch (e) {
+            print('⚠️ Failed to decode cached text logs: $e');
+          }
+        }
+
+        setState(() {
+          _currentVideoUrl = cachedMusicVideoUrl;
+        });
+
+        await _initializeVideo();
+
+        if (mounted) {
+          _showSnackBar('🎵 Loaded video with your music');
+        }
+      } else {
+        print('ℹ️ No cached music-enhanced video found, using original');
+        await _initializeVideo();
+      }
+    } catch (e) {
+      print('❌ Error loading cached music video: $e');
+      await _initializeVideo();
+    }
+  }
+
+  Future<void> _saveMusicVideoCache(String musicVideoUrl, List<String> textLogs) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getMusicVideoCacheKey();
+      final textLogsCacheKey = _getMusicVideoTextLogsCacheKey();
+
+      await prefs.setString(cacheKey, musicVideoUrl);
+      await prefs.setString(textLogsCacheKey, jsonEncode(textLogs));
+
+      print('✅ Cached music-enhanced video URL');
+      print('   Original video: ${widget.videoUrl}');
+      print('   Music video: $musicVideoUrl');
+    } catch (e) {
+      print('❌ Error saving music video cache: $e');
+    }
+  }
+
+  Future<void> _clearMusicVideoCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = _getMusicVideoCacheKey();
+      final textLogsCacheKey = _getMusicVideoTextLogsCacheKey();
+
+      await prefs.remove(cacheKey);
+      await prefs.remove(textLogsCacheKey);
+
+      print('✅ Cleared music video cache');
+    } catch (e) {
+      print('❌ Error clearing music video cache: $e');
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -84,11 +171,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final androidInfo = await DeviceInfoPlugin().androidInfo;
 
       if (androidInfo.version.sdkInt >= 33) {
-        // Android 13+ - request audio permission
         final status = await Permission.audio.request();
 
         if (status.isDenied) {
-          // Show dialog to explain why permission is needed
           final shouldOpenSettings = await _showPermissionExplanationDialog(
             'Audio Access Required',
             'This app needs access to your audio files to add music to your video.',
@@ -106,7 +191,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
         return status.isGranted;
       } else {
-        // Android 12 and below - request storage permission
         final status = await Permission.storage.request();
 
         if (status.isDenied) {
@@ -128,7 +212,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         return status.isGranted;
       }
     }
-    return true; // iOS doesn't need this permission for file picker
+    return true;
   }
 
   Future<bool> _showPermissionExplanationDialog(String title, String message) async {
@@ -229,6 +313,48 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   // ============================================================================
   // MUSIC SELECTION
   // ============================================================================
+
+  Future<void> _removeMusicFromVideo() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove Music?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This will restore the original video without background music.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Remove', style: TextStyle(color: AppColors.secondary)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _clearMusicVideoCache();
+
+      setState(() {
+        _currentVideoUrl = widget.videoUrl;
+        _textLogs = widget.textLogs;
+      });
+
+      await _initializeVideoWithUrl(widget.videoUrl, autoPlay: true);
+      _showSnackBar('✅ Music removed, original video restored');
+    } catch (e) {
+      _showSnackBar('Failed to remove music: ${e.toString()}');
+    }
+  }
+
   Future<void> _addMusicToVideo() async {
     setState(() => _activeTool = 'music');
 
@@ -251,7 +377,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final tempDir = await getTemporaryDirectory();
       final List<File> filesToUpload = [];
 
-      // ✅ CRITICAL FIX: Use cached text logs instead of milestone notes
       final List<String> textLogsToSend = _textLogs ?? [];
 
       print('📝 Re-rendering with ${textLogsToSend.length} CACHED text logs');
@@ -261,11 +386,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
       _showLoadingDialog('Preparing to re-render video with music...');
 
-      // Load milestone images
       for (int i = 0; i < widget.milestones!.length; i++) {
         final m = widget.milestones![i];
-
-        // ✅ NO LONGER COLLECTING NOTES HERE - we use cached text logs instead
 
         if (m.imagePath != null) {
           final f = File(m.imagePath!);
@@ -300,7 +422,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         return;
       }
 
-      // ✅ Ensure text logs match image count
       while (textLogsToSend.length < filesToUpload.length) {
         textLogsToSend.add('');
       }
@@ -310,10 +431,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         _showLoadingDialog('Re-rendering video with music and original text logs...');
       }
 
-      // ✅ CRITICAL: Pass cached text logs, NOT milestone notes!
       final response = await ApiService.generateVideo(
         images: filesToUpload,
-        notes: textLogsToSend,  // ✅ Use cached text logs!
+        notes: textLogsToSend,
         musicFile: _selectedMusicFile,
         musicUrl: _selectedMusicUrl,
         durationPerImage: widget.slideshowInterval?.inSeconds ?? 2,
@@ -381,6 +501,10 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       if (resultUrl != null && resultUrl.isNotEmpty) {
         setState(() => _isReRendering = false);
         _currentVideoUrl = resultUrl;
+
+        // ✅ CRITICAL: Save the music-enhanced video URL to cache for persistence
+        await _saveMusicVideoCache(resultUrl, textLogsToSend);
+
         await _initializeVideoWithUrl(resultUrl, autoPlay: true);
         _showSnackBar('✅ Music added successfully with original text logs!');
       } else {
@@ -431,7 +555,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                       ? Icon(Icons.check_circle, color: AppColors.secondary)
                       : null,
                   onTap: () async {
-                    // Check permission ONLY when user clicks "Upload Music File"
                     final hasPermission = await _requestAudioPermission();
                     if (!hasPermission) {
                       _showSnackBar('Storage permission is required to select music files');
@@ -521,16 +644,13 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     if (_isDownloading) return;
 
     try {
-      // ⭐ REQUEST STORAGE PERMISSION FIRST
       if (Platform.isAndroid) {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
         PermissionStatus status;
 
         if (androidInfo.version.sdkInt >= 33) {
-          // Android 13+ - Request video permission
           status = await Permission.videos.request();
         } else {
-          // Android 12 and below - Request storage permission
           status = await Permission.storage.request();
         }
 
@@ -596,9 +716,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       try {
         final file = File(savePath);
         if (await file.exists()) await file.delete();
-      } catch (e) {
-        // Error cleaning up temp file
-      }
+      } catch (e) {}
     } catch (e) {
       if (mounted && Navigator.canPop(context)) Navigator.pop(context);
       _showSnackBar('Download failed: ${e.toString()}');
@@ -635,21 +753,16 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         try {
           final file = File(savePath);
           if (await file.exists()) await file.delete();
-        } catch (e) {
-          // Error cleaning up shared file
-        }
+        } catch (e) {}
       });
     } catch (e) {
       _showSnackBar('Share failed: ${e.toString()}');
-      // Fallback: share link
       try {
         await Share.share(
           'Check out my milestone journey video: $_currentVideoUrl',
           subject: 'My Milestone Journey Video',
         );
-      } catch (fallbackError) {
-        // Fallback share error
-      }
+      } catch (fallbackError) {}
     }
   }
 
@@ -725,9 +838,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
           return '.${fileName.split('.').last}';
         }
       }
-    } catch (e) {
-      // Error parsing URL extension
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -770,7 +881,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               const SizedBox(height: 20),
               const Text('Please wait while we process your video...',
                   textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-
             ],
           ),
         ),
@@ -858,6 +968,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   }
 
   Widget _buildTopBar() {
+    // Check if currently showing music-enhanced video
+    final hasMusic = _currentVideoUrl != widget.videoUrl;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -873,6 +986,31 @@ class _VideoEditorPageState extends State<VideoEditorPage>
             ),
           ),
           const Spacer(),
+          // Music indicator badge
+          if (hasMusic)
+            Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.music_note, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Music',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (_isInitialized)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -910,7 +1048,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               _chewieController != null
                   ? Chewie(controller: _chewieController!)
                   : Container(color: Colors.black),
-              // Play/Pause overlay
               Center(
                 child: AnimatedOpacity(
                   opacity: _videoController.value.isPlaying ? 0.0 : 1.0,
@@ -935,17 +1072,13 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
   Widget _buildGooglePhotosTimeline() {
     final milestones = widget.milestones ?? [];
-    // ✅ NO REVERSE: Milestones are in chronological order (oldest → newest) matching video playback
-    // Video shows: Nov 25 → Nov 26 → Nov 27
-    // Timeline shows: Nov 25 → Nov 26 → Nov 27
     final videoDuration = _isInitialized ? _videoController.value.duration : Duration.zero;
     final currentPosition = _isInitialized ? _videoController.value.position : Duration.zero;
     final slideshowDuration = widget.slideshowInterval ?? const Duration(seconds: 2);
 
-    // Timeline layout constants
     const double thumbnailWidth = 80.0;
     const double thumbnailGap = 4.0;
-    const double horizontalPadding = 8.0; // Left padding for ListView
+    const double horizontalPadding = 8.0;
 
     return Container(
       height: 120,
@@ -966,7 +1099,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
             )
                 : Stack(
               children: [
-                // Thumbnails in chronological order
                 ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.only(left: horizontalPadding, top: 8, bottom: 8),
@@ -978,10 +1110,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                     final isActive = currentPosition >= startTime && currentPosition < endTime;
 
                     return GestureDetector(
-                      onTap: () {
-                        // Seek to this milestone's timestamp
-                        _videoController.seekTo(startTime);
-                      },
+                      onTap: () => _videoController.seekTo(startTime),
                       child: Container(
                         width: thumbnailWidth,
                         margin: EdgeInsets.only(right: index < milestones.length - 1 ? thumbnailGap : 0),
@@ -1026,13 +1155,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                     );
                   },
                 ),
-                // ✅ FIXED: Playhead indicator with proper horizontal padding offset
                 if (_isInitialized && videoDuration.inMilliseconds > 0 && milestones.isNotEmpty)
                   Positioned(
-                    // Calculate position: (progress %) × (total timeline width) + horizontal padding offset
-                    // Timeline width = (thumbnails × width) + (gaps × spacing)
-                    // For 3 items: (3 × 80) + (2 × 4) = 248px
-                    // Add horizontal padding to align with first thumbnail start
                     left: horizontalPadding +
                         (currentPosition.inMilliseconds / videoDuration.inMilliseconds) *
                             (milestones.length * thumbnailWidth + (milestones.length - 1) * thumbnailGap),
@@ -1062,6 +1186,9 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   }
 
   Widget _buildBottomActions() {
+    // Check if currently showing music-enhanced video
+    final hasMusic = _currentVideoUrl != widget.videoUrl;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -1070,10 +1197,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       ),
       child: Row(
         children: [
-          // Back button
-
           const SizedBox(width: 8),
-          // Music button
+          // Music button (Add or Remove)
           Container(
             decoration: BoxDecoration(
               color: _cardColor,
@@ -1081,9 +1206,12 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               border: Border.all(color: Colors.white24, width: 1),
             ),
             child: IconButton(
-              icon: const Icon(Icons.music_note, color: Colors.white),
-              onPressed: _addMusicToVideo,
-              tooltip: 'Add Music',
+              icon: Icon(
+                hasMusic ? Icons.music_off : Icons.music_note,
+                color: Colors.white,
+              ),
+              onPressed: hasMusic ? _removeMusicFromVideo : _addMusicToVideo,
+              tooltip: hasMusic ? 'Remove Music' : 'Add Music',
             ),
           ),
           const SizedBox(width: 8),
@@ -1107,7 +1235,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
             child: ElevatedButton(
               onPressed: _downloadVideo,
               style: ElevatedButton.styleFrom(
-                backgroundColor:  AppColors.secondary,
+                backgroundColor: AppColors.secondary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 elevation: 0,

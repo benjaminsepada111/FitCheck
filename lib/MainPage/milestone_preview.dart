@@ -130,17 +130,22 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   bool _isUpdating = false;
   Duration _slideshowInterval = const Duration(seconds: 2);
 
-  bool _isTextLogView = false;
-
   // Daily log data
   Map<String, DailyLogData> _dailyLogs = {};
   bool _isLoadingLogs = false;
+
+  // Expanded state for each milestone
+  Map<int, bool> _expandedStates = {};
+
+  // Key to force rebuild of image widget
+  final GlobalKey _imageKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    _loadDailyLogs();
   }
 
   Future<void> _loadDailyLogs() async {
@@ -256,7 +261,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         content: Text(message),
         backgroundColor: Colors.black87,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -265,7 +270,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
   void _showSlideshowSettings() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -275,18 +280,31 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Slideshow Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Slideshow Settings',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Color(0xFF1A1A1A)),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             const Text(
               'Slide Interval',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+              style: TextStyle(
+                color: Color(0xFF666666),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -307,12 +325,13 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                   _startSlideshow();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 0,
                 ),
                 child: const Text(
                   'Start Slideshow',
@@ -337,14 +356,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          border: Border.all(color: Colors.white54),
+          color: isSelected ? AppColors.secondary : Colors.transparent,
+          border: Border.all(
+            color: isSelected ? AppColors.secondary : const Color(0xFFE0E0E0),
+            width: 2,
+          ),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.black : Colors.white,
+            color: isSelected ? Colors.white : const Color(0xFF666666),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -373,39 +395,33 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         actions: [
           IconButton(
             icon: Icon(
-              _isTextLogView ? Icons.image : Icons.notes,
-              color: Colors.white,
-            ),
-            onPressed: () async {
-              if (!_isTextLogView && _dailyLogs.isEmpty) {
-                await _loadDailyLogs();
-              }
-              setState(() {
-                _isTextLogView = !_isTextLogView;
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(
               _isSlideshow ? Icons.pause : Icons.play_arrow,
               color: Colors.white,
             ),
-            onPressed: _isTextLogView
-                ? null
-                : (_isSlideshow ? _stopSlideshow : () => _showSlideshowSettings()),
+            onPressed: _isSlideshow ? _stopSlideshow : () => _showSlideshowSettings(),
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             onSelected: (value) => _handleMenuAction(value),
             itemBuilder: (context) => [
               // Change Image option
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'change_image',
                 child: Row(
                   children: [
-                    Icon(Icons.edit, size: 20),
-                    SizedBox(width: 12),
-                    Text('Change Image'),
+                    Icon(Icons.edit, size: 20, color: AppColors.secondary),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Change Image',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -417,7 +433,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                   children: [
                     Icon(Icons.delete, size: 20, color: Colors.red),
                     SizedBox(width: 12),
-                    Text('Delete Image', style: TextStyle(color: Colors.red)),
+                    Text(
+                      'Delete Image',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -425,10 +448,11 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           )
         ],
       ),
-      body: _isTextLogView ? _buildTextLogView() : Column(
+      body: Column(
         children: [
           Expanded(
             child: PageView.builder(
+              key: ValueKey(_currentIndex), // Force rebuild on index change
               controller: _pageController,
               itemCount: milestones.length,
               onPageChanged: (index) {
@@ -438,51 +462,17 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               },
               itemBuilder: (context, index) {
                 final milestone = milestones[index];
+                final logData = _dailyLogs[milestone.date.toString()];
+                final isExpanded = _expandedStates[index] ?? false;
+
                 return Stack(
                   children: [
+                    // Image
                     Center(
-                      child: milestone.imageUrl != null
-                          ? Image.network(
-                        milestone.imageUrl!,
-                        fit: BoxFit.contain,
-                        loadingBuilder:
-                            (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress
-                                  .expectedTotalBytes !=
-                                  null
-                                  ? loadingProgress
-                                  .cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.broken_image,
-                            size: 100,
-                            color: Colors.white54,
-                          );
-                        },
-                      )
-                          : milestone.imagePath != null
-                          ? Image.file(
-                        File(milestone.imagePath!),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.broken_image,
-                            size: 100,
-                            color: Colors.white54,
-                          );
-                        },
-                      )
-                          : const Icon(Icons.image_not_supported,
-                          size: 100, color: Colors.white54),
+                      child: _buildMainImage(milestone),
                     ),
+
+                    // Slideshow indicator
                     if (_isSlideshow)
                       Positioned(
                         top: 20,
@@ -515,24 +505,58 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                           ),
                         ),
                       ),
-                    if (milestone.notes != null && milestone.notes!.isNotEmpty)
+
+                    // Text overlay at the bottom (Facebook style)
+                    if (logData != null)
                       Positioned(
-                        bottom: 110,
-                        left: 20,
-                        right: 20,
+                        bottom: 50,
+                        left: 0,
+                        right: 0,
                         child: Container(
-                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
                           decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            milestone.notes!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.8),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildTextLogContent(logData, isExpanded),
+                                if (_shouldShowSeeMore(logData.generateTextLog()))
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _expandedStates[index] = !isExpanded;
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        isExpanded ? 'See Less' : 'See More',
+                                        style: TextStyle(
+                                          color: AppColors.secondary,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -541,6 +565,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
               },
             ),
           ),
+
+          // Thumbnail strip
           Container(
             height: 90,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -566,7 +592,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: _buildImageWidget(milestone),
+                      child: _buildThumbnailWidget(milestone),
                     ),
                   ),
                 );
@@ -576,6 +602,82 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildMainImage(Milestone milestone) {
+    // Use unique key based on milestone data to force rebuild
+    final imageKey = Key('${milestone.id}_${milestone.updatedAt.millisecondsSinceEpoch}');
+
+    if (milestone.imageUrl != null) {
+      return Image.network(
+        milestone.imageUrl!,
+        key: imageKey,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                  loadingProgress.expectedTotalBytes!
+                  : null,
+              color: AppColors.secondary,
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(
+            Icons.broken_image,
+            size: 100,
+            color: Colors.white54,
+          );
+        },
+      );
+    } else if (milestone.imagePath != null) {
+      return Image.file(
+        File(milestone.imagePath!),
+        key: imageKey,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(
+            Icons.broken_image,
+            size: 100,
+            color: Colors.white54,
+          );
+        },
+      );
+    } else {
+      return const Icon(
+        Icons.image_not_supported,
+        size: 100,
+        color: Colors.white54,
+      );
+    }
+  }
+
+  Widget _buildTextLogContent(DailyLogData logData, bool isExpanded) {
+    final fullText = logData.generateTextLog();
+    final lines = fullText.split('\n');
+
+    // Show first 4 lines if not expanded
+    final displayText = isExpanded
+        ? fullText
+        : lines.take(4).join('\n');
+
+    return Text(
+      displayText,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        height: 1.5,
+      ),
+      maxLines: isExpanded ? null : 4,
+      overflow: isExpanded ? null : TextOverflow.ellipsis,
+    );
+  }
+
+  bool _shouldShowSeeMore(String text) {
+    return text.split('\n').length > 4;
   }
 
   void _handleMenuAction(String action) {
@@ -596,30 +698,55 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     final milestone = widget.milestones[_currentIndex];
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Change Image',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             const Text(
-              'Change Image',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              "Choose a new photo for this milestone",
+              style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
             ),
             const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildImageSourceButton(
-                  icon: Icons.camera_alt,
-                  label: 'Camera',
-                  onTap: () =>
-                      _pickImageForChange(ImageSource.camera, milestone),
+                Expanded(
+                  child: _buildImageSourceButton(
+                    icon: Icons.camera_alt,
+                    label: 'Camera',
+                    onTap: () => _pickImageForChange(ImageSource.camera, milestone),
+                  ),
                 ),
-                _buildImageSourceButton(
-                  icon: Icons.photo_library,
-                  label: 'Gallery',
-                  onTap: () =>
-                      _pickImageForChange(ImageSource.gallery, milestone),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildImageSourceButton(
+                    icon: Icons.photo_library,
+                    label: 'Gallery',
+                    onTap: () => _pickImageForChange(ImageSource.gallery, milestone),
+                  ),
                 ),
               ],
             ),
@@ -638,16 +765,54 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        height: 140,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.secondary.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.secondary.shade200,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.secondary.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32, color: Colors.grey.shade600),
-            const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: Colors.grey.shade600)),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 32,
+                color: AppColors.secondary.shade700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary.shade700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label == 'Camera' ? 'Use camera' : 'Choose photo',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.secondary.shade600,
+              ),
+            ),
           ],
         ),
       ),
@@ -663,7 +828,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
         if (!status.isGranted) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Camera permission denied")),
+            SnackBar(
+              content: const Text("Camera permission denied"),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           );
           return;
         }
@@ -682,7 +854,14 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           if (!status.isGranted) {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Photos permission is required to select images")),
+              SnackBar(
+                content: const Text("Photos permission is required to select images"),
+                backgroundColor: Colors.red.shade600,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             );
             return;
           }
@@ -694,6 +873,8 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
       if (pickedFile != null) {
         setState(() => _isUpdating = true);
+
+        // Create updated milestone with new image
         final updatedMilestone = milestone.copyWith(
           imagePath: pickedFile.path,
           updatedAt: DateTime.now(),
@@ -705,10 +886,16 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           newImageFile: File(pickedFile.path),
         );
 
-        if (success) {
+        if (success && mounted) {
+          // Update the milestone in the list
           setState(() {
             widget.milestones[_currentIndex] = updatedMilestone;
           });
+
+          // Clear image cache to ensure new image loads
+          if (milestone.imageUrl != null) {
+            await NetworkImage(milestone.imageUrl!).evict();
+          }
 
           widget.onMilestonesChanged?.call();
           _showSnackBar('Image updated successfully');
@@ -719,7 +906,9 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     } catch (e) {
       _showSnackBar('Error: ${e.toString()}');
     } finally {
-      setState(() => _isUpdating = false);
+      if (mounted) {
+        setState(() => _isUpdating = false);
+      }
     }
   }
 
@@ -729,17 +918,37 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Image'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Delete Image',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text(
-            'Are you sure you want to delete this milestone image? This action cannot be undone.'),
+          'Are you sure you want to delete this milestone image? This action cannot be undone.',
+          style: TextStyle(color: Color(0xFF666666)),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
           TextButton(
             onPressed: () => _confirmDelete(milestone),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -750,9 +959,12 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     Navigator.pop(context);
     try {
       setState(() => _isUpdating = true);
-      final success = await MilestoneService.deleteMilestone(milestone.id,
-          challengeId: widget.challengeId);
-      if (success) {
+      final success = await MilestoneService.deleteMilestone(
+        milestone.id,
+        challengeId: widget.challengeId,
+      );
+
+      if (success && mounted) {
         setState(() {
           final index = _currentIndex;
           widget.milestones.removeAt(index);
@@ -762,9 +974,11 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             return;
           } else if (index >= widget.milestones.length) {
             _currentIndex = widget.milestones.length - 1;
-            _pageController.animateToPage(_currentIndex,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut);
+            _pageController.animateToPage(
+              _currentIndex,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
           }
         });
 
@@ -776,184 +990,54 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     } catch (e) {
       _showSnackBar('Error: ${e.toString()}');
     } finally {
-      setState(() => _isUpdating = false);
+      if (mounted) {
+        setState(() => _isUpdating = false);
+      }
     }
   }
 
-  Widget _buildImageWidget(Milestone milestone) {
+  Widget _buildThumbnailWidget(Milestone milestone) {
+    final thumbnailKey = Key('thumb_${milestone.id}_${milestone.updatedAt.millisecondsSinceEpoch}');
+
     if (milestone.imageUrl != null) {
-      return Image.network(milestone.imageUrl!,
-          width: 60, height: 80, fit: BoxFit.cover);
+      return Image.network(
+        milestone.imageUrl!,
+        key: thumbnailKey,
+        width: 60,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 60,
+            height: 80,
+            color: Colors.grey.shade800,
+            child: const Icon(Icons.broken_image, color: Colors.white54),
+          );
+        },
+      );
     } else if (milestone.imagePath != null) {
-      return Image.file(File(milestone.imagePath!),
-          width: 60, height: 80, fit: BoxFit.cover);
+      return Image.file(
+        File(milestone.imagePath!),
+        key: thumbnailKey,
+        width: 60,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 60,
+            height: 80,
+            color: Colors.grey.shade800,
+            child: const Icon(Icons.broken_image, color: Colors.white54),
+          );
+        },
+      );
     } else {
       return Container(
-          width: 60,
-          height: 80,
-          color: Colors.grey.shade200,
-          child: const Icon(Icons.image_not_supported));
-    }
-  }
-
-  Widget _buildTextLogView() {
-    if (_isLoadingLogs) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FitCheckLoader(),
-            SizedBox(height: 20),
-            Text(
-              'Loading daily logs...',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
+        width: 60,
+        height: 80,
+        color: Colors.grey.shade800,
+        child: const Icon(Icons.image_not_supported, color: Colors.white54),
       );
-    }
-
-    final milestones = widget.milestones;
-
-    return PageView.builder(
-      controller: _pageController,
-      itemCount: milestones.length,
-      onPageChanged: (index) {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      itemBuilder: (context, index) {
-        final milestone = milestones[index];
-        final logData = _dailyLogs[milestone.date.toString()];
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.calendar_today_rounded,
-                        color: AppColors.secondary,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            DateFormat('EEEE').format(milestone.date),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Text(
-                            DateFormat('MMMM d, yyyy').format(milestone.date),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                if (logData != null) ...[
-                  SelectableText(
-                    logData.generateTextLog(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      height: 1.8,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ] else ...[
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.notes_outlined,
-                            size: 64,
-                            color: Colors.white24,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No logs available for this day',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 24),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: logData != null
-                        ? () => _shareTextLog(logData.generateTextLog())
-                        : null,
-                    icon: const Icon(Icons.share),
-                    label: const Text('Share Log'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _shareTextLog(String logText) async {
-    try {
-      await Share.share(
-        logText,
-        subject: 'My Fitness Log - ${DateFormat('MMM d, yyyy').format(widget.milestones[_currentIndex].date)}',
-      );
-    } catch (e) {
-      _showSnackBar('Failed to share log');
     }
   }
 }

@@ -103,9 +103,6 @@ class _ProfilePageState extends State<ProfilePage> {
       // Sign out from Firebase
       await FirebaseAuth.instance.signOut();
 
-      // Show logout notification
-      await NotificationService().showLogoutNotification();
-
       if (context.mounted) {
         // Close loading dialog
         Navigator.pop(context);

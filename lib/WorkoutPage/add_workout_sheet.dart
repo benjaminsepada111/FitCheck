@@ -13,6 +13,8 @@ import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:capstone_project/widgets/segmented_toggle.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class AddWorkoutSheet extends StatefulWidget {
   final Challenge currentChallenge;
@@ -126,6 +128,33 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      if (source == ImageSource.camera) {
+        var status = await Permission.camera.request();
+        if (!status.isGranted) {
+          if (!mounted) return;
+          _showError("Camera permission denied");
+          return;
+        }
+      } else if (source == ImageSource.gallery) {
+        PermissionStatus status;
+
+        if (Platform.isAndroid) {
+          final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+          if (androidInfo.version.sdkInt >= 33) {
+            status = await Permission.photos.request();
+          } else {
+            status = await Permission.storage.request();
+          }
+
+          if (!status.isGranted) {
+            if (!mounted) return;
+            _showError("Photos permission is required to select images");
+            return;
+          }
+        }
+      }
+
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: source,
         maxWidth: 1200,
@@ -525,16 +554,16 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
                   child: OutlinedButton(
                     onPressed: _isSaving ? null : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                      side: const BorderSide(color: Color(0xFFE0E0E0)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Cancel',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                        color: AppColors.secondary,
                       ),
                     ),
                   ),
@@ -555,17 +584,17 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
                         : const Text(
-                            'Save Workout',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
+                      'Save Workout',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ],
@@ -581,15 +610,15 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Search Exercise
-        Text(
+        const Text(
           'Search Exercise',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1A1A1A),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         TextField(
           controller: _cardioSearchController,
           onChanged: (value) {
@@ -597,34 +626,33 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
           },
           decoration: InputDecoration(
             hintText: "Type at least 2 characters to search...",
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
             prefixIcon: Icon(Icons.search, color: AppColors.secondary),
             suffixIcon: _cardioSearchController.text.isNotEmpty
                 ? IconButton(
-                    icon: Icon(Icons.clear, color: Colors.grey.shade400),
-                    onPressed: () {
-                      _cardioSearchController.clear();
-                      setState(() {
-                        _selectedCardioExercise = null;
-                        _searchResults = [];
-                      });
-                    },
-                  )
+              icon: const Icon(Icons.clear, color: Color(0xFFAAAAAA)),
+              onPressed: () {
+                _cardioSearchController.clear();
+                setState(() {
+                  _selectedCardioExercise = null;
+                  _searchResults = [];
+                });
+              },
+            )
                 : null,
-            filled: true,
-            fillColor: Colors.grey.shade50,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: AppColors.secondary, width: 2),
             ),
+            contentPadding: const EdgeInsets.all(16),
           ),
         ),
 
@@ -855,41 +883,40 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
           const SizedBox(height: 20),
 
           // Duration Input
-          Text(
+          const Text(
             'Duration (minutes)',
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           TextField(
             controller: _durationController,
             keyboardType: TextInputType.number,
             onChanged: (value) => setState(() {}),
             decoration: InputDecoration(
               hintText: "Enter duration in minutes",
-              hintStyle: TextStyle(color: Colors.grey.shade400),
+              hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
               suffixText: 'min',
               suffixStyle: TextStyle(
                 color: AppColors.secondary,
                 fontWeight: FontWeight.w600,
               ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppColors.secondary, width: 2),
               ),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
 
@@ -980,35 +1007,34 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Exercise Name
-        Text(
+        const Text(
           'Exercise Name',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1A1A1A),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         TextField(
           controller: _strengthNameController,
           decoration: InputDecoration(
             hintText: "e.g., Bench Press, Squats, Deadlifts",
-            hintStyle: TextStyle(color: Colors.grey.shade400),
+            hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
             prefixIcon: Icon(Icons.fitness_center, color: AppColors.secondary),
-            filled: true,
-            fillColor: Colors.grey.shade50,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: AppColors.secondary, width: 2),
             ),
+            contentPadding: const EdgeInsets.all(16),
           ),
         ),
         const SizedBox(height: 20),
@@ -1021,35 +1047,34 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Sets',
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _setsController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       hintText: "0",
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
+                      hintStyle: const TextStyle(color: Color(0xFFAAAAAA)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: AppColors.secondary, width: 2),
                       ),
+                      contentPadding: const EdgeInsets.all(16),
                     ),
                   ),
                 ],
@@ -1061,35 +1086,34 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Reps',
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _repsController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       hintText: "0",
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
+                      hintStyle: const TextStyle(color: Color(0xFFAAAAAA)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: AppColors.secondary, width: 2),
                       ),
+                      contentPadding: const EdgeInsets.all(16),
                     ),
                   ),
                 ],
@@ -1105,76 +1129,229 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Workout Photo (Optional)',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1A1A1A),
           ),
         ),
-        const SizedBox(height: 10),
-        if (_selectedImage != null)
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  _selectedImage!,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: _removeImage,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close, color: Colors.white, size: 18),
-                  ),
-                ),
-              ),
-            ],
-          )
-        else
+        const SizedBox(height: 12),
+
+        if (_selectedImage == null) ...[
           Row(
             children: [
+              // Take Photo Button
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickImage(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt, size: 20),
-                  label: const Text('Camera'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: GestureDetector(
+                  onTap: () => _pickImage(ImageSource.camera),
+                  child: Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.secondary.shade200,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 32,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Take Photo",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Use camera",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondary.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
+
               const SizedBox(width: 12),
+
+              // Upload from Gallery Button
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                  icon: const Icon(Icons.photo_library, size: 20),
-                  label: const Text('Gallery'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: GestureDetector(
+                  onTap: () => _pickImage(ImageSource.gallery),
+                  child: Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.secondary.shade200,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.photo_library,
+                            size: 32,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Gallery",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Choose photo",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondary.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
+        ] else ...[
+          // Preview Selected Image (matching AddMilestoneSheet style)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            height: 220,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  // Selected Image
+                  Positioned.fill(
+                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                  ),
+
+                  // Gradient overlay (for text readability)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.4),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Remove button top-right
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: _removeImage,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Label bottom-left
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "Workout Photo",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

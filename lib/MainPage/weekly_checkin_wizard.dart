@@ -457,113 +457,111 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   // Page 0: Welcome Page
   Widget _buildWelcomePage() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Greeting with Name - Biggest
-          RichText(
-            textAlign: TextAlign.left,
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                height: 1.2,
-              ),
-              children: [
-                const TextSpan(text: "Hello "),
-                TextSpan(
-                  text: _userName,
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Greeting with Name
+              RichText(
+                textAlign: TextAlign.left,
+                text: TextSpan(
                   style: TextStyle(
-                    color: AppColors.secondary,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    height: 1.2,
                   ),
+                  children: [
+                    const TextSpan(text: "Hello "),
+                    TextSpan(
+                      text: _userName,
+                      style: TextStyle(color: AppColors.secondary),
+                    ),
+                    const TextSpan(text: "!"),
+                  ],
                 ),
-                const TextSpan(text: "!"),
-              ],
-            ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Title
+              Text(
+                "Time for your weekly check-in",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Description
+              Text(
+                "Your answers help us keep you on track.",
+                style: TextStyle(
+                  fontSize: 17,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // What to expect
+              Text(
+                "What to expect:",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              _buildInfoItem(
+                Icons.monitor_weight_outlined,
+                "Current Weight",
+                "Update your weight for accurate calorie calculations",
+              ),
+
+              const SizedBox(height: 16),
+
+              _buildInfoItem(
+                Icons.sentiment_satisfied_alt,
+                "Progress Check",
+                "Share how you're feeling about your journey",
+              ),
+
+              const SizedBox(height: 16),
+
+              _buildInfoItem(
+                Icons.fitness_center,
+                "Activity Update",
+                "Let us know if your activity level has changed",
+              ),
+
+              const SizedBox(height: 16),
+
+              _buildInfoItem(
+                Icons.edit_note,
+                "Personal Notes",
+                "Add any observations or challenges (optional)",
+              ),
+
+              const SizedBox(height: 30),
+            ],
           ),
-
-          const SizedBox(height: 16),
-
-          // Time for weekly check-in - Second level
-          Text(
-            "Time for your weekly check-in",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              height: 1.2,
-            ),
-            textAlign: TextAlign.left,
-          ),
-
-          const SizedBox(height: 16),
-
-          // Description - Third level
-          Text(
-            "Your answers help us keep you on track.",
-            style: TextStyle(
-              fontSize: 17,
-              color: Colors.grey.shade600,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.left,
-          ),
-
-          const SizedBox(height: 40),
-
-          // What to expect section
-          Text(
-            "What to expect:",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              height: 1.2,
-            ),
-            textAlign: TextAlign.left,
-          ),
-
-          const SizedBox(height: 20),
-
-          // Info items
-          _buildInfoItem(
-            Icons.monitor_weight_outlined,
-            "Current Weight",
-            "Update your weight for accurate calorie calculations",
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildInfoItem(
-            Icons.sentiment_satisfied_alt,
-            "Progress Check",
-            "Share how you're feeling about your journey",
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildInfoItem(
-            Icons.fitness_center,
-            "Activity Update",
-            "Let us know if your activity level has changed",
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildInfoItem(
-            Icons.edit_note,
-            "Personal Notes",
-            "Add any observations or challenges (optional)",
-          ),
-        ],
+        ),
       ),
     );
   }
+
 
   Widget _buildInfoItem(IconData icon, String title, String description) {
     return Row(

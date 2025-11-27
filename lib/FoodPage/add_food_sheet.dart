@@ -7,6 +7,8 @@ import 'package:capstone_project/services/food_cache_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
@@ -116,6 +118,33 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      if (source == ImageSource.camera) {
+        var status = await Permission.camera.request();
+        if (!status.isGranted) {
+          if (!mounted) return;
+          _showError("Camera permission denied");
+          return;
+        }
+      } else if (source == ImageSource.gallery) {
+        PermissionStatus status;
+
+        if (Platform.isAndroid) {
+          final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+          if (androidInfo.version.sdkInt >= 33) {
+            status = await Permission.photos.request();
+          } else {
+            status = await Permission.storage.request();
+          }
+
+          if (!status.isGranted) {
+            if (!mounted) return;
+            _showError("Photos permission is required to select images");
+            return;
+          }
+        }
+      }
+
       final pickedFile = await _picker.pickImage(
         source: source,
         imageQuality: 80,
@@ -622,18 +651,18 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                   child: OutlinedButton(
                     onPressed: _isSaving ? null : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                      side: const BorderSide(color: Color(0xFFE0E0E0)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Cancel',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                        color: AppColors.secondary,
                       ),
                     ),
                   ),
@@ -656,20 +685,20 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
                         : const Text(
-                            'Add Food',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                      'Add Food',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -706,11 +735,11 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             },
             decoration: InputDecoration(
               hintText: "Search foods (e.g., chicken, apple)...",
-              hintStyle: TextStyle(color: Colors.grey.shade400),
+              hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
               prefixIcon: Icon(Icons.search, color: AppColors.secondary),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                icon: Icon(Icons.clear, color: Colors.grey.shade400),
+                icon: const Icon(Icons.clear, color: Color(0xFFAAAAAA)),
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
@@ -721,20 +750,19 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 },
               )
                   : null,
-              filled: true,
-              fillColor: Colors.grey.shade50,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppColors.secondary, width: 2),
               ),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
 
@@ -950,41 +978,40 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
           if (_selectedFood != null) ...[
             const SizedBox(height: 24),
-            Text(
+            const Text(
               'Enter Amount',
               style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A1A1A),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             TextField(
               controller: _gramsController,
               keyboardType: TextInputType.number,
               onChanged: (value) => setState(() {}),
               decoration: InputDecoration(
                 hintText: "Enter amount in grams",
-                hintStyle: TextStyle(color: Colors.grey.shade400),
+                hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
                 suffixText: 'grams',
                 suffixStyle: TextStyle(
                   color: AppColors.secondary,
                   fontWeight: FontWeight.w600,
                 ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: AppColors.secondary, width: 2),
                 ),
+                contentPadding: const EdgeInsets.all(16),
               ),
             ),
             _buildCaloriePreview(),
@@ -1002,47 +1029,134 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Food Photo (Optional)',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1A1A1A),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
         if (_selectedImage == null) ...[
-          // Image picker buttons
           Row(
             children: [
+              // Take Photo Button
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickImage(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt, size: 20),
-                  label: const Text('Camera'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: GestureDetector(
+                  onTap: () => _pickImage(ImageSource.camera),
+                  child: Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.secondary.shade200,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 32,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Take Photo",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Use camera",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondary.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
+
               const SizedBox(width: 12),
+
+              // Upload from Gallery Button
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                  icon: const Icon(Icons.photo_library, size: 20),
-                  label: const Text('Gallery'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                    side: BorderSide(color: AppColors.secondary.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: GestureDetector(
+                  onTap: () => _pickImage(ImageSource.gallery),
+                  child: Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.secondary.shade200,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.photo_library,
+                            size: 32,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Gallery",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Choose photo",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondary.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1050,38 +1164,92 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ],
           ),
         ] else ...[
-          // Image preview with remove button
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  _selectedImage!,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+          // Preview Selected Image (matching AddMilestoneSheet style)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            height: 220,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: _removeImage,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 18,
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  // Selected Image
+                  Positioned.fill(
+                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                  ),
+
+                  // Gradient overlay (for text readability)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.4),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
+
+                  // Remove button top-right
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: _removeImage,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Label bottom-left
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "Food Photo",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ],
@@ -1093,72 +1261,70 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Food Name',
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           TextField(
             controller: _manualFoodController,
             decoration: InputDecoration(
               hintText: "Enter food name",
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              filled: true,
-              fillColor: Colors.grey.shade50,
+              hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppColors.secondary, width: 2),
               ),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
           const SizedBox(height: 20),
 
-          Text(
+          const Text(
             'Total Calories',
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1A1A1A),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           TextField(
             controller: _manualCaloriesController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               hintText: "Enter total calories",
-              hintStyle: TextStyle(color: Colors.grey.shade400),
+              hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
               suffixText: 'cal',
               suffixStyle: TextStyle(
                 color: AppColors.secondary,
                 fontWeight: FontWeight.w600,
               ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: AppColors.secondary, width: 2),
               ),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
 

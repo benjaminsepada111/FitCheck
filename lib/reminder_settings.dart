@@ -158,7 +158,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> with Single
                 ),
               ],
             ),
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: AppColors.secondary.shade600,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: EdgeInsets.all(16),
@@ -396,30 +396,6 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> with Single
                 ),
               ),
               SizedBox(height: 20),
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'You\'ll receive reminders at your scheduled times daily.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue.shade900,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -833,7 +809,7 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> with Single
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: _notificationsEnabled
-              ? [Colors.green.shade400, Colors.green.shade600]
+              ? [AppColors.secondary.shade500, AppColors.secondary.shade600]
               : [Colors.grey.shade400, Colors.grey.shade600],
         ),
         borderRadius: BorderRadius.circular(20),
@@ -936,6 +912,22 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> with Single
                 // Master Toggle Card
                 _buildMasterToggle(),
 
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'MILESTONE REMINDERS',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+
+                // Milestone Reminder Card
+                _buildMilestoneCard(),
+
                 // Section Header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -989,56 +981,13 @@ class _ReminderSettingsPageState extends State<ReminderSettingsPage> with Single
                 const SizedBox(height: 16),
 
                 // Milestone Section Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'MILESTONE REMINDERS',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
 
-                // Milestone Reminder Card
-                _buildMilestoneCard(),
 
                 const SizedBox(height: 16),
 
                 // Info Card
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.blue[700],
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Your reminders will fire daily at the times you set, even when the app is closed.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue[900],
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
-                const SizedBox(height: 100),
+                const SizedBox(height: 40),
               ],
             ),
           ),

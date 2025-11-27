@@ -37,6 +37,9 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
   String? _lastLoadedChallengeId;
   final NotificationService _notificationService = NotificationService();
 
+  // Key to force rebuild of milestone images
+  int _refreshKey = 0;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -80,6 +83,10 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
           _milestones = milestones;
           _hasLoadedOnce = true;
           _lastLoadedChallengeId = widget.currentChallenge?.id;
+          // Increment refresh key to force rebuild of image widgets
+          if (forceRefresh) {
+            _refreshKey++;
+          }
         });
 
         _updateNotificationStatus();
@@ -132,9 +139,13 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
           await NotificationHelper.createMilestonePhotoNotification();
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Milestone saved successfully!'),
+            SnackBar(
+              content: const Text('Milestone saved successfully!'),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
 
@@ -143,9 +154,13 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to save milestone. Please try again.'),
+            SnackBar(
+              content: const Text('Failed to save milestone. Please try again.'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
@@ -153,9 +168,13 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('An error occurred while saving milestone.'),
+          SnackBar(
+            content: const Text('An error occurred while saving milestone.'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -509,15 +528,17 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                     context,
                     MaterialPageRoute(
                       builder: (_) => MilestonePreviewPage(
-                        milestones: _milestones,
+                        milestones: List<Milestone>.from(_milestones), // Pass a copy to avoid reference issues
                         onMilestonesChanged: () {
-                          _loadMilestones();
+                          // Force refresh immediately when callback is triggered
+                          _loadMilestones(forceRefresh: true);
                         },
                         challengeId: widget.currentChallenge!.id,
                       ),
                     ),
                   );
-                  _loadMilestones();
+                  // Force refresh after returning from preview page
+                  await _loadMilestones(forceRefresh: true);
                 }
               },
               style: TextButton.styleFrom(
@@ -566,6 +587,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
           ResponsiveSizedBox(
             height: 180,
             child: ListView.separated(
+              key: ValueKey(_refreshKey), // Force rebuild when refresh key changes
               scrollDirection: Axis.horizontal,
               itemCount: timeline.length + (hasToday ? 0 : 1),
               separatorBuilder: (context, index) => ResponsiveGap.horizontal(12),
@@ -582,10 +604,14 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
 
                       if (todayMilestone != null && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
+                          SnackBar(
+                            content: const Text(
                                 'You have already uploaded a milestone photo for today!'),
                             backgroundColor: Colors.orange,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         );
                         return;
@@ -697,8 +723,10 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                   return _buildMissedDayCard(context, item);
                 }
 
-                // Original milestone card code
+                // Original milestone card code with unique key for image refresh
                 final milestone = item as Milestone;
+                final imageKey = Key('milestone_${milestone.id}_${milestone.updatedAt.millisecondsSinceEpoch}_$_refreshKey');
+
                 return Container(
                   width: r.size(120),
                   decoration: BoxDecoration(
@@ -713,6 +741,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                           borderRadius: BorderRadius.circular(r.size(12)),
                           child: Image.network(
                             milestone.imageUrl!,
+                            key: imageKey, // Add unique key for image refresh
                             fit: BoxFit.cover,
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
@@ -724,6 +753,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                               if (milestone.imagePath != null) {
                                 return Image.file(
                                   File(milestone.imagePath!),
+                                  key: imageKey,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Center(
@@ -751,6 +781,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                           borderRadius: BorderRadius.circular(r.size(12)),
                           child: Image.file(
                             File(milestone.imagePath!),
+                            key: imageKey, // Add unique key for image refresh
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return Center(

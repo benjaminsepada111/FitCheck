@@ -654,7 +654,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
                 Text(
                   workout.exerciseName,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     height: 1.2,

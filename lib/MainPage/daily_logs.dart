@@ -1623,8 +1623,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.secondary.withValues(alpha: 0.7),
-            AppColors.secondary.withValues(alpha: 0.4),
+            const Color(0xFF121C29).withValues(alpha: 0.7),
+            const Color(0xFF121C29).withValues(alpha: 0.4),
           ],
         ),
       ),

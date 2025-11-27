@@ -24,6 +24,9 @@ import 'MainPage/weekly_checkin_wizard.dart';
 import 'package:capstone_project/widgets/empty_state.dart';
 import 'package:capstone_project/NotificationSettingsPage.dart';
 import 'package:capstone_project/widgets/NotificationBellIcon.dart';
+import 'services/challenge_completion_service.dart';
+import 'widgets/challenge_completion_dialog.dart';
+
 
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
@@ -58,6 +61,74 @@ class _MainPageState extends State<MainPage> {
     _initializeWithPreloadedData();
   }
 
+  Future<void> _checkChallengeCompletion() async {
+    try {
+      print('🔍 Checking challenge completion...');
+
+      // Get all challenges to check for completed ones
+      final allChallenges = await ChallengeService.getUserChallenges();
+
+      // Find completed challenges that might need popup
+      Challenge? completedChallenge;
+      for (final challenge in allChallenges) {
+        if (challenge.lifecycleStatus != 'cancelled' && challenge.isCompleted) {
+          final justCompleted = ChallengeCompletionService.isChallengeJustCompleted(
+            challenge.endDate,
+          );
+
+          if (justCompleted) {
+            final hasShown = await ChallengeCompletionService.hasShownCompletionPopup(
+              challenge.id,
+            );
+
+            if (!hasShown) {
+              completedChallenge = challenge;
+              break;
+            }
+          }
+        }
+      }
+
+      if (completedChallenge == null) {
+        print('❌ No completed challenge needs popup');
+        return;
+      }
+
+      print('✅ Found completed challenge: ${completedChallenge.title}');
+      print('🎉 Showing completion dialog AFTER empty state!');
+
+      // Show completion dialog AFTER empty state is visible
+      if (mounted) {
+        // Wait a bit longer so user sees empty state first
+        await Future.delayed(const Duration(milliseconds: 1000));
+
+        if (!mounted) return;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => ChallengeCompletionDialog(
+            challenge: completedChallenge!,
+            onCreateNewChallenge: _showCreateChallenge,
+            onDismiss: () {
+              print('User dismissed completion dialog');
+            },
+          ),
+        );
+
+        print('Dialog closed, marking as shown');
+
+        // Mark as shown
+        await ChallengeCompletionService.markCompletionPopupShown(
+          completedChallenge.id,
+        );
+      }
+    } catch (e) {
+      print('❌ Error in _checkChallengeCompletion: $e');
+    }
+  }
+
+  /// Initialize with preloaded data, then continue background tasks
   /// Initialize with preloaded data, then continue background tasks
   Future<void> _initializeWithPreloadedData() async {
     try {
@@ -81,14 +152,21 @@ class _MainPageState extends State<MainPage> {
       _initializeTimeTracking();
       _recordDailyLogin();
 
+      // Check for challenge completion - will show popup AFTER empty state
+      // Longer delay to ensure empty state renders first
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        _checkChallengeCompletion();
+      });
+
       // Check for weekly check-in (with delay for UI to settle)
-      Future.delayed(const Duration(milliseconds: 800), () {
+      Future.delayed(const Duration(milliseconds: 2000), () {
         _checkWeeklyCheckIn();
       });
 
       // Refresh challenge data in background to ensure latest state
       _refreshChallengeDataInBackground();
     } catch (e) {
+      print('Error initializing: $e');
       // Error handled, no action needed
     }
   }
@@ -197,39 +275,34 @@ class _MainPageState extends State<MainPage> {
   }
 
   /// Refresh challenge data in the background without blocking UI
+  /// Refresh challenge data in the background without blocking UI
   Future<void> _refreshChallengeDataInBackground() async {
     try {
       // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
-      // Get only active (non-cancelled) challenges
-      final activeChallenges = await ChallengeService.getActiveChallenges();
+      // Get only active (non-cancelled, non-completed) challenges
+      final activeChallenges = allChallenges.where((c) =>
+      c.lifecycleStatus == 'active' &&
+          c.isActive &&
+          !c.isCompleted
+      ).toList();
 
       if (mounted) {
         setState(() {
           _challengeHistory = allChallenges;
 
-          // Set current challenge only if there's an active one
+          // Set current challenge only if there's a truly active one
           if (activeChallenges.isNotEmpty) {
-            // Filter to ensure we only use truly active challenges
-            final truelyActive = activeChallenges.where((c) =>
-            c.lifecycleStatus == 'active' && c.isActive
-            ).toList();
-
-            if (truelyActive.isNotEmpty) {
-              _currentChallenge = truelyActive.first;
-              _selectedChallenge = _currentChallenge!.title;
-            } else {
-              _currentChallenge = null;
-              _selectedChallenge = "No Active Challenge";
-            }
+            _currentChallenge = activeChallenges.first;
+            _selectedChallenge = _currentChallenge!.title;
           } else {
-            // No active challenges found
             _currentChallenge = null;
             _selectedChallenge = "No Active Challenge";
           }
         });
       }
     } catch (e) {
+      print('Error refreshing challenge data: $e');
       // Silently handle background refresh errors
     }
   }
@@ -238,27 +311,21 @@ class _MainPageState extends State<MainPage> {
     try {
       // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
-      // Get only active (non-cancelled) challenges
-      final activeChallenges = await ChallengeService.getActiveChallenges();
+      // Get only active (non-cancelled, non-completed) challenges
+      final activeChallenges = allChallenges.where((c) =>
+      c.lifecycleStatus == 'active' &&
+          c.isActive &&
+          !c.isCompleted
+      ).toList();
 
       if (mounted) {
         setState(() {
           _challengeHistory = allChallenges;
 
-          // Set current challenge only if there's an active one
+          // Set current challenge only if there's a truly active one
           if (activeChallenges.isNotEmpty) {
-            // Filter to ensure we only use truly active challenges
-            final truelyActive = activeChallenges.where((c) =>
-            c.lifecycleStatus == 'active' && c.isActive
-            ).toList();
-
-            if (truelyActive.isNotEmpty) {
-              _currentChallenge = truelyActive.first;
-              _selectedChallenge = _currentChallenge!.title;
-            } else {
-              _currentChallenge = null;
-              _selectedChallenge = "No Active Challenge";
-            }
+            _currentChallenge = activeChallenges.first;
+            _selectedChallenge = _currentChallenge!.title;
           } else {
             _currentChallenge = null;
             _selectedChallenge = "No Active Challenge";
@@ -266,6 +333,7 @@ class _MainPageState extends State<MainPage> {
         });
       }
     } catch (e) {
+      print('Error loading challenge data: $e');
       if (mounted) {
         setState(() {
           _challengeHistory = [];
@@ -886,37 +954,30 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
       return false;
     }
   }
-
-  /// Preload challenge data in background - prioritize active challenges
   Future<void> _preloadChallengeData() async {
     try {
       // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
-      // Get only active (non-cancelled) challenges
-      final activeChallenges = await ChallengeService.getActiveChallenges();
 
       if (mounted) {
         setState(() {
           _preloadedChallengeHistory = allChallenges;
 
-          // Set preloaded challenge only if there's a truly active one
-          if (activeChallenges.isNotEmpty) {
-            // Double-check that the challenge is truly active
-            final truelyActive = activeChallenges.where((c) =>
-            c.lifecycleStatus == 'active' && c.isActive
-            ).toList();
+          // Just find active challenges
+          final activeChallenges = allChallenges.where((c) =>
+          c.lifecycleStatus == 'active' &&
+              c.isActive &&
+              !c.isCompleted
+          ).toList();
 
-            _preloadedChallenge = truelyActive.isNotEmpty ? truelyActive.first : null;
-          } else {
-            _preloadedChallenge = null;
-          }
+          _preloadedChallenge = activeChallenges.isNotEmpty ? activeChallenges.first : null;
         });
       }
     } catch (e) {
+      print('Error preloading challenge data: $e');
       // Continue anyway - MainPage will load data if preload fails
     }
   }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {

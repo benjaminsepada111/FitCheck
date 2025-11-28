@@ -160,7 +160,14 @@ class WeeklyCheckInService {
 
       // Create detailed check-in record
       final checkIn = WeeklyCheckIn(
-        id: _firestore.collection('temp').doc().id,
+        id: _firestore
+            .collection(_usersCollection)
+            .doc(user.uid)
+            .collection(_challengesCollection)
+            .doc(challenge.id)
+            .collection(_checkInsCollection)
+            .doc()
+            .id,
         challengeId: challenge.id,
         checkInDate: DateTime.now(),
         weekNumber: getCurrentWeekNumber(challenge),
@@ -191,6 +198,9 @@ class WeeklyCheckInService {
 
       return true;
     } catch (e) {
+      if (kDebugMode) {
+        print('Error in processCheckInAndUpdateGoals: $e');
+      }
       return false;
     }
   }

@@ -139,6 +139,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   int _currentPeriod = 1; // For overall view navigation
   bool _useMonthsForOverall = false;
   List<WeeklyCheckIn> _weeklyCheckIns = []; // Weekly check-in history
+  bool _isLoadingWeeklyCheckIns = false; // Loading state for weekly check-ins
 
   // Video generation state
   bool _isExporting = false;
@@ -949,7 +950,10 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   }
 
   Future<void> _loadChallengeData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isLoadingWeeklyCheckIns = true;
+    });
 
     try {
       final challengeId = widget.challenge['challengeId'] as String?;
@@ -1142,9 +1146,13 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         _currentPeriod = 1;
         _weeklyCheckIns = checkIns;
         _isLoading = false;
+        _isLoadingWeeklyCheckIns = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isLoadingWeeklyCheckIns = false;
+      });
     }
   }
 
@@ -1859,11 +1867,13 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       }
     }
 
+    // Get dates early for use in empty states
+    final startDate = widget.challenge['startDate'] as DateTime;
+    final endDate = widget.challenge['endDate'] as DateTime;
+
     if (dataPoints.isEmpty) {
       // For Weekly Summary with no data: show empty state
       if (isWeekly) {
-        final startDate = widget.challenge['startDate'] as DateTime;
-        final endDate = widget.challenge['endDate'] as DateTime;
         final weekStartDay = (_currentWeek - 1) * 7;
         final weekStart = startDate.add(Duration(days: weekStartDay));
         final weekEnd = startDate.add(Duration(days: weekStartDay + 6));
@@ -1975,13 +1985,114 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           ),
         );
       }
-      // For Overall view with no data: still show the chart with week numbers
-      // (fall through to show chart with empty data points)
+      // For Overall view with no data: show empty state
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.secondary.withValues(alpha: 0.15),
+                          AppColors.secondary.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.show_chart,
+                      size: 18,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Calorie Progress',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1A1A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      Text(
+                        '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.restaurant_outlined,
+                        size: 48,
+                        color: AppColors.secondary.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No calorie data yet',
+                      style: TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Start logging your meals to track progress',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
     }
 
     // Format date range based on view
-    final startDate = widget.challenge['startDate'] as DateTime;
-    final endDate = widget.challenge['endDate'] as DateTime;
     String dateRange;
 
     if (isWeekly) {
@@ -2287,7 +2398,116 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
     // Get weight data from weekly check-ins
     if (_weeklyCheckIns.isEmpty) {
-      return const SizedBox.shrink();
+      // Show empty state when no check-ins available
+      final startDate = widget.challenge['startDate'] as DateTime;
+      final endDate = widget.challenge['endDate'] as DateTime;
+      String dateRange = '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}';
+
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.secondary.withValues(alpha: 0.15),
+                          AppColors.secondary.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.monitor_weight,
+                      size: 18,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Weight Progress',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1A1A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      Text(
+                        dateRange,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.scale_outlined,
+                        size: 48,
+                        color: AppColors.secondary.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No weight data yet',
+                      style: TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Complete weekly check-ins to track weight progress',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
     }
 
     // Build data points from check-ins
@@ -2505,6 +2725,11 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   }
 
   Widget _buildWeeklyProgressSection() {
+    // Show loading state while fetching weekly check-ins
+    if (_isLoadingWeeklyCheckIns) {
+      return _buildLoadingCheckInCard();
+    }
+
     // FILTER: Only show check-ins for the current selected week in Weekly Summary view
     final isWeekly = !isMonthlySelected;
 
@@ -2521,22 +2746,91 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         return _buildCheckInCard(filteredCheckIns.first);
       }
     } else {
-      // Overall view: Show all check-ins
-      if (_weeklyCheckIns.isEmpty) {
-        return const SizedBox.shrink();
-      }
-
-      return ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _weeklyCheckIns.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final checkIn = _weeklyCheckIns[index];
-          return _buildCheckInCard(checkIn);
-        },
-      );
+      // Overall view: Don't show weekly check-ins section
+      return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildLoadingCheckInCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header matching Calorie Progress style
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.15),
+                        AppColors.secondary.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.assignment_turned_in,
+                    size: 18,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Weekly Check-In',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            // Loading state content
+            Center(
+              child: Column(
+                children: [
+                  const FitCheckLoader(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading check-in data...',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyCheckInCard() {

@@ -622,6 +622,7 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
+                        backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
                             top: Radius.circular(r.size(20)),

@@ -23,6 +23,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   final PageController _controller = PageController();
   int currentIndex = 0;
   bool _isAnimating = false;
+  bool _isSubmitting = false; // Prevent double submissions
 
   // Form data
   final TextEditingController _weightController = TextEditingController();
@@ -210,6 +211,9 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   }
 
   Future<void> _submitCheckIn() async {
+    // Prevent double submissions
+    if (_isSubmitting) return;
+
     final newWeight = int.tryParse(_weightController.text);
     if (newWeight == null || newWeight <= 0) {
       if (mounted) {
@@ -223,6 +227,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       }
       return;
     }
+
+    setState(() => _isSubmitting = true);
 
     try {
       final success = await WeeklyCheckInService.processCheckInAndUpdateGoals(
@@ -239,7 +245,10 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
         if (success) {
           // Close the wizard and go back to home page
           _buttonAnimationController.reverse();
-          setState(() => _isAnimating = false);
+          setState(() {
+            _isAnimating = false;
+            _isSubmitting = false;
+          });
           Navigator.of(context).pop();
           widget.onCheckInComplete();
         } else {
@@ -247,6 +256,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
           _buttonAnimationController.reverse();
           setState(() {
             _isAnimating = false;
+            _isSubmitting = false;
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -264,6 +274,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
         _buttonAnimationController.reverse();
         setState(() {
           _isAnimating = false;
+          _isSubmitting = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -721,12 +732,13 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   // Page 2: Feeling Selection
   Widget _buildFeelingPage() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Question Title
           Text(
             "How are you feeling about your progress this week?",
@@ -765,7 +777,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ),
           ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildFeelingOption(String value, String label, IconData icon) {
@@ -811,12 +824,13 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   // Page 3: Activity Level Change
   Widget _buildActivityPage() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Question Title
           Text(
             "Has your activity level changed this week?",
@@ -853,7 +867,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ),
           ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildActivityOption(String value, String label, IconData icon) {
@@ -976,12 +991,13 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   // Page 5: Review
   Widget _buildReviewPage() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Question Title
           Text(
             "Ready to submit?",
@@ -1040,6 +1056,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
               ),
             ],
           ),
+        ),
     );
   }
 

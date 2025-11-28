@@ -176,7 +176,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                     child: Container(
                       height: 140,
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.shade50,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: AppColors.secondary.shade200,
@@ -184,7 +184,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: Colors.blue.withValues(alpha: 0.1),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -237,7 +237,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                     child: Container(
                       height: 140,
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.shade50,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: AppColors.secondary.shade200,
@@ -245,7 +245,7 @@ class _AddMilestoneSheetState extends State<AddMilestoneSheet> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.green.withOpacity(0.1),
+                            color: Colors.green.withValues(alpha: 0.1),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),

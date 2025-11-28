@@ -226,6 +226,17 @@ class CalorieCalculator {
     required int previousWeight,
     required int currentCalorieGoal,
   }) {
+    if (userData.goal == null || userData.gender == null) {
+      // Return default values if user data is incomplete
+      return {
+        'newCalorieGoal': currentCalorieGoal,
+        'adjustment': 0,
+        'interpretation': 'unchanged',
+        'reason': 'Insufficient user data for adjustment',
+        'weightChange': (currentWeight - previousWeight).toDouble(),
+      };
+    }
+
     final goal = userData.goal!.toLowerCase();
     final weightChange = (currentWeight - previousWeight).toDouble(); // kg
 

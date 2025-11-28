@@ -89,7 +89,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => _isResendLoading = true);
 
     try {
-      await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+      await FirebaseAuth.instance.currentUser?.sendEmailVerification(
+        ActionCodeSettings(
+          url: 'https://capstone-project-a9296.firebaseapp.com/__/auth/action?mode=verifyEmail',
+          handleCodeInApp: false,
+          androidPackageName: 'com.example.capstone_project',
+          androidInstallApp: false,
+          iOSBundleId: 'com.example.capstoneProject',
+        ),
+      );
       // No popup notification - just clear any error message
       if (mounted) {
         setState(() => _errorMessage = null);

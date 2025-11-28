@@ -118,8 +118,16 @@ class _SignUpPageState extends State<SignUpPage> {
           // Log error but don't block signup - user document will be created later if needed
         }
 
-        // Send verification email
-        await userCredential.user!.sendEmailVerification();
+        // Send verification email with custom action code settings
+        await userCredential.user!.sendEmailVerification(
+          ActionCodeSettings(
+            url: 'https://capstone-project-a9296.firebaseapp.com/__/auth/action?mode=verifyEmail',
+            handleCodeInApp: false,
+            androidPackageName: 'com.example.capstone_project',
+            androidInstallApp: false,
+            iOSBundleId: 'com.example.capstoneProject',
+          ),
+        );
 
         // Initialize time tracking for new user
         try {

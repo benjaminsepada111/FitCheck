@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:capstone_project/services/notification_storage_service.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -109,7 +110,7 @@ class _NotificationPageState extends State<NotificationPage> {
       stream: NotificationStorageService.getNotificationsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: FitCheckLoader());
         }
 
         if (snapshot.hasError) {

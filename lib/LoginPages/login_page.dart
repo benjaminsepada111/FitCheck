@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, SocketException;
+import 'dart:async';
 import 'forgot_password.dart';
 import 'package:capstone_project/SignUpPages/signuppage.dart';
 import '../app_text_styles.dart';
@@ -135,34 +136,39 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         switch (e.code) {
           case 'user-not-found':
-            _setEmailError('No account found with this email address');
-            break;
           case 'wrong-password':
-            _setPasswordError('Incorrect password. Please try again');
+          case 'invalid-credential':
+          case 'INVALID_LOGIN_CREDENTIALS':
+          case 'invalid-login-credentials':
+            _setGeneralError('Incorrect email or password');
             break;
           case 'invalid-email':
-            _setEmailError('Invalid email address format');
+            _setEmailError('Please enter a valid email address');
             break;
           case 'user-disabled':
-            _setGeneralError('This account has been disabled');
+            _setGeneralError('This account has been disabled. Please contact support');
             break;
           case 'too-many-requests':
-            _setGeneralError('Too many failed attempts. Please try again later');
+            _setGeneralError('Too many failed login attempts. Please try again in a few minutes');
             break;
-          case 'invalid-credential':
-            _setGeneralError('Invalid email or password. Please check your credentials');
+          case 'network-request-failed':
+            _setGeneralError('Network error. Please check your internet connection and try again');
             break;
           default:
-            _setGeneralError('Login failed. Please try again');
+            _setGeneralError('Incorrect email or password');
         }
+      }
+    } on SocketException {
+      if (mounted) {
+        _setGeneralError('No internet connection. Please check your network and try again');
+      }
+    } on TimeoutException {
+      if (mounted) {
+        _setGeneralError('Connection timeout. Please check your internet connection and try again');
       }
     } catch (e) {
       if (mounted) {
-        if (e.toString().contains('network')) {
-          _setGeneralError('Network error. Please check your internet connection');
-        } else {
-          _setGeneralError('An unexpected error occurred. Please try again');
-        }
+        _setGeneralError('Incorrect email or password');
       }
     } finally {
       if (mounted) {
@@ -191,21 +197,34 @@ class _LoginPageState extends State<LoginPage> {
               (route) => false,
         );
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        if (e.code == 'account-exists-with-different-credential') {
+          _setSocialError('An account already exists with this email using a different sign-in method');
+        } else if (e.code == 'network-request-failed') {
+          _setSocialError('Network error. Please check your internet connection and try again');
+        } else if (e.code == 'user-disabled') {
+          _setSocialError('This account has been disabled. Please contact support');
+        } else {
+          _setSocialError('Google sign-in failed. Please try again');
+        }
+      }
+    } on SocketException {
+      if (mounted) {
+        _setSocialError('No internet connection. Please check your network and try again');
+      }
+    } on TimeoutException {
+      if (mounted) {
+        _setSocialError('Connection timeout. Please check your internet connection and try again');
+      }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Google sign-in failed';
-
         if (e.toString().contains('cancelled') || e.toString().contains('canceled')) {
           return;
-        } else if (e.toString().contains('network')) {
-          errorMessage = 'Network error. Please check your internet connection';
-        } else if (e.toString().contains('account-exists-with-different-credential')) {
-          errorMessage = 'An account already exists with this email using a different sign-in method';
         } else if (e.toString().contains('popup-closed-by-user')) {
           return;
         }
-
-        _setSocialError(errorMessage);
+        _setSocialError('Google sign-in failed. Please try again');
       }
     } finally {
       if (mounted) {
@@ -239,19 +258,32 @@ class _LoginPageState extends State<LoginPage> {
               (route) => false,
         );
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        if (e.code == 'account-exists-with-different-credential') {
+          _setSocialError('An account already exists with this email using a different sign-in method');
+        } else if (e.code == 'network-request-failed') {
+          _setSocialError('Network error. Please check your internet connection and try again');
+        } else if (e.code == 'user-disabled') {
+          _setSocialError('This account has been disabled. Please contact support');
+        } else {
+          _setSocialError('Apple sign-in failed. Please try again');
+        }
+      }
+    } on SocketException {
+      if (mounted) {
+        _setSocialError('No internet connection. Please check your network and try again');
+      }
+    } on TimeoutException {
+      if (mounted) {
+        _setSocialError('Connection timeout. Please check your internet connection and try again');
+      }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Apple sign-in failed';
-
         if (e.toString().contains('cancelled') || e.toString().contains('canceled')) {
           return;
-        } else if (e.toString().contains('network')) {
-          errorMessage = 'Network error. Please check your internet connection';
-        } else if (e.toString().contains('account-exists-with-different-credential')) {
-          errorMessage = 'An account already exists with this email using a different sign-in method';
         }
-
-        _setSocialError(errorMessage);
+        _setSocialError('Apple sign-in failed. Please try again');
       }
     } finally {
       if (mounted) {
@@ -280,19 +312,32 @@ class _LoginPageState extends State<LoginPage> {
               (route) => false,
         );
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        if (e.code == 'account-exists-with-different-credential') {
+          _setSocialError('An account already exists with this email using a different sign-in method');
+        } else if (e.code == 'network-request-failed') {
+          _setSocialError('Network error. Please check your internet connection and try again');
+        } else if (e.code == 'user-disabled') {
+          _setSocialError('This account has been disabled. Please contact support');
+        } else {
+          _setSocialError('Facebook sign-in failed. Please try again');
+        }
+      }
+    } on SocketException {
+      if (mounted) {
+        _setSocialError('No internet connection. Please check your network and try again');
+      }
+    } on TimeoutException {
+      if (mounted) {
+        _setSocialError('Connection timeout. Please check your internet connection and try again');
+      }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Facebook sign-in failed';
-
         if (e.toString().contains('cancelled') || e.toString().contains('canceled')) {
           return;
-        } else if (e.toString().contains('network')) {
-          errorMessage = 'Network error. Please check your internet connection';
-        } else if (e.toString().contains('account-exists-with-different-credential')) {
-          errorMessage = 'An account already exists with this email using a different sign-in method';
         }
-
-        _setSocialError(errorMessage);
+        _setSocialError('Facebook sign-in failed. Please try again');
       }
     } finally {
       if (mounted) {
@@ -721,80 +766,80 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 12),
 
-                    // Apple Sign In button (iOS only)
-                    if (Platform.isIOS)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.grey),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: _isAppleLoading
-                              ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                              : const Icon(
-                            Icons.apple,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          label: const Text(
-                            "Continue with Apple",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                          ),
-                          onPressed: _isAppleLoading ? null : _signInWithApple,
-                        ),
-                      ),
+                    // Apple Sign In button (iOS only) - temporarily hidden
+                    // if (Platform.isIOS)
+                    //   SizedBox(
+                    //     width: double.infinity,
+                    //     height: 55,
+                    //     child: OutlinedButton.icon(
+                    //       style: OutlinedButton.styleFrom(
+                    //         side: const BorderSide(color: Colors.grey),
+                    //         shape: RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.circular(12),
+                    //         ),
+                    //       ),
+                    //       icon: _isAppleLoading
+                    //           ? const SizedBox(
+                    //         width: 24,
+                    //         height: 24,
+                    //         child: CircularProgressIndicator(
+                    //           strokeWidth: 2,
+                    //           color: Colors.white,
+                    //         ),
+                    //       )
+                    //           : const Icon(
+                    //         Icons.apple,
+                    //         color: Colors.white,
+                    //         size: 24,
+                    //       ),
+                    //       label: const Text(
+                    //         "Continue with Apple",
+                    //         style: TextStyle(
+                    //           color: Colors.white,
+                    //           fontSize: 16,
+                    //         ),
+                    //       ),
+                    //       onPressed: _isAppleLoading ? null : _signInWithApple,
+                    //     ),
+                    //   ),
 
-                    if (Platform.isIOS) const SizedBox(height: 12),
+                    // if (Platform.isIOS) const SizedBox(height: 12),
 
-                    // Facebook Sign In button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.grey),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: _isFacebookLoading
-                            ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                            : const Icon(
-                          Icons.facebook,
-                          color: Colors.blue,
-                          size: 30,
-                        ),
-                        label: const Text(
-                          "Continue with Facebook",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                        ),
-                        onPressed: _isFacebookLoading ? null : _signInWithFacebook,
-                      ),
-                    ),
+                    // Facebook Sign In button - temporarily hidden
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   height: 55,
+                    //   child: OutlinedButton.icon(
+                    //     style: OutlinedButton.styleFrom(
+                    //       side: const BorderSide(color: Colors.grey),
+                    //       shape: RoundedRectangleBorder(
+                    //         borderRadius: BorderRadius.circular(12),
+                    //       ),
+                    //     ),
+                    //     icon: _isFacebookLoading
+                    //         ? const SizedBox(
+                    //       width: 24,
+                    //       height: 24,
+                    //       child: CircularProgressIndicator(
+                    //         strokeWidth: 2,
+                    //         color: Colors.white,
+                    //       ),
+                    //     )
+                    //         : const Icon(
+                    //       Icons.facebook,
+                    //       color: AppColors.facebookBg,
+                    //       size: 30,
+                    //     ),
+                    //     label: const Text(
+                    //       "Continue with Facebook",
+                    //       style: TextStyle(
+                    //         color: Colors.white,
+                    //         fontSize: 16,
+                    //       ),
+                    //     ),
+                    //     onPressed: _isFacebookLoading ? null : _signInWithFacebook,
+                    //   ),
+                    // ),
                   ],
                 ),
 

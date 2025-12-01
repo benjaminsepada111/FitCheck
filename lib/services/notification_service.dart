@@ -124,13 +124,18 @@ class NotificationService {
       );
 
       // Initialize the plugin
+      // Note: iOS permissions are automatically requested via the initialization settings above
+      // Android 13+ permissions are requested separately below
       await _notifications.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
 
-      // Request permissions for Android 13+ and iOS
-      await _requestPermissions();
+      // Request permissions for Android 13+ only
+      // iOS permissions are already requested during initialization
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _requestPermissions();
+      }
 
       // Request exact alarm permission (Android 12+)
       final exactAlarmGranted = await requestExactAlarmPermission();

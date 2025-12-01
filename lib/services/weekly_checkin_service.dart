@@ -141,12 +141,27 @@ class WeeklyCheckInService {
       final latestCheckIn = await getLatestCheckIn(challenge.id);
       final previousWeight = latestCheckIn?.currentWeight ?? userData.weight ?? newWeight;
 
-      // Calculate adaptive adjustment
+      // Determine updated activity level based on user input
+      String? updatedActivityLevel = challenge.activityLevel;
+      if (activityLevelChange != null && challenge.activityLevel != null) {
+        if (activityLevelChange == 'increased') {
+          // Move up one activity level
+          updatedActivityLevel = _increaseActivityLevel(challenge.activityLevel!);
+        } else if (activityLevelChange == 'decreased') {
+          // Move down one activity level
+          updatedActivityLevel = _decreaseActivityLevel(challenge.activityLevel!);
+        }
+        // If 'no_change', keep the same activity level
+      }
+
+      // Calculate adaptive adjustment using challenge-specific activity level and goal
       final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
         userData: userData,
         currentWeight: newWeight,
         previousWeight: previousWeight,
         currentCalorieGoal: currentCalorieGoal,
+        activityLevel: updatedActivityLevel, // Use updated activity level
+        goal: challenge.goal, // Use challenge-specific goal
       );
 
       final newCalorieGoal = adaptiveResult['newCalorieGoal'] as int;
@@ -188,10 +203,11 @@ class WeeklyCheckInService {
       // Save check-in to history
       await saveCheckIn(checkIn);
 
-      // Update challenge with new calorie goal
-      if (newCalorieGoal != currentCalorieGoal) {
+      // Update challenge with new calorie goal and activity level if changed
+      if (newCalorieGoal != currentCalorieGoal || updatedActivityLevel != challenge.activityLevel) {
         final updatedChallenge = challenge.copyWith(
           dailyCalorieGoal: newCalorieGoal,
+          activityLevel: updatedActivityLevel,
         );
         await ChallengeService.updateChallenge(updatedChallenge);
       }
@@ -202,6 +218,44 @@ class WeeklyCheckInService {
         print('Error in processCheckInAndUpdateGoals: $e');
       }
       return false;
+    }
+  }
+
+  /// Helper method to increase activity level by one step
+  static String _increaseActivityLevel(String currentLevel) {
+    switch (currentLevel.toLowerCase()) {
+      case 'lightly_active':
+      case 'lightly active':
+        return 'active';
+      case 'active':
+        return 'very_active';
+      case 'very_active':
+      case 'very active':
+        return 'extra_active';
+      case 'extra_active':
+      case 'extra active':
+        return 'extra_active'; // Already at max
+      default:
+        return currentLevel; // Unknown level, keep as is
+    }
+  }
+
+  /// Helper method to decrease activity level by one step
+  static String _decreaseActivityLevel(String currentLevel) {
+    switch (currentLevel.toLowerCase()) {
+      case 'extra_active':
+      case 'extra active':
+        return 'very_active';
+      case 'very_active':
+      case 'very active':
+        return 'active';
+      case 'active':
+        return 'lightly_active';
+      case 'lightly_active':
+      case 'lightly active':
+        return 'lightly_active'; // Already at min
+      default:
+        return currentLevel; // Unknown level, keep as is
     }
   }
 

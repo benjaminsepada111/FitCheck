@@ -225,8 +225,14 @@ class CalorieCalculator {
     required int currentWeight,
     required int previousWeight,
     required int currentCalorieGoal,
+    String? activityLevel, // Challenge-specific activity level (optional, uses userData.activityLevel if null)
+    String? goal, // Challenge-specific goal (optional, uses userData.goal if null)
   }) {
-    if (userData.goal == null || userData.gender == null) {
+    // Use challenge-specific values if provided, otherwise fall back to userData
+    final effectiveActivityLevel = activityLevel ?? userData.activityLevel;
+    final effectiveGoal = goal ?? userData.goal;
+
+    if (effectiveGoal == null || userData.gender == null || effectiveActivityLevel == null) {
       // Return default values if user data is incomplete
       return {
         'newCalorieGoal': currentCalorieGoal,
@@ -237,17 +243,21 @@ class CalorieCalculator {
       };
     }
 
-    final goal = userData.goal!.toLowerCase();
+    final goalLower = effectiveGoal.toLowerCase();
     final weightChange = (currentWeight - previousWeight).toDouble(); // kg
 
     String interpretation;
     String reason;
     int adjustment = 0;
 
-    // Recalculate base calories with new weight
-    final updatedUserData = userData.copyWith(weight: currentWeight);
+    // Recalculate base calories with new weight and challenge-specific activity level
+    final updatedUserData = userData.copyWith(
+      weight: currentWeight,
+      activityLevel: effectiveActivityLevel,
+      goal: effectiveGoal,
+    );
     final newBaseTDEE = calculateTDEE(updatedUserData);
-    final goalAdjustment = userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
+    final goalAdjustment = userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goalLower] ?? 0;
     int newCalorieGoal = (newBaseTDEE + goalAdjustment).round();
 
     // Apply safety minimums
@@ -261,7 +271,7 @@ class CalorieCalculator {
     final baseAdjustment = newCalorieGoal - currentCalorieGoal;
 
     // Goal-specific adaptive logic
-    if (goal.contains('maintain')) {
+    if (goalLower.contains('maintain')) {
       // MAINTAIN WEIGHT: Expect weight to stay roughly the same (±0.5kg tolerance)
       if (weightChange.abs() <= 0.5) {
         interpretation = 'maintained';
@@ -279,7 +289,7 @@ class CalorieCalculator {
         adjustment = 100;
         newCalorieGoal = currentCalorieGoal + 100;
       }
-    } else if (goal.contains('lose') || goal.contains('fat')) {
+    } else if (goalLower.contains('lose') || goalLower.contains('fat')) {
       // FAT LOSS: Expect 0.5-1kg loss per week
       if (weightChange >= 0) {
         interpretation = 'no_progress';
@@ -301,7 +311,7 @@ class CalorieCalculator {
         reason = 'Weight loss on track (${weightChange.abs().toStringAsFixed(1)}kg). Applying base recalculation.';
         adjustment = baseAdjustment;
       }
-    } else if (goal.contains('gain') || goal.contains('muscle')) {
+    } else if (goalLower.contains('gain') || goalLower.contains('muscle')) {
       // MUSCLE GAIN: Expect 0.25-0.5kg gain per week
       if (weightChange <= 0) {
         interpretation = 'no_progress';

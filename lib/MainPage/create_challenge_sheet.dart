@@ -313,6 +313,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         dailyCalorieGoal: _calculatedCalorieGoal,
         originalCalorieGoal: _calculatedCalorieGoal, // Store original calorie goal
         originalWeight: originalWeight,
+        activityLevel: _selectedLifestyleLevel, // Store challenge-specific activity level
+        goal: _selectedGoal, // Store challenge-specific goal
         createdAt: DateTime.now(),
         notes: _notesController.text.trim(),
       );

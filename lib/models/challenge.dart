@@ -9,6 +9,8 @@ class Challenge {
   final int dailyCalorieGoal; // Current/adjusted calorie goal (can change via check-ins)
   final int? originalCalorieGoal; // Original calorie goal at challenge creation (never changes)
   final int? originalWeight; // Starting weight at challenge creation (in kg)
+  final String? activityLevel; // Challenge-specific activity level (e.g., 'lightly_active', 'active')
+  final String? goal; // Challenge-specific goal (e.g., 'lose_fat', 'maintain_weight', 'gain_muscle')
   final String notes;
   final DateTime createdAt;
   final String lifecycleStatus; // 'active', 'completed', 'cancelled'
@@ -23,6 +25,8 @@ class Challenge {
     required this.createdAt,
     this.originalCalorieGoal,
     this.originalWeight,
+    this.activityLevel,
+    this.goal,
     this.notes = '',
     this.lifecycleStatus = 'active',
     this.cancelledAt,
@@ -182,6 +186,8 @@ class Challenge {
       'dailyCalorieGoal': dailyCalorieGoal,
       'originalCalorieGoal': originalCalorieGoal,
       'originalWeight': originalWeight,
+      'activityLevel': activityLevel,
+      'goal': goal,
       'createdAt': createdAt.toIso8601String(),
       'notes': notes,
       'lifecycleStatus': lifecycleStatus,
@@ -199,6 +205,8 @@ class Challenge {
       dailyCalorieGoal: json['dailyCalorieGoal'],
       originalCalorieGoal: json['originalCalorieGoal'] ?? json['dailyCalorieGoal'], // Fallback for old challenges
       originalWeight: json['originalWeight'],
+      activityLevel: json['activityLevel'],
+      goal: json['goal'],
       createdAt: DateTime.parse(json['createdAt']),
       notes: json['notes'] ?? '',
       lifecycleStatus:
@@ -219,6 +227,8 @@ class Challenge {
     int? dailyCalorieGoal,
     int? originalCalorieGoal,
     int? originalWeight,
+    String? activityLevel,
+    String? goal,
     DateTime? createdAt,
     String? notes,
     String? lifecycleStatus,
@@ -232,6 +242,8 @@ class Challenge {
       dailyCalorieGoal: dailyCalorieGoal ?? this.dailyCalorieGoal,
       originalCalorieGoal: originalCalorieGoal ?? this.originalCalorieGoal,
       originalWeight: originalWeight ?? this.originalWeight,
+      activityLevel: activityLevel ?? this.activityLevel,
+      goal: goal ?? this.goal,
       createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
       lifecycleStatus: lifecycleStatus ?? this.lifecycleStatus,
@@ -255,6 +267,8 @@ class Challenge {
         other.dailyCalorieGoal == dailyCalorieGoal &&
         other.originalCalorieGoal == originalCalorieGoal &&
         other.originalWeight == originalWeight &&
+        other.activityLevel == activityLevel &&
+        other.goal == goal &&
         other.createdAt == createdAt &&
         other.notes == notes &&
         other.lifecycleStatus == lifecycleStatus &&
@@ -271,6 +285,8 @@ class Challenge {
       dailyCalorieGoal,
       originalCalorieGoal,
       originalWeight,
+      activityLevel,
+      goal,
       createdAt,
       notes,
       lifecycleStatus,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/models/challenge.dart';
 import 'package:capstone_project/services/food_log_service.dart';
-import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 
@@ -41,9 +41,9 @@ class CalorieTrackerHeaderState extends State<CalorieTrackerHeader> {
 
       // Get calories burned from workouts
       int caloriesBurned = 0;
-      final workouts = await WorkoutService.getWorkoutsForDate(
-        widget.currentChallenge!.id,
-        today,
+      final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+        challengeId: widget.currentChallenge!.id,
+        date: today,
       );
 
       // Get user weight for calorie calculation
@@ -51,7 +51,7 @@ class CalorieTrackerHeaderState extends State<CalorieTrackerHeader> {
       final userWeight = userData?.weight?.toDouble() ?? 70.0;
 
       for (var workout in workouts) {
-        caloriesBurned += workout.calculateCaloriesBurned(userWeight);
+        caloriesBurned += workout.calculateCaloriesBurned(userWeight).toInt();
       }
 
       if (mounted) {

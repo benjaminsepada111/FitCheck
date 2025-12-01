@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../services/food_log_service.dart';
-import '../services/workout_service.dart';
+import '../services/workout_service_v2.dart';
 import '../services/challenge_service.dart';
 import '../services/login_tracker_service.dart';
 
@@ -123,7 +123,7 @@ class StatisticsService {
       int totalWorkouts = 0;
 
       for (final challenge in challenges) {
-        final workouts = await WorkoutService.getChallengeWorkouts(challenge.id);
+        final workouts = await WorkoutServiceV2.getChallengeWorkouts(challenge.id);
         totalWorkouts += workouts.length;
       }
 

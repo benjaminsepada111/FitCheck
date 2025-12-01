@@ -5,7 +5,7 @@ import 'package:capstone_project/models/challenge.dart';
 import '../app_text_styles.dart';
 import 'daily_logs.dart';
 import 'package:capstone_project/services/food_log_service.dart';
-import 'package:capstone_project/services/workout_service.dart';
+import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/milestone_service.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
@@ -99,9 +99,9 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
       final hasFood = foodLogs.isNotEmpty;
 
       // Check if there are any workouts
-      final workouts = await WorkoutService.getWorkoutsForDate(
-        widget.currentChallenge!.id,
-        date,
+      final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+        challengeId: widget.currentChallenge!.id,
+        date: date,
       );
       final hasWorkout = workouts.isNotEmpty;
 

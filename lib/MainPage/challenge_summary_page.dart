@@ -141,6 +141,18 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   List<WeeklyCheckIn> _weeklyCheckIns = []; // Weekly check-in history
   bool _isLoadingWeeklyCheckIns = false; // Loading state for weekly check-ins
 
+  // Calories burned data
+  List<FlSpot> _dailyCaloriesBurnedDataPoints = [];
+  List<FlSpot> _weeklyCaloriesBurnedDataPoints = [];
+  List<FlSpot> _monthlyCaloriesBurnedDataPoints = [];
+  Map<int, List<FlSpot>> _weeklyDailyBurnedData = {}; // Burned data for each week
+  double _minDailyBurned = 0;
+  double _maxDailyBurned = 500;
+  double _minWeeklyBurned = 0;
+  double _maxWeeklyBurned = 500;
+  double _minMonthlyBurned = 0;
+  double _maxMonthlyBurned = 500;
+
   // Video generation state
   bool _isExporting = false;
   String? _cachedVideoUrl;
@@ -972,6 +984,14 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       List<FlSpot> dataPoints = [];
       List<double> calorieValues = [];
 
+      // Calculate calories burned and build data points
+      List<FlSpot> burnedDataPoints = [];
+      List<double> burnedValues = [];
+
+      // Get user weight for calorie burn calculation
+      final userData = await UserDataService.loadUserData();
+      final userWeight = userData?.weight?.toDouble() ?? 70.0;
+
       // Loop through each day of the challenge
       int dayIndex = 0;
       for (DateTime date = startDate;
@@ -981,10 +1001,24 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         // Get calories for this day
         final dailyCalories = await FoodLogService.getDailyCalories(date, challengeId: challengeId);
 
+        // Get workouts and calculate calories burned for this day
+        final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+          challengeId: challengeId,
+          date: date,
+        );
+
+        double caloriesBurned = 0;
+        for (var workout in workouts) {
+          caloriesBurned += workout.calculateCaloriesBurned(userWeight);
+        }
+
         // Add data point for chart (x = day number, y = calories)
         dayIndex++;
         dataPoints.add(FlSpot(dayIndex.toDouble(), dailyCalories));
         calorieValues.add(dailyCalories);
+
+        burnedDataPoints.add(FlSpot(dayIndex.toDouble(), caloriesBurned));
+        burnedValues.add(caloriesBurned);
       }
 
       // Calculate min and max for chart scaling
@@ -1000,6 +1034,19 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         maxCal = maxCal + padding;
       }
 
+      // Calculate min and max for burned calories chart scaling
+      double minBurned = 0;
+      double maxBurned = 500;
+      if (burnedValues.isNotEmpty) {
+        minBurned = burnedValues.reduce((a, b) => a < b ? a : b);
+        maxBurned = burnedValues.reduce((a, b) => a > b ? a : b);
+
+        // Add padding to min/max
+        final padding = (maxBurned - minBurned) * 0.2;
+        minBurned = (minBurned - padding).clamp(0, double.infinity);
+        maxBurned = maxBurned + padding;
+      }
+
       // Calculate total weeks based on challenge duration (not just data available)
       final challengeDuration = endDate.difference(startDate).inDays + 1;
       final totalWeeksInChallenge = (challengeDuration / 7).ceil();
@@ -1008,10 +1055,13 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       // Calculate weekly data (for Overall view - shows average per week)
       List<FlSpot> weeklyDataPoints = [];
       List<double> weeklyCalorieValues = [];
+      List<FlSpot> weeklyBurnedDataPoints = [];
+      List<double> weeklyBurnedValues = [];
       int weekIndex = 0;
 
       // Also store daily data per week (for Weekly Summary view)
       Map<int, List<FlSpot>> weeklyDailyData = {};
+      Map<int, List<FlSpot>> weeklyDailyBurnedData = {};
 
       // Create weekly data for all weeks
       for (int weekNum = 1; weekNum <= totalWeeksInChallenge; weekNum++) {
@@ -1026,25 +1076,33 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         final isWeekCompleted = now.isAfter(weekEndDate);
 
         double weeklyCalories = 0;
+        double weeklyBurned = 0;
         int daysInWeek = 0;
         List<FlSpot> weekDays = [];
+        List<FlSpot> weekBurnedDays = [];
 
         // Collect data for this week (only if data exists)
         for (int dayIndex = startDayIndex; dayIndex <= endDayIndex && dayIndex < dataPoints.length; dayIndex++) {
           weeklyCalories += dataPoints[dayIndex].y;
+          weeklyBurned += burnedDataPoints[dayIndex].y;
           daysInWeek++;
           // Store daily data for this week (day 1-7 of the week)
           weekDays.add(FlSpot((daysInWeek).toDouble(), dataPoints[dayIndex].y));
+          weekBurnedDays.add(FlSpot((daysInWeek).toDouble(), burnedDataPoints[dayIndex].y));
         }
 
         // Store weekly daily data for Weekly Summary view (all weeks)
         weeklyDailyData[weekIndex] = weekDays;
+        weeklyDailyBurnedData[weekIndex] = weekBurnedDays;
 
         // For Overall view: only include COMPLETED weeks with full 7 days of data
         if (isWeekCompleted && daysInWeek == 7) {
           double avgCalories = weeklyCalories / 7;
+          double avgBurned = weeklyBurned / 7;
           weeklyDataPoints.add(FlSpot(weekNum.toDouble(), avgCalories));
           weeklyCalorieValues.add(avgCalories);
+          weeklyBurnedDataPoints.add(FlSpot(weekNum.toDouble(), avgBurned));
+          weeklyBurnedValues.add(avgBurned);
         }
       }
 
@@ -1061,9 +1119,24 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         maxWeeklyCal = maxWeeklyCal + padding;
       }
 
+      // Calculate min and max for weekly burned chart scaling
+      double minWeeklyBurned = 0;
+      double maxWeeklyBurned = 500;
+      if (weeklyBurnedValues.isNotEmpty) {
+        minWeeklyBurned = weeklyBurnedValues.reduce((a, b) => a < b ? a : b);
+        maxWeeklyBurned = weeklyBurnedValues.reduce((a, b) => a > b ? a : b);
+
+        // Add padding to min/max
+        final padding = (maxWeeklyBurned - minWeeklyBurned) * 0.2;
+        minWeeklyBurned = (minWeeklyBurned - padding).clamp(0, double.infinity);
+        maxWeeklyBurned = maxWeeklyBurned + padding;
+      }
+
       // Calculate monthly data if challenge is >= 3 months
       List<FlSpot> monthlyDataPoints = [];
       List<double> monthlyCalorieValues = [];
+      List<FlSpot> monthlyBurnedDataPoints = [];
+      List<double> monthlyBurnedValues = [];
       List<String> monthKeys = []; // Store month keys for label display
       int monthIndex = 0;
       bool useMonths = totalDays >= 90; // 3+ months
@@ -1071,6 +1144,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       if (useMonths) {
         // Group by actual calendar months
         Map<String, List<double>> monthlyData = {};
+        Map<String, List<double>> monthlyBurnedData = {};
         List<String> orderedMonthKeys = [];
 
         DateTime currentMonth = DateTime(startDate.year, startDate.month, 1);
@@ -1081,6 +1155,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           String monthKey = '${currentMonth.year}-${currentMonth.month}';
           orderedMonthKeys.add(monthKey);
           monthlyData[monthKey] = [];
+          monthlyBurnedData[monthKey] = [];
           currentMonth = DateTime(currentMonth.year, currentMonth.month + 1, 1);
         }
 
@@ -1095,6 +1170,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           int daysSinceStart = date.difference(startDate).inDays;
           if (daysSinceStart < calorieValues.length && monthlyData.containsKey(monthKey)) {
             monthlyData[monthKey]!.add(calorieValues[daysSinceStart]);
+            monthlyBurnedData[monthKey]!.add(burnedValues[daysSinceStart]);
           }
         }
 
@@ -1106,8 +1182,13 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           double avgCalories = monthlyData[key]!.isEmpty
               ? 0
               : monthlyData[key]!.reduce((a, b) => a + b) / monthlyData[key]!.length;
+          double avgBurned = monthlyBurnedData[key]!.isEmpty
+              ? 0
+              : monthlyBurnedData[key]!.reduce((a, b) => a + b) / monthlyBurnedData[key]!.length;
           monthlyDataPoints.add(FlSpot(monthIndex.toDouble(), avgCalories));
           monthlyCalorieValues.add(avgCalories);
+          monthlyBurnedDataPoints.add(FlSpot(monthIndex.toDouble(), avgBurned));
+          monthlyBurnedValues.add(avgBurned);
         }
       }
 
@@ -1123,6 +1204,18 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         maxMonthlyCal = maxMonthlyCal + padding;
       }
 
+      // Calculate min and max for monthly burned chart scaling
+      double minMonthlyBurned = 0;
+      double maxMonthlyBurned = 500;
+      if (monthlyBurnedValues.isNotEmpty) {
+        minMonthlyBurned = monthlyBurnedValues.reduce((a, b) => a < b ? a : b);
+        maxMonthlyBurned = monthlyBurnedValues.reduce((a, b) => a > b ? a : b);
+
+        final padding = (maxMonthlyBurned - minMonthlyBurned) * 0.2;
+        minMonthlyBurned = (minMonthlyBurned - padding).clamp(0, double.infinity);
+        maxMonthlyBurned = maxMonthlyBurned + padding;
+      }
+
       // Load weekly check-ins for this challenge
       final checkIns = await WeeklyCheckInService.getCheckInsForChallenge(challengeId);
 
@@ -1131,6 +1224,10 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         _weeklyCalorieDataPoints = weeklyDataPoints;
         _monthlyCalorieDataPoints = monthlyDataPoints;
         _weeklyDailyData = weeklyDailyData;
+        _dailyCaloriesBurnedDataPoints = burnedDataPoints;
+        _weeklyCaloriesBurnedDataPoints = weeklyBurnedDataPoints;
+        _monthlyCaloriesBurnedDataPoints = monthlyBurnedDataPoints;
+        _weeklyDailyBurnedData = weeklyDailyBurnedData;
         _monthKeys = monthKeys;
         _minDailyCalories = minCal;
         _maxDailyCalories = maxCal;
@@ -1138,6 +1235,12 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         _maxWeeklyCalories = maxWeeklyCal;
         _minMonthlyCalories = minMonthlyCal;
         _maxMonthlyCalories = maxMonthlyCal;
+        _minDailyBurned = minBurned;
+        _maxDailyBurned = maxBurned;
+        _minWeeklyBurned = minWeeklyBurned;
+        _maxWeeklyBurned = maxWeeklyBurned;
+        _minMonthlyBurned = minMonthlyBurned;
+        _maxMonthlyBurned = maxMonthlyBurned;
         _totalDays = totalDays;
         _totalWeeks = weekIndex;
         _totalMonths = monthIndex;
@@ -1264,6 +1367,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               _buildPeriodNavigation(),
               const SizedBox(height: 24),
               _buildCalorieProgressChart(),
+              const SizedBox(height: 24),
+              _buildCalorieBurnedChart(),
               const SizedBox(height: 24),
               // Show Weight Progress chart only in Overall view
               if (isMonthlySelected) ...[
@@ -2369,6 +2474,560 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[date.month - 1]} ${date.day}';
+  }
+
+  Widget _buildCalorieBurnedChart() {
+    // Show loading state
+    if (_isLoading) {
+      return Container(
+        width: double.infinity,
+        height: 300,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+          ),
+        ),
+      );
+    }
+
+    final startDate = widget.challenge['startDate'] as DateTime;
+    final endDate = widget.challenge['endDate'] as DateTime;
+
+    // Determine which data to display based on current view
+    List<FlSpot> dataPoints;
+    double minBurned;
+    double maxBurned;
+    int totalPeriods;
+    String periodLabel;
+    bool isWeekly = !isMonthlySelected;
+
+    if (isWeekly) {
+      // Weekly Summary: show daily data for current week
+      dataPoints = _weeklyDailyBurnedData[_currentWeek] ?? [];
+      minBurned = _minDailyBurned;
+      maxBurned = _maxDailyBurned;
+      totalPeriods = 7;
+      periodLabel = 'DAY';
+    } else {
+      // Overall: show weekly or monthly data
+      if (_useMonthsForOverall) {
+        dataPoints = _monthlyCaloriesBurnedDataPoints;
+        minBurned = _minMonthlyBurned;
+        maxBurned = _maxMonthlyBurned;
+        totalPeriods = _totalMonths;
+        periodLabel = 'WEEK';
+      } else {
+        dataPoints = _weeklyCaloriesBurnedDataPoints;
+        minBurned = _minWeeklyBurned;
+        maxBurned = _maxWeeklyBurned;
+        totalPeriods = _totalWeeks;
+        periodLabel = 'WEEK';
+      }
+    }
+
+    // Handle empty data
+    if (dataPoints.isEmpty) {
+      // For Weekly Summary with no data: show empty state
+      if (isWeekly) {
+        // Show date range for current week
+        final weekStartDay = (_currentWeek - 1) * 7;
+        final weekStart = startDate.add(Duration(days: weekStartDay));
+        final weekEnd = startDate.add(Duration(days: weekStartDay + 6));
+        final actualWeekEnd = weekEnd.isAfter(endDate) ? endDate : weekEnd;
+        String dateRange = '${_formatDateShort(weekStart)} - ${_formatDateShort(actualWeekEnd)}';
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.orange.withValues(alpha: 0.15),
+                            Colors.orange.withValues(alpha: 0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.local_fire_department,
+                        size: 18,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Calories Burned',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        Text(
+                          dateRange,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.fitness_center,
+                          size: 48,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No data for Week $_currentWeek yet',
+                        style: const TextStyle(
+                          color: Color(0xFF1A1A1A),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Data will appear as you log workouts',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        );
+      }
+      // For Overall view with no data: show empty state
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.orange.withValues(alpha: 0.15),
+                          Colors.orange.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.local_fire_department,
+                      size: 18,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Calories Burned',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1A1A),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      Text(
+                        '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fitness_center,
+                        size: 48,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No workout data yet',
+                      style: TextStyle(
+                        color: Color(0xFF1A1A1A),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Start logging your workouts to track calories burned',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Format date range based on view
+    String dateRange;
+
+    if (isWeekly) {
+      // Show date range for current week
+      final weekStartDay = (_currentWeek - 1) * 7;
+      final weekStart = startDate.add(Duration(days: weekStartDay));
+      final weekEnd = startDate.add(Duration(days: weekStartDay + 6));
+      final actualWeekEnd = weekEnd.isAfter(endDate) ? endDate : weekEnd;
+      dateRange = '${_formatDateShort(weekStart)} - ${_formatDateShort(actualWeekEnd)}';
+    } else {
+      // Show full date range
+      dateRange = '${_formatDateShort(startDate)} - ${_formatDateShort(endDate)}';
+    }
+
+    // Calculate interval for y-axis
+    final range = maxBurned - minBurned;
+    final interval = (range / 4).roundToDouble().clamp(100.0, double.infinity).toDouble();
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.orange.withValues(alpha: 0.15),
+                        Colors.orange.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.local_fire_department,
+                    size: 18,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Calories Burned',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      dateRange,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 200,
+              child: Stack(
+                children: [
+                  LineChart(
+                    LineChartData(
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: interval,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey[200]!,
+                            strokeWidth: 1,
+                          );
+                        },
+                      ),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: interval,
+                            getTitlesWidget: (value, meta) {
+                              return Text(
+                                value.toInt().toString(),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              );
+                            },
+                            reservedSize: 40,
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (value, meta) {
+                              // Only show labels for integer values to avoid duplicates
+                              if (value != value.roundToDouble()) {
+                                return const Text('');
+                              }
+
+                              final period = value.toInt();
+                              if (period >= 1 && period <= totalPeriods) {
+                                // Show month names if using monthly view
+                                if (!isWeekly && _useMonthsForOverall) {
+                                  // Get month from stored keys
+                                  if (period - 1 < _monthKeys.length) {
+                                    final monthKey = _monthKeys[period - 1];
+                                    final parts = monthKey.split('-');
+                                    if (parts.length == 2) {
+                                      final month = int.parse(parts[1]);
+                                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          months[month - 1],
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  // Show numbers for weekly or daily view
+                                  // For weekly/daily: show all numbers if <= 10 periods, otherwise show first and last
+                                  if (totalPeriods <= 10) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        period.toString(),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    );
+                                  } else if (period == 1 || period == totalPeriods) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        period.toString(),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                              return const Text('');
+                            },
+                          ),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      minX: 1,
+                      maxX: totalPeriods.toDouble(),
+                      minY: minBurned,
+                      maxY: maxBurned,
+                      lineBarsData: dataPoints.isEmpty
+                          ? []
+                          : [
+                        LineChartBarData(
+                          spots: dataPoints,
+                          isCurved: false,
+                          color: Colors.orange,
+                          barWidth: 3,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: Colors.orange,
+                                strokeColor: Colors.white,
+                                strokeWidth: 2,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(show: false),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Transparent overlay when no data in Overall view
+                  if (!isWeekly && dataPoints.isEmpty)
+                    Container(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.fitness_center,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No completed weeks yet',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Data will appear after a full week',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                periodLabel,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildWeightProgressChart() {

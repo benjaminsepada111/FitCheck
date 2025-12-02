@@ -219,7 +219,11 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
     final progress = _calculateProgress(challenge);
     final daysTotal =
         challenge.endDate.difference(challenge.startDate).inDays + 1;
-    final daysPassed = now.difference(challenge.startDate).inDays + 1;
+    // For completed or cancelled challenges, use endDate instead of now
+    final referenceDate = (challenge.isCompleted || challenge.isCancelled)
+        ? challenge.endDate
+        : now;
+    final daysPassed = referenceDate.difference(challenge.startDate).inDays + 1;
 
     // Use the challenge's status directly
     String status = challenge.status;
@@ -525,10 +529,17 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
   }
 
   int _calculateProgress(Challenge challenge) {
-    final now = DateTime.now();
     final totalDays =
         challenge.endDate.difference(challenge.startDate).inDays + 1;
-    final daysPassed = now.difference(challenge.startDate).inDays + 1;
+    
+    // For completed or cancelled challenges, use endDate instead of now
+    // This prevents progress from continuing to increase after challenge ends
+    final now = DateTime.now();
+    final referenceDate = (challenge.isCompleted || challenge.isCancelled)
+        ? challenge.endDate
+        : now;
+    
+    final daysPassed = referenceDate.difference(challenge.startDate).inDays + 1;
 
     if (daysPassed <= 0) return 0;
     if (daysPassed >= totalDays) return 100;

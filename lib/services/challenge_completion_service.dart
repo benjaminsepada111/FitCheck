@@ -1,24 +1,53 @@
 // services/challenge_completion_service.dart
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChallengeCompletionService {
-  static const String _completionShownPrefix = 'completion_shown_';
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static const String _usersCollection = 'users';
+  static const String _challengesCollection = 'challenges';
 
   /// Check if completion popup has been shown for a challenge
+  /// This is stored in Firestore so it persists across app reinstalls
   static Future<bool> hasShownCompletionPopup(String challengeId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool('$_completionShownPrefix$challengeId') ?? false;
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      final challengeDoc = await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .get();
+
+      if (!challengeDoc.exists) return false;
+
+      final data = challengeDoc.data();
+      // Check if completionPopupShown field exists and is true
+      return data?['completionPopupShown'] == true;
     } catch (e) {
       return false;
     }
   }
 
   /// Mark completion popup as shown for a challenge
+  /// This is stored in Firestore so it persists across app reinstalls
   static Future<void> markCompletionPopupShown(String challengeId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('$_completionShownPrefix$challengeId', true);
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      await _firestore
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .update({
+        'completionPopupShown': true,
+        'completionPopupShownAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       // Silently handle error
     }

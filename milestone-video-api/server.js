@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const sharp = require('sharp'); // For image preprocessing
 require('dotenv').config();
 
 const app = express();
@@ -16,8 +17,9 @@ const PORT = process.env.PORT || 5000;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_DIR = path.join(__dirname, 'videos');
 const TEMP_DIR = path.join(__dirname, 'temp');
+const PROCESSED_DIR = path.join(__dirname, 'processed');
 
-[UPLOAD_DIR, VIDEO_DIR, TEMP_DIR].forEach(dir => {
+[UPLOAD_DIR, VIDEO_DIR, TEMP_DIR, PROCESSED_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -36,16 +38,34 @@ const upload = multer({
 
 const PUBLIC_BASE_OVERRIDE = process.env.BASE_URL || null;
 
-const renderJobs = new Map();
-
-// ✅ MEMORY OPTIMIZATION: Limit concurrent renders
-const MAX_CONCURRENT_RENDERS = 2;
+// ✅ MEMORY OPTIMIZATION: Single render at a time
+const MAX_CONCURRENT_RENDERS = 1;
 let activeRenders = 0;
+
+const renderJobs = new Map();
 
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use('/videos', express.static(VIDEO_DIR));
 
-app.get('/', (req, res) => res.send('Milestone Video API with FFmpeg is running'));
+app.get('/', (req, res) => res.send('Milestone Video API - Memory Optimized'));
+
+// ✅ NEW: Preprocess images to reduce memory footprint
+async function preprocessImage(inputPath, outputPath) {
+  try {
+    await sharp(inputPath)
+      .resize(540, 960, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 1 }
+      })
+      .jpeg({ quality: 80, progressive: true })
+      .toFile(outputPath);
+
+    return true;
+  } catch (err) {
+    console.error(`⚠️ Failed to preprocess image: ${err.message}`);
+    return false;
+  }
+}
 
 app.post(
   '/api/generate-video',
@@ -57,12 +77,15 @@ app.post(
     try {
       console.log('📥 Received generate-video request');
 
-      // ✅ MEMORY CHECK: Reject if too many concurrent renders
+      const memBefore = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+      console.log(`💾 Memory before processing: ${memBefore}MB`);
+
+      // ✅ Reject if too many concurrent renders
       if (activeRenders >= MAX_CONCURRENT_RENDERS) {
-        console.log('⚠️ Too many concurrent renders, rejecting request');
+        console.log('⚠️ Server busy, rejecting request');
         return res.status(503).json({
           success: false,
-          error: 'Server is busy processing other videos. Please try again in a moment.'
+          error: 'Server is processing another video. Please try again in a moment.'
         });
       }
 
@@ -79,7 +102,27 @@ app.post(
 
       console.log(`🖼️ Total images: ${imageFiles.length}`);
 
-      // Parse text logs from request body
+      // ✅ CRITICAL: Preprocess images to reduce size
+      console.log('🔄 Preprocessing images to 540x960...');
+      const processedImages = [];
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const processed = path.join(PROCESSED_DIR, `processed-${Date.now()}-${i}.jpg`);
+        const success = await preprocessImage(imageFiles[i].path, processed);
+
+        if (success) {
+          processedImages.push(processed);
+          // Delete original to free memory
+          try { fs.unlinkSync(imageFiles[i].path); } catch {}
+        } else {
+          // Fallback to original if preprocessing fails
+          processedImages.push(imageFiles[i].path);
+        }
+      }
+
+      console.log(`✅ Preprocessed ${processedImages.length} images`);
+
+      // Parse text logs
       let textLogs = [];
       if (req.body.textLogs) {
         try {
@@ -91,22 +134,9 @@ app.post(
         }
       }
 
-      // Ensure text logs match image count
-      while (textLogs.length < imageFiles.length) {
+      while (textLogs.length < processedImages.length) {
         textLogs.push('');
       }
-
-      // ✅ Validation logging
-      console.log('\n📊 Video Order Validation:');
-      console.log(`   Images: ${imageFiles.length}`);
-      console.log(`   Text logs: ${textLogs.length}`);
-      console.log(`   Duration per image: ${durationPerImage}s`);
-
-      for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
-        const preview = (textLogs[i] || '').substring(0, 60);
-        console.log(`   Frame ${i+1} text: "${preview}${textLogs[i] && textLogs[i].length > 60 ? '...' : ''}"`);
-      }
-      console.log('');
 
       // Handle music
       const musicFiles = req.files?.['music'] || [];
@@ -121,16 +151,11 @@ app.post(
           const musicExt = path.extname(new URL(musicUrl).pathname) || '.mp3';
           musicPath = path.join(TEMP_DIR, `music-${Date.now()}${musicExt}`);
           fs.writeFileSync(musicPath, Buffer.from(musicResponse.data));
-          console.log(`✅ Music downloaded to: ${musicPath}`);
+          console.log(`✅ Music downloaded`);
         } catch (err) {
           console.error('⚠️ Failed to download music:', err.message);
         }
       }
-
-      // ✅ NO REVERSE: Images are already in chronological order from client (oldest to newest)
-      // Video will show: Nov 25 → Nov 26 → Nov 27
-      console.log('📹 Processing images in CHRONOLOGICAL ORDER (oldest to newest)');
-      console.log('   This creates a proper milestone journey timeline');
 
       const renderId = uuidv4();
       const outputFileName = `video-${renderId}.mp4`;
@@ -145,7 +170,7 @@ app.post(
         createdAt: new Date()
       });
 
-      console.log(`🎬 Starting FFmpeg render: ${renderId}`);
+      console.log(`🎬 Starting render: ${renderId}`);
 
       res.json({
         success: true,
@@ -154,9 +179,9 @@ app.post(
         }
       });
 
-      // ✅ Pass imageFiles and textLogs directly (no reverse)
+      // Process video (don't await - runs in background)
       processVideoWithFFmpeg(
-        imageFiles,
+        processedImages,
         textLogs,
         durationPerImage,
         musicPath,
@@ -172,9 +197,15 @@ app.post(
   }
 );
 
-async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, musicPath, outputPath, outputUrl, renderId) {
+async function processVideoWithFFmpeg(imagePaths, textLogs, durationPerImage, musicPath, outputPath, outputUrl, renderId) {
   activeRenders++;
   console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
+    console.log('♻️ Forced garbage collection');
+  }
 
   try {
     renderJobs.set(renderId, {
@@ -183,13 +214,15 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       progress: 10
     });
 
-    console.log(`🎥 Creating video from ${imageFiles.length} images...`);
+    console.log(`🎥 Creating video from ${imagePaths.length} images...`);
 
-    const filterComplex = buildFilterComplexWithText(imageFiles, textLogs, durationPerImage);
-    const totalDuration = imageFiles.length * durationPerImage;
+    const filterComplex = buildFilterComplexWithText(imagePaths, textLogs, durationPerImage);
+    const totalDuration = imagePaths.length * durationPerImage;
 
     const command = ffmpeg();
-    imageFiles.forEach((file) => command.input(file.path));
+
+    // Add images as inputs
+    imagePaths.forEach((imgPath) => command.input(imgPath));
 
     let hasAudio = false;
     if (musicPath && fs.existsSync(musicPath)) {
@@ -202,45 +235,46 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
       .outputOptions([
         '-map', '[outv]',
         ...(hasAudio ? [
-          '-map', `${imageFiles.length}:a`,
+          '-map', `${imagePaths.length}:a`,
           '-shortest',
           '-c:a', 'aac',
-          '-b:a', '128k',
+          '-b:a', '96k', // Lower audio bitrate
           `-af`, `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(totalDuration - 1, 1)}:d=1,volume=0.5`
         ] : ['-an']),
         '-c:v', 'libx264',
-        '-preset', 'veryfast',
-        '-crf', '25',
+        '-preset', 'ultrafast', // Fastest preset for memory-constrained env
+        '-crf', '28', // Higher CRF = smaller file, less memory
         '-pix_fmt', 'yuv420p',
-        '-r', '30',
+        '-r', '24', // Lower framerate
         '-movflags', '+faststart',
-        '-threads', '2',
-        '-max_muxing_queue_size', '1024'
+        '-threads', '1', // Single thread to control memory
+        '-max_muxing_queue_size', '512', // Reduced queue
+        '-bufsize', '500k' // Limit buffer size
       ])
       .output(outputPath)
       .on('start', cmd => {
-        console.log('🎬 FFmpeg command started');
-        console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB used`);
+        console.log('🎬 FFmpeg started');
+        const mem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`💾 Memory: ${mem}MB`);
       })
       .on('stderr', (stderrLine) => {
-        // Log FFmpeg errors for debugging
         if (stderrLine.includes('Error') || stderrLine.includes('Failed')) {
-          console.error('⚠️ FFmpeg stderr:', stderrLine);
+          console.error('⚠️ FFmpeg:', stderrLine);
         }
       })
       .on('progress', progress => {
         const percent = Math.min(Math.round(progress.percent || 0), 95);
         renderJobs.set(renderId, { ...renderJobs.get(renderId), progress: percent });
 
-        if (percent % 20 === 0) {
-          const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-          console.log(`⏳ Processing: ${percent}% | Memory: ${memUsage}MB`);
+        if (percent % 25 === 0) {
+          const mem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+          console.log(`⏳ ${percent}% | Memory: ${mem}MB`);
         }
       })
       .on('end', () => {
-        console.log(`✅ Video created successfully: ${outputPath}`);
-        const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        console.log(`💾 Final memory usage: ${memUsage}MB`);
+        console.log(`✅ Video created: ${outputPath}`);
+        const mem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`💾 Final memory: ${mem}MB`);
 
         renderJobs.set(renderId, {
           status: 'done',
@@ -251,21 +285,24 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         });
 
         activeRenders--;
-        console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
 
+        // Clean up files after 5 minutes
         setTimeout(() => {
-          imageFiles.forEach(file => {
-            try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
+          imagePaths.forEach(path => {
+            try { if (fs.existsSync(path)) fs.unlinkSync(path); } catch {}
           });
           if (musicPath && musicPath.includes(TEMP_DIR)) {
             try { if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath); } catch {}
           }
+
+          // Force GC after cleanup
+          if (global.gc) global.gc();
         }, 5 * 60 * 1000);
       })
       .on('error', err => {
         console.error('❌ FFmpeg error:', err.message);
-        const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-        console.log(`💾 Memory at error: ${memUsage}MB`);
+        const mem = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        console.log(`💾 Memory at error: ${mem}MB`);
 
         renderJobs.set(renderId, {
           status: 'failed',
@@ -276,12 +313,16 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
         });
 
         activeRenders--;
-        console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+
+        // Clean up on error
+        imagePaths.forEach(path => {
+          try { if (fs.existsSync(path)) fs.unlinkSync(path); } catch {}
+        });
       })
       .run();
 
   } catch (err) {
-    console.error('❌ Video processing error:', err.message);
+    console.error('❌ Processing error:', err.message);
     renderJobs.set(renderId, {
       status: 'failed',
       progress: 0,
@@ -291,7 +332,6 @@ async function processVideoWithFFmpeg(imageFiles, textLogs, durationPerImage, mu
     });
 
     activeRenders--;
-    console.log(`🎥 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
   }
 }
 
@@ -311,24 +351,32 @@ app.get('/api/render-status/:id', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   const memUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+  const memTotal = Math.round(process.memoryUsage().heapTotal / 1024 / 1024);
+
   res.json({
     status: 'ok',
     ffmpeg_available: true,
     active_renders: activeRenders,
-    memory_usage_mb: memUsage,
-    max_memory_mb: 512,
+    memory_used_mb: memUsage,
+    memory_total_mb: memTotal,
+    max_concurrent_renders: MAX_CONCURRENT_RENDERS,
+    resolution: '540x960',
     timestamp: new Date().toISOString()
   });
 });
 
+// Cleanup old jobs every hour
 setInterval(() => {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   for (const [id, job] of renderJobs.entries()) {
     if (job.createdAt < oneHourAgo) {
-      console.log(`🧹 Cleaning up old render job: ${id}`);
+      console.log(`🧹 Cleaning up old job: ${id}`);
       renderJobs.delete(id);
     }
   }
+
+  // Force GC during cleanup
+  if (global.gc) global.gc();
 }, 60 * 60 * 1000);
 
 function escapeFFmpegText(text) {
@@ -349,8 +397,7 @@ function escapeFFmpegText(text) {
     .trim();
 }
 
-// ✅ IMPROVED: Better empty string handling
-function splitTextIntoLines(text, maxCharsPerLine = 45) {
+function splitTextIntoLines(text, maxCharsPerLine = 40) {
   if (!text || text.trim().length === 0) return [];
 
   const lines = [];
@@ -384,75 +431,60 @@ function splitTextIntoLines(text, maxCharsPerLine = 45) {
     }
   });
 
-  return lines.slice(0, 15);
+  return lines.slice(0, 12); // Limit lines to reduce memory
 }
 
-// ✅ FIXED: Corrected xfade offset and clip duration logic
-function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
-  const imageCount = imageFiles.length;
+function buildFilterComplexWithText(imagePaths, textLogs, durationPerImage) {
+  const imageCount = imagePaths.length;
 
-  console.log(`\n🎬 Building filter complex (CHRONOLOGICAL ORDER):`);
-  console.log(`   Images: ${imageCount}`);
-  console.log(`   Text logs: ${textLogs.length}`);
-  console.log(`   Duration per image: ${durationPerImage}s`);
+  console.log(`🎬 Building filter (${imageCount} images, ${durationPerImage}s each)`);
 
-  // ✅ SAFETY CHECK: Ensure text logs match image count
   while (textLogs.length < imageCount) {
-    console.log(`⚠️ Padding text log ${textLogs.length + 1}`);
     textLogs.push('');
   }
 
-  // ============================================================================
-  // SPECIAL CASE: Single image
-  // ============================================================================
+  // Single image case
   if (imageCount === 1) {
     const textContent = textLogs[0] || '';
     const hasText = textContent.trim().length > 0;
 
-    let filter = `[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p`;
+    // Images are already 540x960, just format them
+    let filter = `[0:v]setsar=1,fps=24,format=yuv420p`;
 
     if (hasText) {
-      const lines = splitTextIntoLines(textContent, 45);
-      console.log(`🎨 Clip 1: Adding ${lines.length} text lines`);
+      const lines = splitTextIntoLines(textContent, 40);
+      console.log(`📝 Adding ${lines.length} text lines`);
 
       lines.forEach((line, index) => {
         const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
-        const baseY = 160;
-        const lineSpacing = 28;
+        const baseY = 120;
+        const lineSpacing = 24;
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-        const fontSize = isHeader ? 22 : 18;
+        const fontSize = isHeader ? 20 : 16;
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2:alpha='if(lt(t,0.8),t/0.8,if(lt(t,${durationPerImage-0.8}),1,(${durationPerImage}-t)/0.8))'`;
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=2:bordercolor=black:x=30:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2`;
       });
-    } else {
-      console.log(`ℹ️ Clip 1: No text content`);
     }
 
     filter += `[outv]`;
     return [filter];
   }
 
-  // ============================================================================
-  // MULTIPLE IMAGES: Proper xfade implementation
-  // ============================================================================
-
+  // Multiple images
   const filters = [];
   const fadeDuration = 0.5;
 
-  // ✅ STEP 1: Create each clip as a complete video segment with text overlay
   for (let i = 0; i < imageCount; i++) {
     const textContent = textLogs[i] || '';
     const hasText = textContent.trim().length > 0;
 
-    // Base clip: scale, pad, format
-    let filter = `[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p`;
+    // Images are already 540x960
+    let filter = `[${i}:v]setsar=1,fps=24,format=yuv420p`;
 
-    // Add text overlays if present
     if (hasText) {
-      const lines = splitTextIntoLines(textContent, 45);
-      console.log(`🎨 Clip ${i+1}/${imageCount}: Adding ${lines.length} text lines`);
+      const lines = splitTextIntoLines(textContent, 40);
 
       lines.forEach((line, index) => {
         if (!line || line.trim().length === 0) return;
@@ -460,59 +492,41 @@ function buildFilterComplexWithText(imageFiles, textLogs, durationPerImage) {
         const escapedLine = escapeFFmpegText(line);
         const isHeader = index === 0;
 
-        const baseY = 160;
-        const lineSpacing = 28;
+        const baseY = 120;
+        const lineSpacing = 24;
         const yPosition = `h-${baseY + (lines.length - 1 - index) * lineSpacing}`;
-        const fontSize = isHeader ? 22 : 18;
+        const fontSize = isHeader ? 20 : 16;
 
-        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=3:bordercolor=black:x=40:y=${yPosition}:shadowcolor=black@0.9:shadowx=2:shadowy=2`;
+        filter += `,drawtext=text='${escapedLine}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=${fontSize}:fontcolor=white:borderw=2:bordercolor=black:x=30:y=${yPosition}:shadowcolor=black@0.8:shadowx=2:shadowy=2`;
       });
-    } else {
-      console.log(`ℹ️ Clip ${i+1}/${imageCount}: No text content`);
     }
 
-    // ✅ CRITICAL FIX: All clips should have the SAME duration
-    // The xfade filter automatically handles output duration calculation
-    // Making the last clip longer causes timing issues and can cut off the last frame
     const clipDuration = durationPerImage;
-
-    // Loop the frame, trim to duration, reset PTS
     filter += `,loop=loop=-1:size=1:start=0,trim=duration=${clipDuration},setpts=PTS-STARTPTS[v${i}]`;
 
     filters.push(filter);
-    console.log(`✅ Clip ${i+1}: ${clipDuration}s with text overlay complete`);
   }
 
-  // ✅ STEP 2: Chain the clips together with xfade transitions
+  // Chain with xfade
   let current = 'v0';
   for (let i = 1; i < imageCount; i++) {
-    // ✅ CRITICAL FIX: Correct offset calculation
-    // The offset must account for accumulated overlaps from previous fades
-    // Formula: i * (durationPerImage - fadeDuration)
-    // This ensures each fade starts at the right position in the chained timeline
     const offset = i * (durationPerImage - fadeDuration);
     const next = i === imageCount - 1 ? 'outv' : `v${i}tmp`;
-
-    console.log(`🔗 Xfade ${i}: [${current}] + [v${i}] at ${offset}s → [${next}]`);
 
     filters.push(`[${current}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${next}]`);
     current = next;
   }
 
-  const expectedDuration = imageCount * durationPerImage - (imageCount - 1) * fadeDuration;
-  console.log(`✅ Filter complex built: ${filters.length} filters`);
-  console.log(`   Expected duration: ${expectedDuration}s\n`);
-
+  console.log(`✅ Filter built: ${filters.length} filters`);
   return filters;
 }
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('🚀 Milestone Video API started');
+  console.log('🚀 Milestone Video API - OPTIMIZED');
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🎥 FFmpeg: Enabled ✅`);
-  console.log(`💾 Memory-optimized mode active`);
-  console.log(`📝 Text overlay: Left-aligned with stroke effect`);
-  console.log(`🎯 Video order: CHRONOLOGICAL (oldest → newest)`);
-  console.log(`✅ FIXED: Clip duration bug - all clips now have equal duration`);
-  console.log(`✅ FIXED: Xfade offset calculation for proper transitions`);
+  console.log(`📐 Resolution: 540x960 (memory-optimized)`);
+  console.log(`🎥 Max concurrent: ${MAX_CONCURRENT_RENDERS}`);
+  console.log(`💾 Memory limit: 512MB target`);
+  console.log(`⚡ Preset: ultrafast (low memory usage)`);
+  console.log(`📝 Text: Optimized overlay system`);
 });

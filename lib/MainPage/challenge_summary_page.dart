@@ -19,6 +19,7 @@ import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'video_preview_page.dart';
+import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class DailyLogData {
   final DateTime date;
@@ -2494,9 +2495,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           ],
         ),
         child: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-          ),
+          child: FitCheckLoader(),
         ),
       );
     }
@@ -3048,9 +3047,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
           ],
         ),
         child: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-          ),
+          child: FitCheckLoader(),
         ),
       );
     }

@@ -204,30 +204,37 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
   List<Widget> _buildCalendarDays() {
     final firstDay = DateTime(currentMonth.year, currentMonth.month, 1);
     final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
+
+    // Get weekday (Sunday = 0, Monday = 1, ..., Saturday = 6)
     final startWeekday = firstDay.weekday % 7;
 
     List<Widget> days = [];
 
-    final prevMonth = DateTime(currentMonth.year, currentMonth.month - 1);
-    final prevMonthLastDay = DateTime(
-      prevMonth.year,
-      prevMonth.month + 1,
-      0,
-    ).day;
+    // Add previous month's trailing days
+    if (startWeekday > 0) {
+      final prevMonth = DateTime(currentMonth.year, currentMonth.month - 1);
+      final prevMonthLastDay = DateTime(
+        prevMonth.year,
+        prevMonth.month + 1,
+        0,
+      ).day;
 
-    for (int i = startWeekday - 1; i >= 0; i--) {
-      days.add(_buildDateCell('${prevMonthLastDay - i}', isOtherMonth: true));
+      for (int i = startWeekday - 1; i >= 0; i--) {
+        days.add(_buildDateCell('${prevMonthLastDay - i}', isOtherMonth: true));
+      }
     }
 
+    // Add current month's days
     for (int day = 1; day <= lastDay.day; day++) {
       days.add(_buildDateCell('$day', day: day));
     }
 
-    int remainingDays = 35 - days.length;
-    if (remainingDays > 0 && remainingDays <= 7) {
-      for (int day = 1; day <= remainingDays && days.length < 35; day++) {
-        days.add(_buildDateCell('$day', isOtherMonth: true));
-      }
+    // Fill remaining spaces with next month's days to complete 6 weeks (42 cells)
+    int totalCells = 42; // 6 weeks × 7 days
+    int remainingCells = totalCells - days.length;
+
+    for (int day = 1; day <= remainingCells; day++) {
+      days.add(_buildDateCell('$day', isOtherMonth: true));
     }
 
     return days;
@@ -299,16 +306,18 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
           ),
         );
 
+        // ✅ Add remaining weeks (weeks 4, 5, 6)
         for (int i = 21; i < days.length; i += 7) {
-          int endIndex = (i + 7 < days.length) ? i + 7 : days.length;
+          int endIndex = (i + 7 <= days.length) ? i + 7 : days.length;
           if (endIndex - i == 7) {
             weeks.add(_buildWeekRow(days.sublist(i, endIndex)));
           }
         }
       }
     } else {
+      // ✅ When challenge exists, show all 6 weeks
       for (int i = 0; i < days.length; i += 7) {
-        int endIndex = (i + 7 < days.length) ? i + 7 : days.length;
+        int endIndex = (i + 7 <= days.length) ? i + 7 : days.length;
         if (endIndex - i == 7) {
           weeks.add(_buildWeekRow(days.sublist(i, endIndex)));
         }

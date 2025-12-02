@@ -219,11 +219,12 @@ class CalorieCalculator {
   }
 
   /// Calculate adaptive calorie adjustment based on weight progress
+  /// Implements weekly check-in calorie adjustment logic per engineering specifications
   /// Returns a map with: newCalorieGoal, adjustment, interpretation, reason
   static Map<String, dynamic> calculateAdaptiveAdjustment({
     required UserData userData,
-    required int currentWeight,
-    required int previousWeight,
+    required double currentWeight,
+    required double previousWeight,
     required int currentCalorieGoal,
     String? activityLevel, // Challenge-specific activity level (optional, uses userData.activityLevel if null)
     String? goal, // Challenge-specific goal (optional, uses userData.goal if null)
@@ -244,115 +245,167 @@ class CalorieCalculator {
     }
 
     final goalLower = effectiveGoal.toLowerCase();
-    final weightChange = (currentWeight - previousWeight).toDouble(); // kg
+    final weightChangeKg = (currentWeight - previousWeight).toDouble(); // kg
 
-    String interpretation;
-    String reason;
-    int adjustment = 0;
+    // Define weight change states (0.3 kg threshold for "slight" vs "significant")
+    final bool isStableWeight = weightChangeKg.abs() <= 0.3;
+    final bool isWeightLoss = weightChangeKg < -0.3;
+    final bool isWeightGain = weightChangeKg > 0.3;
 
-    // Recalculate base calories with new weight and challenge-specific activity level
+    String interpretation = 'unchanged';
+    String reason = 'No adjustment needed';
+    int finalDailyGoal = currentCalorieGoal;
+
+    // STEP 1: Recalculate BMR using updated weight, height, age, and sex (Mifflin-St Jeor)
+    // STEP 2: Recalculate TDEE using updated activity multiplier
+    // Convert double weight to int for UserData (rounds to nearest kg)
     final updatedUserData = userData.copyWith(
-      weight: currentWeight,
+      weight: currentWeight.round(),
       activityLevel: effectiveActivityLevel,
       goal: effectiveGoal,
     );
-    final newBaseTDEE = calculateTDEE(updatedUserData);
+    // BMR is calculated internally by calculateTDEE, no need to store separately
+    final newTDEE = calculateTDEE(updatedUserData);
+
+    // STEP 3: Calculate TheoreticalGoal = TDEE + GoalAdjustment
     final goalAdjustment = userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goalLower] ?? 0;
-    int newCalorieGoal = (newBaseTDEE + goalAdjustment).round();
+    final theoreticalGoal = (newTDEE + goalAdjustment).round();
 
-    // Apply safety minimums
-    if (userData.gender!.toLowerCase() == 'female') {
-      newCalorieGoal = newCalorieGoal < 1200 ? 1200 : newCalorieGoal;
-    } else {
-      newCalorieGoal = newCalorieGoal < 1500 ? 1500 : newCalorieGoal;
-    }
+    // STEP 4: Apply Safety Minimums (but don't finalize yet - follow goal-specific rules)
+    final safetyMinimum = userData.gender!.toLowerCase() == 'female' ? 1200 : 1500;
 
-    // Base adjustment on weight change
-    final baseAdjustment = newCalorieGoal - currentCalorieGoal;
+    // STEP 5: Apply base goal-specific adjustment rules
+    // Map goal names to standardized goal types
+    final bool isLoseWeightGoal = goalLower.contains('lose') || goalLower.contains('fat') || goalLower.contains('deficit');
+    final bool isMaintainWeightGoal = goalLower.contains('maintain');
+    final bool isGainWeightGoal = goalLower.contains('gain') || goalLower.contains('muscle') || goalLower.contains('surplus');
 
-    // Goal-specific adaptive logic
-    if (goalLower.contains('maintain')) {
-      // MAINTAIN WEIGHT: Expect weight to stay roughly the same (±0.5kg tolerance)
-      if (weightChange.abs() <= 0.5) {
-        interpretation = 'maintained';
-        reason = 'Weight stable within target range. Maintaining current calorie goal.';
-        adjustment = 0;
-        newCalorieGoal = currentCalorieGoal; // Keep current goal
-      } else if (weightChange > 0.5) {
-        interpretation = 'surplus';
-        reason = 'Weight increased by ${weightChange.toStringAsFixed(1)}kg. Reducing calories by 100 to correct.';
-        adjustment = -100;
-        newCalorieGoal = currentCalorieGoal - 100;
-      } else {
-        interpretation = 'deficit';
-        reason = 'Weight decreased by ${weightChange.abs().toStringAsFixed(1)}kg. Increasing calories by 100 to correct.';
-        adjustment = 100;
-        newCalorieGoal = currentCalorieGoal + 100;
-      }
-    } else if (goalLower.contains('lose') || goalLower.contains('fat')) {
-      // FAT LOSS: Expect 0.5-1kg loss per week
-      if (weightChange >= 0) {
-        interpretation = 'no_progress';
-        reason = 'Weight increased/unchanged. Reducing calories by 150 to increase deficit.';
-        adjustment = -150;
-        newCalorieGoal = currentCalorieGoal - 150;
-      } else if (weightChange < -1.0) {
-        interpretation = 'rapid_loss';
-        reason = 'Weight loss too fast (${weightChange.abs().toStringAsFixed(1)}kg). Increasing calories by 100 to slow down.';
-        adjustment = 100;
-        newCalorieGoal = currentCalorieGoal + 100;
-      } else if (weightChange >= -0.5) {
-        interpretation = 'slow_loss';
-        reason = 'Weight loss slow (${weightChange.abs().toStringAsFixed(1)}kg). Reducing calories by 100 to increase progress.';
-        adjustment = -100;
-        newCalorieGoal = currentCalorieGoal - 100;
-      } else {
+    int baseAdjustment = 0; // Base adjustment from goal-specific rules
+
+    if (isLoseWeightGoal) {
+      // FOR "LOSE WEIGHT" GOAL (CALORIE DEFICIT GOAL)
+      if (isWeightLoss) {
+        // 1.1: WeightLoss occurred - User is progressing correctly
+        // Keep calories the same. Do not lower further.
+        baseAdjustment = 0;
         interpretation = 'optimal_loss';
-        reason = 'Weight loss on track (${weightChange.abs().toStringAsFixed(1)}kg). Applying base recalculation.';
-        adjustment = baseAdjustment;
-      }
-    } else if (goalLower.contains('gain') || goalLower.contains('muscle')) {
-      // MUSCLE GAIN: Expect 0.25-0.5kg gain per week
-      if (weightChange <= 0) {
+        reason = 'Weight loss progressing correctly (${weightChangeKg.abs().toStringAsFixed(1)}kg). Keeping calories the same.';
+      } else if (isStableWeight) {
+        // 1.2: StableWeight - Progress is slow; apply small adjustment
+        // Decrease calories by 50-100 kcal (using 100)
+        baseAdjustment = -100;
+        interpretation = 'slow_loss';
+        reason = 'Weight stable (${weightChangeKg.abs().toStringAsFixed(1)}kg change). Reducing calories by 100 to increase progress.';
+      } else if (isWeightGain) {
+        // 1.3: WeightGain occurred - User is moving opposite of goal
+        // Decrease calories by an additional 100-150 kcal (using 150)
+        baseAdjustment = -150;
         interpretation = 'no_progress';
-        reason = 'Weight decreased/unchanged. Increasing calories by 150 to create surplus.';
-        adjustment = 150;
-        newCalorieGoal = currentCalorieGoal + 150;
-      } else if (weightChange > 0.5) {
-        interpretation = 'rapid_gain';
-        reason = 'Weight gain too fast (${weightChange.toStringAsFixed(1)}kg). Reducing calories by 100 to slow down.';
-        adjustment = -100;
-        newCalorieGoal = currentCalorieGoal - 100;
-      } else if (weightChange < 0.25) {
-        interpretation = 'slow_gain';
-        reason = 'Weight gain slow (${weightChange.toStringAsFixed(1)}kg). Increasing calories by 100 to boost progress.';
-        adjustment = 100;
-        newCalorieGoal = currentCalorieGoal + 100;
-      } else {
+        reason = 'Weight increased by ${weightChangeKg.toStringAsFixed(1)}kg. Reducing calories by 150 to correct course.';
+      }
+    } else if (isMaintainWeightGoal) {
+      // FOR "MAINTAIN WEIGHT" GOAL
+      if (isStableWeight) {
+        // 2.1: StableWeight - User successfully maintained
+        // Keep calories the same
+        baseAdjustment = 0;
+        interpretation = 'maintained';
+        reason = 'Weight stable (${weightChangeKg.abs().toStringAsFixed(1)}kg change). Maintaining current calorie goal.';
+      } else if (isWeightGain) {
+        // 2.2: WeightGain occurred - Gaining weight means previous calories were too high
+        // Do NOT increase calories even if TDEE increased.
+        // Keep calories the same or reduce slightly (-50 to -100 kcal)
+        baseAdjustment = -100; // Use -100 kcal (within -50 to -100 range)
+        interpretation = 'surplus';
+        reason = 'Weight increased by ${weightChangeKg.toStringAsFixed(1)}kg. Reducing calories by 100 to correct.';
+      } else if (isWeightLoss) {
+        // 2.3: WeightLoss occurred - Losing weight unintentionally means calories were too low
+        // Increase calories slightly (+50 to +100 kcal)
+        // Use TheoreticalGoal but capped at +100 above CurrentDailyGoal
+        final maxIncrease = currentCalorieGoal + 100;
+        final targetGoal = (theoreticalGoal > currentCalorieGoal && theoreticalGoal <= maxIncrease) 
+            ? theoreticalGoal 
+            : maxIncrease;
+        baseAdjustment = targetGoal - currentCalorieGoal;
+        interpretation = 'deficit';
+        reason = 'Weight decreased by ${weightChangeKg.abs().toStringAsFixed(1)}kg. Increasing calories to correct (capped at +100 above current).';
+      }
+    } else if (isGainWeightGoal) {
+      // FOR "GAIN WEIGHT" GOAL (CALORIE SURPLUS GOAL)
+      if (isWeightGain) {
+        // 3.1: WeightGain occurred - User is progressing correctly
+        // Keep calories the same. Do not increase further.
+        baseAdjustment = 0;
         interpretation = 'optimal_gain';
-        reason = 'Weight gain on track (${weightChange.toStringAsFixed(1)}kg). Applying base recalculation.';
-        adjustment = baseAdjustment;
+        reason = 'Weight gain progressing correctly (${weightChangeKg.toStringAsFixed(1)}kg). Keeping calories the same.';
+      } else if (isStableWeight) {
+        // 3.2: StableWeight - User is not gaining at expected rate
+        // Increase calories by +100 kcal
+        baseAdjustment = 100;
+        interpretation = 'slow_gain';
+        reason = 'Weight stable (${weightChangeKg.abs().toStringAsFixed(1)}kg change). Increasing calories by 100 to boost progress.';
+      } else if (isWeightLoss) {
+        // 3.3: WeightLoss occurred - User moved opposite of goal
+        // Increase calories by +150 kcal
+        baseAdjustment = 150;
+        interpretation = 'no_progress';
+        reason = 'Weight decreased by ${weightChangeKg.abs().toStringAsFixed(1)}kg. Increasing calories by 150 to correct course.';
       }
     } else {
-      // Unknown goal - just recalculate based on new weight
+      // Unknown goal type - fallback to theoretical goal with safety minimums
+      baseAdjustment = theoreticalGoal - currentCalorieGoal;
       interpretation = 'recalculated';
-      reason = 'Calorie goal recalculated based on new weight.';
-      adjustment = baseAdjustment;
+      reason = 'Calorie goal recalculated based on new weight and activity level.';
     }
 
-    // Apply safety minimums again after adjustment
-    if (userData.gender!.toLowerCase() == 'female') {
-      newCalorieGoal = newCalorieGoal < 1200 ? 1200 : newCalorieGoal;
-    } else {
-      newCalorieGoal = newCalorieGoal < 1500 ? 1500 : newCalorieGoal;
+    // STEP 6: Detect extreme weight changes (>1% of previous weight per week)
+    final weightChangePercent = (weightChangeKg / previousWeight) * 100;
+    final bool isTooMuchGain = weightChangePercent > 1.0;
+    final bool isTooMuchLoss = weightChangePercent < -1.0;
+
+    int extremeAdjustment = 0; // Additional adjustment for extreme changes
+    String extremeReason = '';
+
+    if (isTooMuchGain) {
+      // TooMuchGain: reduce daily goal slightly (-100 to -150 kcal) to prevent excessive gain
+      extremeAdjustment = -100; // Use -100 kcal (within -100 to -150 range)
+      extremeReason = ' Excessive weight gain detected (${weightChangePercent.toStringAsFixed(1)}% of body weight).';
+    } else if (isTooMuchLoss) {
+      // TooMuchLoss: increase daily goal slightly (+100 to +150 kcal) to prevent excessive loss
+      extremeAdjustment = 100; // Use +100 kcal (within +100 to +150 range)
+      extremeReason = ' Excessive weight loss detected (${weightChangePercent.abs().toStringAsFixed(1)}% of body weight).';
     }
+
+    // STEP 7: Combine base adjustments and extreme-change adjustments
+    int totalAdjustment = baseAdjustment + extremeAdjustment;
+
+    // Do not exceed ±150 kcal per week (upper limit)
+    if (totalAdjustment.abs() > 150) {
+      totalAdjustment = totalAdjustment > 0 ? 150 : -150;
+    }
+
+    // Apply total adjustment
+    finalDailyGoal = currentCalorieGoal + totalAdjustment;
+
+    // Update reason if extreme change was detected
+    if (extremeReason.isNotEmpty) {
+      reason += extremeReason;
+      if (isTooMuchGain) {
+        reason += ' Reducing calories by additional 100 to prevent excessive gain.';
+      } else {
+        reason += ' Increasing calories by additional 100 to prevent excessive loss.';
+      }
+    }
+
+    // STEP 8: Apply safety minimums as final check
+    finalDailyGoal = finalDailyGoal < safetyMinimum ? safetyMinimum : finalDailyGoal;
 
     return {
-      'newCalorieGoal': newCalorieGoal,
-      'adjustment': adjustment,
+      'newCalorieGoal': finalDailyGoal,
+      'adjustment': finalDailyGoal - currentCalorieGoal,
       'interpretation': interpretation,
       'reason': reason,
-      'weightChange': weightChange,
+      'weightChange': weightChangeKg,
     };
   }
 }

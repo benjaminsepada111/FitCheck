@@ -122,7 +122,7 @@ class WeeklyCheckInService {
   /// Process check-in with adaptive calorie adjustment
   static Future<bool> processCheckInAndUpdateGoals({
     required Challenge challenge,
-    required int newWeight,
+    required double newWeight, // Accept double for precision
     String? notes,
     String? progressFeeling,
     String? activityLevelChange,
@@ -137,9 +137,9 @@ class WeeklyCheckInService {
 
       final currentCalorieGoal = challenge.dailyCalorieGoal;
 
-      // Get previous check-in to compare weight
+      // Get previous check-in to compare weight (convert to double for calculation)
       final latestCheckIn = await getLatestCheckIn(challenge.id);
-      final previousWeight = latestCheckIn?.currentWeight ?? userData.weight ?? newWeight;
+      final previousWeight = (latestCheckIn?.currentWeight ?? userData.weight ?? newWeight.round()).toDouble();
 
       // Determine updated activity level based on user input
       String? updatedActivityLevel = challenge.activityLevel;
@@ -155,10 +155,11 @@ class WeeklyCheckInService {
       }
 
       // Calculate adaptive adjustment using challenge-specific activity level and goal
+      // Convert int weights to double for precise calculation
       final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
         userData: userData,
-        currentWeight: newWeight,
-        previousWeight: previousWeight,
+        currentWeight: newWeight.toDouble(),
+        previousWeight: previousWeight.toDouble(),
         currentCalorieGoal: currentCalorieGoal,
         activityLevel: updatedActivityLevel, // Use updated activity level
         goal: challenge.goal, // Use challenge-specific goal
@@ -170,10 +171,10 @@ class WeeklyCheckInService {
       final reason = adaptiveResult['reason'] as String;
       final weightChange = adaptiveResult['weightChange'] as double;
 
-      // Update user weight in profile
-      await UserDataService.updateUserData(weight: newWeight);
+      // Update user weight in profile (round to int for storage)
+      await UserDataService.updateUserData(weight: newWeight.round());
 
-      // Create detailed check-in record
+      // Create detailed check-in record (round weights to int for storage)
       final checkIn = WeeklyCheckIn(
         id: _firestore
             .collection(_usersCollection)
@@ -186,8 +187,8 @@ class WeeklyCheckInService {
         challengeId: challenge.id,
         checkInDate: DateTime.now(),
         weekNumber: getCurrentWeekNumber(challenge),
-        currentWeight: newWeight,
-        previousWeight: previousWeight,
+        currentWeight: newWeight.round(), // Round to int for storage
+        previousWeight: previousWeight.round(), // Round to int for storage
         weightChange: weightChange,
         notes: notes,
         progressFeeling: progressFeeling,

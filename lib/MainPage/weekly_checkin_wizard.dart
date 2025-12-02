@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/models/challenge.dart';
-import 'package:capstone_project/models/recommendation.dart';
 import 'package:capstone_project/services/weekly_checkin_service.dart';
-import 'package:capstone_project/services/weekly_recommendations_service.dart';
 import 'package:capstone_project/services/user_data_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WeeklyCheckInWizard extends StatefulWidget {
   final Challenge challenge;
@@ -26,7 +25,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   int currentIndex = 0;
   bool _isAnimating = false;
   bool _isSubmitting = false;
-  bool _isLoadingRecommendations = false;
 
   // Form data
   final TextEditingController _weightController = TextEditingController();
@@ -35,9 +33,51 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   String? _selectedActivityChange;
   String? _weightError;
   String _userName = 'there';
+  String? _currentQuote;
 
-  // Recommendations
-  List<Recommendation> _recommendations = [];
+  // Motivational quotes list
+  static const List<Map<String, String>> _quotes = [
+    {
+      'quote': "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
+      'author': "Aristotle"
+    },
+    {
+      'quote': "Discipline is the bridge between goals and accomplishment.",
+      'author': "Jim Rohn"
+    },
+    {
+      'quote': "Strength does not come from physical capacity. It comes from an indomitable will.",
+      'author': "Mahatma Gandhi"
+    },
+    {
+      'quote': "Motivation is what gets you started. Habit is what keeps you going.",
+      'author': "Jim Ryun"
+    },
+    {
+      'quote': "Don't limit your challenges. Challenge your limits.",
+      'author': "Jerry Dunn"
+    },
+    {
+      'quote': "The only bad workout is the one that didn't happen.",
+      'author': "Unknown"
+    },
+    {
+      'quote': "Success isn't always about greatness. It's about consistency. Consistent hard work leads to success. Greatness will come.",
+      'author': "Dwayne \"The Rock\" Johnson"
+    },
+    {
+      'quote': "The difference between the impossible and the possible lies in a person's determination.",
+      'author': "Tommy Lasorda"
+    },
+    {
+      'quote': "Small daily improvements over time lead to stunning results.",
+      'author': "Robin Sharma"
+    },
+    {
+      'quote': "Push yourself because no one else is going to do it for you.",
+      'author': "Unknown"
+    },
+  ];
 
   // Animation controllers
   late AnimationController _buttonAnimationController;
@@ -60,6 +100,34 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     ));
 
     _loadUserName();
+    _loadNextQuote();
+  }
+
+  /// Load the next quote in rotation (doesn't repeat until all 10 are shown)
+  Future<void> _loadNextQuote() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      int quoteIndex = prefs.getInt('checkin_quote_index') ?? 0;
+      
+      // Get the quote at current index
+      final quoteData = _quotes[quoteIndex];
+      _currentQuote = "${quoteData['quote']} – ${quoteData['author']}";
+      
+      // Increment index for next time (cycle back to 0 after 9)
+      quoteIndex = (quoteIndex + 1) % _quotes.length;
+      await prefs.setInt('checkin_quote_index', quoteIndex);
+      
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // Fallback to first quote if error
+      final quoteData = _quotes[0];
+      _currentQuote = "${quoteData['quote']} – ${quoteData['author']}";
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -135,15 +203,34 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   }
 
   Future<bool> _validateCurrentPage() async {
-    if (currentIndex == 1 && _weightController.text.isEmpty) {
+    if (currentIndex == 1) {
+      // Validate weight input
+      final weightText = _weightController.text.trim();
+      if (weightText.isEmpty) {
+        setState(() {
+          _weightError = 'Please enter your current weight';
+        });
+        return false;
+      }
+      
+      // Validate that it's a valid decimal number
+      final weightValue = double.tryParse(weightText);
+      if (weightValue == null || weightValue <= 0) {
+        setState(() {
+          _weightError = 'Please enter a valid weight (e.g., 50.6 or 50.60)';
+        });
+        return false;
+      }
+      
+      // Clear error if valid
       setState(() {
-        _weightError = 'Please enter your current weight';
+        _weightError = null;
       });
-      return false;
+    } else {
+      setState(() {
+        _weightError = null;
+      });
     }
-    setState(() {
-      _weightError = null;
-    });
     return true;
   }
 
@@ -222,8 +309,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   Future<void> _submitCheckIn() async {
     if (_isSubmitting) return;
 
-    final newWeight = int.tryParse(_weightController.text);
-    if (newWeight == null || newWeight <= 0) {
+    final newWeightDouble = double.tryParse(_weightController.text);
+    if (newWeightDouble == null || newWeightDouble <= 0) {
       if (mounted) {
         _buttonAnimationController.reverse();
         setState(() {
@@ -240,7 +327,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     try {
       final success = await WeeklyCheckInService.processCheckInAndUpdateGoals(
         challenge: widget.challenge,
-        newWeight: newWeight,
+        newWeight: newWeightDouble, // Pass double for calculation precision
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -249,25 +336,15 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       );
 
       if (mounted && success) {
-        // Generate recommendations based on past week performance
-        setState(() => _isLoadingRecommendations = true);
-
-        final recommendations =
-        await WeeklyRecommendationsService.generateRecommendations(
-          challenge: widget.challenge,
-        );
-
         if (mounted) {
           setState(() {
-            _recommendations = recommendations;
-            _isLoadingRecommendations = false;
             _isAnimating = false;
             _isSubmitting = false;
           });
 
           _buttonAnimationController.reverse();
 
-          // Navigate to recommendations page
+          // Navigate to completion page
           await _controller.nextPage(
             duration: const Duration(milliseconds: 350),
             curve: Curves.easeInOutCubic,
@@ -686,7 +763,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                 children: [
                   TextField(
                     controller: _weightController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.w600),
                     textAlign: TextAlign.center,
@@ -1124,176 +1201,94 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     );
   }
 
-  // Page 6: Recommendations (NEW)
+  // Page 6: Completion Page
   Widget _buildRecommendationsPage() {
-    return SingleChildScrollView(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Success Animation
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check_circle,
-                color: AppColors.secondary,
-                size: 72,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Title
-            Text(
-              "Check-in Complete!",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              "Based on your previous week's performance:",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Recommendations Section
-            if (_isLoadingRecommendations)
-              Column(
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Analyzing your progress...',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              )
-            else if (_recommendations.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 48,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No recommendations available',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                    // Spacer to push content to center
+                    const Spacer(),
+                    
+                    // Success Animation
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_circle,
+                        color: AppColors.secondary,
+                        size: 72,
                       ),
                     ),
-                    const SizedBox(height: 6),
+
+                    const SizedBox(height: 24),
+
+                    // Title
                     Text(
-                      'Keep logging your progress!',
+                      "Check-in Complete!",
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
                       ),
+                      textAlign: TextAlign.center,
                     ),
+
+                    const SizedBox(height: 32),
+
+                    // Motivational Quote
+                    if (_currentQuote != null)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.format_quote,
+                              color: AppColors.secondary.withOpacity(0.6),
+                              size: 32,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _currentQuote!,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey.shade800,
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Spacer to push button to bottom
+                    const Spacer(),
+                    
+                    const SizedBox(height: 32),
                   ],
                 ),
-              )
-            else
-              ..._recommendations.map((rec) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _buildRecommendationCard(rec),
-              )),
-
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildRecommendationCard(Recommendation rec) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.2), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              rec.icon,
-              color: AppColors.secondary,
-              size: 32,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  rec.title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  rec.description,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey.shade700,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

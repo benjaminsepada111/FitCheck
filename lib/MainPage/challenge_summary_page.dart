@@ -3691,6 +3691,17 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                   : Colors.grey.shade600,
             ),
 
+            // Activity Level Change
+            if (checkIn.activityLevelChange != null && checkIn.activityLevelChange != 'no_change') ...[
+              const SizedBox(height: 12),
+              _buildInfoRow(
+                'Activity Level',
+                _formatActivityLevelChange(checkIn.activityLevelChange!),
+                _getActivityLevelChangeIcon(checkIn.activityLevelChange!),
+                AppColors.secondary,
+              ),
+            ],
+
             // Notes
             if (checkIn.notes != null && checkIn.notes!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -3777,5 +3788,35 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         ),
       ],
     );
+  }
+
+  /// Format activity level change for display
+  String _formatActivityLevelChange(String change) {
+    switch (change.toLowerCase()) {
+      case 'increased':
+        return 'Increased';
+      case 'decreased':
+        return 'Decreased';
+      case 'no_change':
+        return 'No Change';
+      default:
+        return change.replaceAll('_', ' ').split(' ').map((word) {
+          return word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1);
+        }).join(' ');
+    }
+  }
+
+  /// Get icon for activity level change
+  String _getActivityLevelChangeIcon(String change) {
+    switch (change.toLowerCase()) {
+      case 'increased':
+        return '↑';
+      case 'decreased':
+        return '↓';
+      case 'no_change':
+        return '→';
+      default:
+        return '';
+    }
   }
 }

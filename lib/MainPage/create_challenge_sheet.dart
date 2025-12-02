@@ -30,7 +30,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   // Weight and Height for this challenge
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
-  int? _challengeWeight;
+  double? _challengeWeight; // Use double for input precision
   int? _challengeHeight;
 
   // Activity Level & Goal
@@ -118,7 +118,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     if (_userData != null) {
       // Pre-fill weight and height from user's profile
       if (_userData!.weight != null) {
-        _challengeWeight = _userData!.weight;
+        _challengeWeight = _userData!.weight!.toDouble();
         _weightController.text = _userData!.weight.toString();
       }
       if (_userData!.height != null) {
@@ -199,7 +199,9 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
 
     try {
       // Create temporary user data with challenge-specific activity and goal
+      // Use challenge weight if entered, otherwise use user profile weight
       final tempUserData = _userData!.copyWith(
+        weight: _challengeWeight?.round(), // Round to int for UserData model
         activityLevel: _selectedLifestyleLevel,
         goal: _selectedGoal,
         goalAdjustment: _showAdjustment ? _goalAdjustment : null,
@@ -232,8 +234,13 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       _showError('Please select an end date');
       return false;
     }
+    final weightText = _weightController.text.trim();
+    if (weightText.isEmpty) {
+      _showError('Please enter a weight');
+      return false;
+    }
     if (_challengeWeight == null || _challengeWeight! <= 0) {
-      _showError('Please enter a valid weight');
+      _showError('Please enter a valid weight (e.g., 50.6 or 50.60)');
       return false;
     }
     if (_challengeHeight == null || _challengeHeight! <= 0) {
@@ -285,7 +292,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     try {
       // Use the weight entered/edited by user during challenge creation
       // This becomes the permanent originalWeight for this challenge
-      int? originalWeight = _challengeWeight;
+      // Round to int for storage (models use int for weight)
+      int? originalWeight = _challengeWeight?.round();
 
       final challenge = Challenge(
         id: ChallengeService.generateChallengeId(),
@@ -523,9 +531,9 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
                 child: _buildNumberField(
                   label: 'Weight (kg) *',
                   controller: _weightController,
-                  hint: 'e.g., 70',
+                  hint: 'e.g., 70.5 (supports decimals)',
                   onChanged: (value) {
-                    _challengeWeight = int.tryParse(value);
+                    _challengeWeight = double.tryParse(value);
                   },
                 ),
               ),
@@ -837,7 +845,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,

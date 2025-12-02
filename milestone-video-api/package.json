@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node --expose-gc server.js",
-    "dev": "nodemon --expose-gc server.js"
+    "dev": "nodemon --expose-gc server.js",
+    "test": "echo \"No tests configured\" && exit 0"
   },
   "keywords": ["video", "ffmpeg", "milestone", "api"],
   "author": "",

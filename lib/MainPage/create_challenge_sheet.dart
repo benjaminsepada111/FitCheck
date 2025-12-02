@@ -5,7 +5,6 @@ import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/calorie_calculator.dart';
 import 'package:capstone_project/services/challenge_service.dart';
 import 'package:capstone_project/models/user_data.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class CreateChallengeSheet extends StatefulWidget {
   final dynamic Function(Challenge) onChallengeCreated;
@@ -130,17 +129,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     setState(() {});
   }
 
-  Future<bool> _requestCalendarPermission() async {
-    var status = await Permission.calendar.status;
-
-    if (status.isDenied || status.isRestricted) {
-      status = await Permission.calendar.request();
-    }
-
-    return status.isGranted;
-  }
-
-
   @override
   void dispose() {
     _pageController.dispose();
@@ -157,12 +145,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       TextEditingController controller,
       bool isStartDate,
       ) async {
-
-    bool granted = await _requestCalendarPermission();
-    if (!granted) {
-      _showError("Calendar permission is required.");
-      return;
-    }
 
     final DateTime? picked = await showDatePicker(
       context: context,

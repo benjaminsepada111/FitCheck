@@ -1082,14 +1082,29 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         List<FlSpot> weekDays = [];
         List<FlSpot> weekBurnedDays = [];
 
-        // Collect data for this week (only if data exists)
-        for (int dayIndex = startDayIndex; dayIndex <= endDayIndex && dayIndex < dataPoints.length; dayIndex++) {
-          weeklyCalories += dataPoints[dayIndex].y;
-          weeklyBurned += burnedDataPoints[dayIndex].y;
-          daysInWeek++;
-          // Store daily data for this week (day 1-7 of the week)
-          weekDays.add(FlSpot((daysInWeek).toDouble(), dataPoints[dayIndex].y));
-          weekBurnedDays.add(FlSpot((daysInWeek).toDouble(), burnedDataPoints[dayIndex].y));
+        // Calculate the actual end day for this week (considering challenge end and current date)
+        final actualEndDayIndex = endDayIndex < challengeDuration - 1 
+            ? endDayIndex 
+            : challengeDuration - 1;
+        
+        // Calculate how many days have actually occurred up to today or challenge end
+        final daysSinceStart = now.difference(startDate).inDays;
+        final challengeEndDay = endDate.difference(startDate).inDays;
+        final actualDaysOccurred = daysSinceStart < challengeEndDay ? daysSinceStart : challengeEndDay;
+        
+        // Collect data for this week (only for days that have occurred)
+        int relativeDayInWeek = 0;
+        for (int dayIndex = startDayIndex; dayIndex <= actualEndDayIndex && dayIndex < dataPoints.length; dayIndex++) {
+          // Only include days that have actually occurred (up to today or challenge end)
+          if (dayIndex <= actualDaysOccurred) {
+            weeklyCalories += dataPoints[dayIndex].y;
+            weeklyBurned += burnedDataPoints[dayIndex].y;
+            daysInWeek++;
+            relativeDayInWeek++;
+            // Store daily data for this week using relative day number (1-7) within the week
+            weekDays.add(FlSpot(relativeDayInWeek.toDouble(), dataPoints[dayIndex].y));
+            weekBurnedDays.add(FlSpot(relativeDayInWeek.toDouble(), burnedDataPoints[dayIndex].y));
+          }
         }
 
         // Store weekly daily data for Weekly Summary view (all weeks)
@@ -1937,6 +1952,10 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       );
     }
 
+    // Get dates early for use in calculations
+    final startDate = widget.challenge['startDate'] as DateTime;
+    final endDate = widget.challenge['endDate'] as DateTime;
+
     // Determine which data to show based on selection
     // Weekly Summary = daily data for a specific week
     // Overall = weekly or monthly data for the entire challenge
@@ -1950,11 +1969,39 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
     if (isWeekly) {
       // Weekly Summary: show daily data for current week
-      dataPoints = _weeklyDailyData[_currentWeek] ?? [];
+      final weekData = _weeklyDailyData[_currentWeek] ?? [];
+      
+      // Calculate actual days for this week (up to today or challenge end)
+      final now = DateTime.now();
+      final weekStartDay = (_currentWeek - 1) * 7;
+      final weekEndDay = weekStartDay + 6;
+      final challengeDuration = endDate.difference(startDate).inDays + 1;
+      final daysSinceStart = now.difference(startDate).inDays;
+      final challengeEndDay = endDate.difference(startDate).inDays;
+      final actualDaysOccurred = daysSinceStart < challengeEndDay ? daysSinceStart : challengeEndDay;
+      
+      // Calculate how many days in this week have actually occurred
+      final weekStartDayIndex = weekStartDay; // 0-based
+      final weekEndDayIndex = weekEndDay < challengeDuration - 1 ? weekEndDay : challengeDuration - 1;
+      final actualWeekEndDayIndex = (weekEndDayIndex <= actualDaysOccurred) 
+          ? weekEndDayIndex 
+          : actualDaysOccurred;
+      
+      // Only include data points for days that have occurred
+      dataPoints = weekData.where((spot) {
+        final dayInWeek = spot.x.toInt();
+        final dayIndex = weekStartDayIndex + dayInWeek - 1; // Convert back to challenge day index
+        return dayIndex <= actualDaysOccurred && dayIndex <= weekEndDayIndex;
+      }).toList();
+      
       minCalories = _minDailyCalories;
       maxCalories = _maxDailyCalories;
-      // Show all 7 days on x-axis even if only partial data
-      totalPeriods = 7;
+      
+      // Calculate total periods (days that have occurred in this week)
+      final actualDaysInWeek = actualWeekEndDayIndex >= weekStartDayIndex 
+          ? (actualWeekEndDayIndex - weekStartDayIndex + 1) 
+          : 0;
+      totalPeriods = actualDaysInWeek > 0 ? actualDaysInWeek : (dataPoints.isNotEmpty ? dataPoints.length : 0);
       periodLabel = 'DAY';
     } else {
       // Overall: show weekly or monthly data
@@ -1972,10 +2019,6 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         periodLabel = 'WEEK';
       }
     }
-
-    // Get dates early for use in empty states
-    final startDate = widget.challenge['startDate'] as DateTime;
-    final endDate = widget.challenge['endDate'] as DateTime;
 
     if (dataPoints.isEmpty) {
       // For Weekly Summary with no data: show empty state
@@ -2347,8 +2390,33 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                                       );
                                     }
                                   }
+                                } else if (isWeekly) {
+                                  // For weekly view: show dates
+                                  final weekStartDay = (_currentWeek - 1) * 7;
+                                  final dayIndex = weekStartDay + period - 1; // Convert to 0-based day index
+                                  final dayDate = startDate.add(Duration(days: dayIndex));
+                                  
+                                  // Only show label if this day has occurred or is today
+                                  final now = DateTime.now();
+                                  final daysSinceStart = now.difference(startDate).inDays;
+                                  final challengeEndDay = endDate.difference(startDate).inDays;
+                                  final actualDaysOccurred = daysSinceStart < challengeEndDay ? daysSinceStart : challengeEndDay;
+                                  
+                                  if (dayIndex <= actualDaysOccurred && dayIndex <= challengeEndDay) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        '${dayDate.day}/${dayDate.month}',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return const Text('');
                                 } else {
-                                  // Show numbers for weekly or daily view
+                                  // Show numbers for overall view
                                   // For weekly/daily: show all numbers if <= 10 periods, otherwise show first and last
                                   if (totalPeriods <= 10) {
                                     return Padding(
@@ -2387,8 +2455,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                         ),
                       ),
                       borderData: FlBorderData(show: false),
-                      minX: 1,
-                      maxX: totalPeriods.toDouble(),
+                      minX: totalPeriods > 0 ? 1.0 : 0.0,
+                      maxX: totalPeriods > 0 ? totalPeriods.toDouble() : 1.0,
                       minY: minCalories,
                       maxY: maxCalories,
                       lineBarsData: dataPoints.isEmpty
@@ -2513,10 +2581,39 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
     if (isWeekly) {
       // Weekly Summary: show daily data for current week
-      dataPoints = _weeklyDailyBurnedData[_currentWeek] ?? [];
+      final weekBurnedData = _weeklyDailyBurnedData[_currentWeek] ?? [];
+      
+      // Calculate actual days for this week (up to today or challenge end)
+      final now = DateTime.now();
+      final weekStartDay = (_currentWeek - 1) * 7;
+      final weekEndDay = weekStartDay + 6;
+      final challengeDuration = endDate.difference(startDate).inDays + 1;
+      final daysSinceStart = now.difference(startDate).inDays;
+      final challengeEndDay = endDate.difference(startDate).inDays;
+      final actualDaysOccurred = daysSinceStart < challengeEndDay ? daysSinceStart : challengeEndDay;
+      
+      // Calculate how many days in this week have actually occurred
+      final weekStartDayIndex = weekStartDay; // 0-based
+      final weekEndDayIndex = weekEndDay < challengeDuration - 1 ? weekEndDay : challengeDuration - 1;
+      final actualWeekEndDayIndex = (weekEndDayIndex <= actualDaysOccurred) 
+          ? weekEndDayIndex 
+          : actualDaysOccurred;
+      
+      // Only include data points for days that have occurred
+      dataPoints = weekBurnedData.where((spot) {
+        final dayInWeek = spot.x.toInt();
+        final dayIndex = weekStartDayIndex + dayInWeek - 1; // Convert back to challenge day index
+        return dayIndex <= actualDaysOccurred && dayIndex <= weekEndDayIndex;
+      }).toList();
+      
       minBurned = _minDailyBurned;
       maxBurned = _maxDailyBurned;
-      totalPeriods = 7;
+      
+      // Calculate total periods (days that have occurred in this week)
+      final actualDaysInWeek = actualWeekEndDayIndex >= weekStartDayIndex 
+          ? (actualWeekEndDayIndex - weekStartDayIndex + 1) 
+          : 0;
+      totalPeriods = actualDaysInWeek > 0 ? actualDaysInWeek : (dataPoints.isNotEmpty ? dataPoints.length : 0);
       periodLabel = 'DAY';
     } else {
       // Overall: show weekly or monthly data
@@ -2907,8 +3004,33 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                                       );
                                     }
                                   }
+                                } else if (isWeekly) {
+                                  // For weekly view: show dates
+                                  final weekStartDay = (_currentWeek - 1) * 7;
+                                  final dayIndex = weekStartDay + period - 1; // Convert to 0-based day index
+                                  final dayDate = startDate.add(Duration(days: dayIndex));
+                                  
+                                  // Only show label if this day has occurred or is today
+                                  final now = DateTime.now();
+                                  final daysSinceStart = now.difference(startDate).inDays;
+                                  final challengeEndDay = endDate.difference(startDate).inDays;
+                                  final actualDaysOccurred = daysSinceStart < challengeEndDay ? daysSinceStart : challengeEndDay;
+                                  
+                                  if (dayIndex <= actualDaysOccurred && dayIndex <= challengeEndDay) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                        '${dayDate.day}/${dayDate.month}',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return const Text('');
                                 } else {
-                                  // Show numbers for weekly or daily view
+                                  // Show numbers for overall view
                                   // For weekly/daily: show all numbers if <= 10 periods, otherwise show first and last
                                   if (totalPeriods <= 10) {
                                     return Padding(
@@ -2947,8 +3069,8 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                         ),
                       ),
                       borderData: FlBorderData(show: false),
-                      minX: 1,
-                      maxX: totalPeriods.toDouble(),
+                      minX: totalPeriods > 0 ? 1.0 : 0.0,
+                      maxX: totalPeriods > 0 ? totalPeriods.toDouble() : 1.0,
                       minY: minBurned,
                       maxY: maxBurned,
                       lineBarsData: dataPoints.isEmpty

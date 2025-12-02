@@ -219,10 +219,12 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
     final progress = _calculateProgress(challenge);
     final daysTotal =
         challenge.endDate.difference(challenge.startDate).inDays + 1;
-    // For completed or cancelled challenges, use endDate instead of now
-    final referenceDate = (challenge.isCompleted || challenge.isCancelled)
-        ? challenge.endDate
-        : now;
+    // For cancelled challenges, use cancelledAt date; for completed, use endDate; otherwise use now
+    final referenceDate = challenge.isCancelled && challenge.cancelledAt != null
+        ? challenge.cancelledAt!
+        : (challenge.isCompleted
+            ? challenge.endDate
+            : now);
     final daysPassed = referenceDate.difference(challenge.startDate).inDays + 1;
 
     // Use the challenge's status directly
@@ -239,9 +241,14 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
       statusColor = Colors.orange.shade600;
     }
 
+    // Check if challenge is active - active challenges cannot be swiped to delete
+    final isActiveChallenge = challenge.isActive && 
+        challenge.lifecycleStatus == 'active' && 
+        !challenge.isCompleted;
+
     return Dismissible(
       key: Key(challenge.id),
-      direction: DismissDirection.endToStart,
+      direction: isActiveChallenge ? DismissDirection.none : DismissDirection.endToStart,
       background: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -461,23 +468,25 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
                 ),
               ),
 
-              // Swipe hint for history items
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.swipe_left, size: 14, color: Colors.grey.shade500),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Swipe left to delete permanently',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                      fontStyle: FontStyle.italic,
+              // Swipe hint for history items (only show for non-active challenges)
+              if (!isActiveChallenge) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.swipe_left, size: 14, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Swipe left to delete permanently',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -532,12 +541,14 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
     final totalDays =
         challenge.endDate.difference(challenge.startDate).inDays + 1;
     
-    // For completed or cancelled challenges, use endDate instead of now
-    // This prevents progress from continuing to increase after challenge ends
+    // For cancelled challenges, use cancelledAt date; for completed, use endDate; otherwise use now
+    // This prevents progress from continuing to increase after challenge ends/cancels
     final now = DateTime.now();
-    final referenceDate = (challenge.isCompleted || challenge.isCancelled)
-        ? challenge.endDate
-        : now;
+    final referenceDate = challenge.isCancelled && challenge.cancelledAt != null
+        ? challenge.cancelledAt!
+        : (challenge.isCompleted
+            ? challenge.endDate
+            : now);
     
     final daysPassed = referenceDate.difference(challenge.startDate).inDays + 1;
 

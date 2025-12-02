@@ -27,7 +27,6 @@ import 'package:capstone_project/widgets/NotificationBellIcon.dart';
 import 'services/challenge_completion_service.dart';
 import 'widgets/challenge_completion_dialog.dart';
 
-
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
   final List<Challenge>? initialChallengeHistory;
@@ -72,14 +71,16 @@ class _MainPageState extends State<MainPage> {
       Challenge? completedChallenge;
       for (final challenge in allChallenges) {
         if (challenge.lifecycleStatus != 'cancelled' && challenge.isCompleted) {
-          final justCompleted = ChallengeCompletionService.isChallengeJustCompleted(
-            challenge.endDate,
-          );
+          final justCompleted =
+              ChallengeCompletionService.isChallengeJustCompleted(
+                challenge.endDate,
+              );
 
           if (justCompleted) {
-            final hasShown = await ChallengeCompletionService.hasShownCompletionPopup(
-              challenge.id,
-            );
+            final hasShown =
+                await ChallengeCompletionService.hasShownCompletionPopup(
+                  challenge.id,
+                );
 
             if (!hasShown) {
               completedChallenge = challenge;
@@ -198,7 +199,7 @@ class _MainPageState extends State<MainPage> {
       await UserAchievementService.trackDailyLogin();
 
       final newlyUnlocked =
-      await UserAchievementService.checkAndUnlockAchievements();
+          await UserAchievementService.checkAndUnlockAchievements();
 
       if (newlyUnlocked.isNotEmpty && mounted) {
         for (final id in newlyUnlocked) {
@@ -289,11 +290,12 @@ class _MainPageState extends State<MainPage> {
       // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
       // Get only active (non-cancelled, non-completed) challenges
-      final activeChallenges = allChallenges.where((c) =>
-      c.lifecycleStatus == 'active' &&
-          c.isActive &&
-          !c.isCompleted
-      ).toList();
+      final activeChallenges = allChallenges
+          .where(
+            (c) =>
+                c.lifecycleStatus == 'active' && c.isActive && !c.isCompleted,
+          )
+          .toList();
 
       if (mounted) {
         setState(() {
@@ -320,11 +322,12 @@ class _MainPageState extends State<MainPage> {
       // Get all challenges first
       final allChallenges = await ChallengeService.getUserChallenges();
       // Get only active (non-cancelled, non-completed) challenges
-      final activeChallenges = allChallenges.where((c) =>
-      c.lifecycleStatus == 'active' &&
-          c.isActive &&
-          !c.isCompleted
-      ).toList();
+      final activeChallenges = allChallenges
+          .where(
+            (c) =>
+                c.lifecycleStatus == 'active' && c.isActive && !c.isCompleted,
+          )
+          .toList();
 
       if (mounted) {
         setState(() {
@@ -359,7 +362,12 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
-  void _showChallengeHistory() {
+  void _showChallengeHistory() async {
+    // Reload challenge history from database before showing modal
+    await _loadChallengeData();
+    
+    if (!mounted) return;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -368,7 +376,10 @@ class _MainPageState extends State<MainPage> {
         challengeHistory: _challengeHistory,
         onChallengeCreated: _onChallengeCreated,
       ),
-    );
+    ).then((_) {
+      // Reload challenge history again when modal is closed to ensure parent state is updated
+      _loadChallengeData();
+    });
   }
 
   void _showCreateChallenge() {
@@ -430,22 +441,6 @@ class _MainPageState extends State<MainPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Challenge cancelled. View it in Challenge History.',
-          ),
-          backgroundColor: Colors.orange,
-          action: SnackBarAction(
-            label: 'View History',
-            textColor: Colors.white,
-            onPressed: () {
-              _showChallengeHistory();
-            },
-          ),
-        ),
-      );
-
       _refreshTrackers();
     } catch (e) {
       if (!mounted) return;
@@ -468,42 +463,6 @@ class _MainPageState extends State<MainPage> {
 
     _loadChallengeData();
     _refreshTrackers();
-
-    final r = context.responsive;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: r.size(20)),
-            ResponsiveGap.horizontal(8),
-            Expanded(
-              child: Text(
-                'Challenge "${challenge.title}" is now active across all tabs!',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: r.font(14, min: 12, max: 16),
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(r.size(10)),
-        ),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'View',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              _selectedIndex = 0;
-            });
-          },
-        ),
-      ),
-    );
   }
 
   void _onChallengeEnded() {
@@ -543,7 +502,7 @@ class _MainPageState extends State<MainPage> {
       } else {
         try {
           _currentChallenge = _challengeHistory.firstWhere(
-                (challenge) => challenge.title == challengeTitle,
+            (challenge) => challenge.title == challengeTitle,
           );
         } catch (e) {
           _currentChallenge = null;
@@ -559,7 +518,8 @@ class _MainPageState extends State<MainPage> {
     List<PopupMenuEntry<String>> items = [];
 
     // If there's a current active challenge, only show that one
-    if (_currentChallenge != null && _currentChallenge!.lifecycleStatus != 'cancelled') {
+    if (_currentChallenge != null &&
+        _currentChallenge!.lifecycleStatus != 'cancelled') {
       items.add(
         PopupMenuItem(
           value: _currentChallenge!.title,
@@ -702,58 +662,58 @@ class _MainPageState extends State<MainPage> {
         // HOME PAGE
         _currentChallenge == null
             ? EmptyState(
-          type: EmptyStateType.noChallengeHome,
-          onAction: _showCreateChallenge,
-        )
+                type: EmptyStateType.noChallengeHome,
+                onAction: _showCreateChallenge,
+              )
             : SingleChildScrollView(
-          padding: r.paddingSymmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MilestoneJourney(
-                key: _milestoneKey,
-                currentChallenge: _currentChallenge,
-                onCreateChallenge: _showCreateChallenge,
+                padding: r.paddingSymmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MilestoneJourney(
+                      key: _milestoneKey,
+                      currentChallenge: _currentChallenge,
+                      onCreateChallenge: _showCreateChallenge,
+                    ),
+                    ResponsiveGap.vertical(12),
+                    Trackers(
+                      key: _trackersKey,
+                      currentChallenge: _currentChallenge,
+                      onCaloriesChanged: _onCaloriesChanged,
+                    ),
+                    ResponsiveGap.vertical(12),
+                    ChallengeCalendar(
+                      currentChallenge: _currentChallenge,
+                      onChallengeCreated: _onChallengeCreated,
+                      onChallengeEnded: _onChallengeEnded,
+                    ),
+                  ],
+                ),
               ),
-              ResponsiveGap.vertical(12),
-              Trackers(
-                key: _trackersKey,
-                currentChallenge: _currentChallenge,
-                onCaloriesChanged: _onCaloriesChanged,
-              ),
-              ResponsiveGap.vertical(12),
-              ChallengeCalendar(
-                currentChallenge: _currentChallenge,
-                onChallengeCreated: _onChallengeCreated,
-                onChallengeEnded: _onChallengeEnded,
-              ),
-            ],
-          ),
-        ),
 
         // FOOD PAGE
         _currentChallenge == null
             ? EmptyState(
-          type: EmptyStateType.noChallengeFood,
-          onAction: _showCreateChallenge,
-        )
+                type: EmptyStateType.noChallengeFood,
+                onAction: _showCreateChallenge,
+              )
             : FoodPage(
-          key: _foodPageKey,
-          currentChallenge: _currentChallenge,
-          onChallengeCreated: _onChallengeCreated,
-          onCaloriesUpdated: _refreshTrackers,
-        ),
+                key: _foodPageKey,
+                currentChallenge: _currentChallenge,
+                onChallengeCreated: _onChallengeCreated,
+                onCaloriesUpdated: _refreshTrackers,
+              ),
 
         // WORKOUT PAGE
         _currentChallenge == null
             ? EmptyState(
-          type: EmptyStateType.noChallengeWorkout,
-          onAction: _showCreateChallenge,
-        )
+                type: EmptyStateType.noChallengeWorkout,
+                onAction: _showCreateChallenge,
+              )
             : WorkoutHistoryPage(
-          key: _workoutPageKey,
-          currentChallenge: _currentChallenge,
-        ),
+                key: _workoutPageKey,
+                currentChallenge: _currentChallenge,
+              ),
 
         // PROFILE PAGE
         const ProfilePage(),
@@ -792,15 +752,11 @@ class _MainPageState extends State<MainPage> {
                       children: const [
                         TextSpan(
                           text: 'Fit',
-                          style: TextStyle(
-                            color: Colors.black87,
-                          ),
+                          style: TextStyle(color: Colors.black87),
                         ),
                         TextSpan(
                           text: 'Check',
-                          style: TextStyle(
-                            color: AppColors.secondary,
-                          ),
+                          style: TextStyle(color: AppColors.secondary),
                         ),
                       ],
                     ),
@@ -859,7 +815,9 @@ class _MainPageState extends State<MainPage> {
                               width: r.size(10),
                               height: r.size(10),
                               decoration: BoxDecoration(
-                                color: _currentChallenge != null ? Colors.green : Colors.grey,
+                                color: _currentChallenge != null
+                                    ? Colors.green
+                                    : Colors.grey,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -886,7 +844,7 @@ class _MainPageState extends State<MainPage> {
                               size: r.size(18),
                             ),
                           ],
-                        )
+                        ),
                       ),
                     ),
                   ),
@@ -962,6 +920,7 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
       return false;
     }
   }
+
   Future<void> _preloadChallengeData() async {
     try {
       // Get all challenges first
@@ -972,13 +931,18 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
           _preloadedChallengeHistory = allChallenges;
 
           // Just find active challenges
-          final activeChallenges = allChallenges.where((c) =>
-          c.lifecycleStatus == 'active' &&
-              c.isActive &&
-              !c.isCompleted
-          ).toList();
+          final activeChallenges = allChallenges
+              .where(
+                (c) =>
+                    c.lifecycleStatus == 'active' &&
+                    c.isActive &&
+                    !c.isCompleted,
+              )
+              .toList();
 
-          _preloadedChallenge = activeChallenges.isNotEmpty ? activeChallenges.first : null;
+          _preloadedChallenge = activeChallenges.isNotEmpty
+              ? activeChallenges.first
+              : null;
         });
       }
     } catch (e) {
@@ -986,6 +950,7 @@ class _MainPageWrapperState extends State<MainPageWrapper> {
       // Continue anyway - MainPage will load data if preload fails
     }
   }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {

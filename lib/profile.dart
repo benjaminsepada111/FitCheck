@@ -12,7 +12,6 @@ import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
 import 'package:capstone_project/reminder_settings.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
-import 'package:capstone_project/MainPage/calorie_adjustment_test_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -681,20 +680,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const ReminderSettingsPage(),
-                ),
-              ),
-            ),
-            Divider(height: r.size(1), indent: r.size(60)),
-            _buildListTile(
-              context,
-              r,
-              Icons.science_outlined,
-              "Test Calorie Adjustment",
-              "Temporary test page for calorie logic",
-                  () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CalorieAdjustmentTestPage(),
                 ),
               ),
             ),

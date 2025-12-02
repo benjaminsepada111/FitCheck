@@ -129,11 +129,54 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       if (source == ImageSource.camera) {
-        var status = await Permission.camera.request();
-        if (!status.isGranted) {
-          if (!mounted) return;
-          _showError("Camera permission denied");
-          return;
+        // Handle camera permission
+        if (Platform.isAndroid) {
+          // On Android, explicitly request permission
+          var status = await Permission.camera.request();
+          if (!status.isGranted) {
+            if (!mounted) return;
+            _showError("Camera permission denied");
+            return;
+          }
+        } else if (Platform.isIOS) {
+          // On iOS, check permission status first
+          var status = await Permission.camera.status;
+          if (status.isDenied || status.isRestricted) {
+            // Request permission - this will show the dialog on iOS
+            status = await Permission.camera.request();
+            if (!status.isGranted) {
+              if (!mounted) return;
+              // If permanently denied, offer to open settings
+              if (status.isPermanentlyDenied) {
+                final shouldOpen = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Camera Permission Required'),
+                    content: const Text(
+                      'Camera permission is required to take photos. Please enable it in Settings.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Open Settings'),
+                      ),
+                    ],
+                  ),
+                );
+                if (shouldOpen == true) {
+                  await openAppSettings();
+                }
+              } else {
+                _showError("Camera permission denied");
+              }
+              return;
+            }
+          }
+          // If permission is already granted or just granted, proceed
         }
       } else if (source == ImageSource.gallery) {
         PermissionStatus status;
@@ -153,6 +196,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
             return;
           }
         }
+        // On iOS, image_picker handles photo library permissions automatically via PHPickerViewController
       }
 
       final XFile? pickedFile = await _imagePicker.pickImage(

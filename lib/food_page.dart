@@ -13,6 +13,7 @@ import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class FoodPage extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -209,6 +210,79 @@ class _FoodPageState extends State<FoodPage>
         builder: (context, setModalState) {
           Future<void> pickImage(ImageSource source) async {
             try {
+              // Handle camera permission
+              if (source == ImageSource.camera) {
+                if (Platform.isAndroid) {
+                  // On Android, explicitly request permission
+                  var status = await Permission.camera.request();
+                  if (!status.isGranted) {
+                    if (!context.mounted) return;
+                    final r = context.responsive;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Camera permission denied', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
+                        backgroundColor: Colors.red.shade600,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(r.size(12)),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                } else if (Platform.isIOS) {
+                  // On iOS, check permission status first
+                  var status = await Permission.camera.status;
+                  if (status.isDenied || status.isRestricted) {
+                    // Request permission - this will show the dialog on iOS
+                    status = await Permission.camera.request();
+                    if (!status.isGranted) {
+                      if (!context.mounted) return;
+                      // If permanently denied, offer to open settings
+                      if (status.isPermanentlyDenied) {
+                        final shouldOpen = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Camera Permission Required'),
+                            content: const Text(
+                              'Camera permission is required to take photos. Please enable it in Settings.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Open Settings'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (shouldOpen == true) {
+                          await openAppSettings();
+                        }
+                      } else {
+                        final r = context.responsive;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Camera permission denied', style: TextStyle(fontSize: r.font(14, min: 12, max: 16))),
+                            backgroundColor: Colors.red.shade600,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(r.size(12)),
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                  }
+                  // If permission is already granted or just granted, proceed
+                }
+              }
+              // On iOS, image_picker handles photo library permissions automatically via PHPickerViewController
+
               final pickedFile = await picker.pickImage(
                 source: source,
                 imageQuality: 80,

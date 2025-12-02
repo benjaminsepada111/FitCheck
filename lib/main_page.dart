@@ -97,6 +97,14 @@ class _MainPageState extends State<MainPage> {
       print('✅ Found completed challenge: ${completedChallenge.title}');
       print('🎉 Showing completion dialog AFTER empty state!');
 
+      // Track challenge completion for achievements
+      try {
+        await UserAchievementService.trackChallengeCompletion();
+        print('✅ Challenge completion tracked for achievements');
+      } catch (e) {
+        print('❌ Error tracking challenge completion: $e');
+      }
+
       // Show completion dialog AFTER empty state is visible
       if (mounted) {
         // Wait a bit longer so user sees empty state first

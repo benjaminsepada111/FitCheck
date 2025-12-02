@@ -8,6 +8,7 @@ import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/user_achievement_service.dart';
 import 'package:capstone_project/services/image_storage_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AddWorkoutSheetV2 extends StatefulWidget {
   final String? challengeId;
@@ -118,6 +119,59 @@ class _AddWorkoutSheetV2State extends State<AddWorkoutSheetV2> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      // Handle camera permission
+      if (source == ImageSource.camera) {
+        if (Platform.isAndroid) {
+          // On Android, explicitly request permission
+          var status = await Permission.camera.request();
+          if (!status.isGranted) {
+            if (!mounted) return;
+            _showError("Camera permission denied");
+            return;
+          }
+        } else if (Platform.isIOS) {
+          // On iOS, check permission status first
+          var status = await Permission.camera.status;
+          if (status.isDenied || status.isRestricted) {
+            // Request permission - this will show the dialog on iOS
+            status = await Permission.camera.request();
+            if (!status.isGranted) {
+              if (!mounted) return;
+              // If permanently denied, offer to open settings
+              if (status.isPermanentlyDenied) {
+                final shouldOpen = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Camera Permission Required'),
+                    content: const Text(
+                      'Camera permission is required to take photos. Please enable it in Settings.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Open Settings'),
+                      ),
+                    ],
+                  ),
+                );
+                if (shouldOpen == true) {
+                  await openAppSettings();
+                }
+              } else {
+                _showError("Camera permission denied");
+              }
+              return;
+            }
+          }
+          // If permission is already granted or just granted, proceed
+        }
+      }
+      // On iOS, image_picker handles photo library permissions automatically via PHPickerViewController
+
       final pickedFile = await _picker.pickImage(
         source: source,
         imageQuality: 80,

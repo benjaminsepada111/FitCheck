@@ -275,6 +275,9 @@ class UserAchievementService {
         iconName: 'flag',
         iconColor: 0xFF9C27B0,
       );
+
+      // Check and unlock achievements after tracking completion
+      await checkAndUnlockAchievements();
     } catch (e) {}
   }
 

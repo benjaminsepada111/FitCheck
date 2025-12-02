@@ -824,20 +824,72 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
     try {
       if (source == ImageSource.camera) {
-        var status = await Permission.camera.request();
-        if (!status.isGranted) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("Camera permission denied"),
-              backgroundColor: Colors.red.shade600,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        // Handle camera permission
+        if (Platform.isAndroid) {
+          // On Android, explicitly request permission
+          var status = await Permission.camera.request();
+          if (!status.isGranted) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text("Camera permission denied"),
+                backgroundColor: Colors.red.shade600,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-            ),
-          );
-          return;
+            );
+            return;
+          }
+        } else if (Platform.isIOS) {
+          // On iOS, check permission status first
+          var status = await Permission.camera.status;
+          if (status.isDenied || status.isRestricted) {
+            // Request permission - this will show the dialog on iOS
+            status = await Permission.camera.request();
+            if (!status.isGranted) {
+              if (!mounted) return;
+              // If permanently denied, offer to open settings
+              if (status.isPermanentlyDenied) {
+                final shouldOpen = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Camera Permission Required'),
+                    content: const Text(
+                      'Camera permission is required to take photos. Please enable it in Settings.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Open Settings'),
+                      ),
+                    ],
+                  ),
+                );
+                if (shouldOpen == true) {
+                  await openAppSettings();
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text("Camera permission denied"),
+                    backgroundColor: Colors.red.shade600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
+          }
+          // If permission is already granted or just granted, proceed
         }
       } else if (source == ImageSource.gallery) {
         PermissionStatus status;
@@ -866,6 +918,7 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
             return;
           }
         }
+        // On iOS, image_picker handles photo library permissions automatically via PHPickerViewController
       }
 
       final picker = ImagePicker();

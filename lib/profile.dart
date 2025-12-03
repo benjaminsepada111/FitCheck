@@ -6,7 +6,6 @@ import 'package:capstone_project/color/colors.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/user_time_tracker.dart';
 import 'package:capstone_project/models/user_data.dart';
-import 'package:capstone_project/services/notification_service.dart';
 import 'package:capstone_project/achievements_page.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
@@ -575,19 +574,15 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildListTile(
               context,
               r,
-              Icons.shield_outlined,
-              "Two Factor Authentication",
-              "Add extra security",
-              null,
-            ),
-            Divider(height: r.size(1), indent: r.size(60)),
-            _buildListTile(
-              context,
-              r,
-              Icons.fingerprint,
-              "Biometric Login",
-              "Use fingerprint or face ID",
-              null,
+              Icons.notifications_outlined,
+              "Notification Reminders",
+              "Manage meal & milestone reminders",
+                  () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ReminderSettingsPage(),
+                ),
+              ),
             ),
           ]),
 
@@ -641,47 +636,6 @@ class _ProfilePageState extends State<ProfilePage> {
               FirebaseAuth.instance.currentUser?.emailVerified == true
                   ? "Yes"
                   : "No",
-            ),
-          ]),
-
-          ResponsiveGap(24),
-
-          // Section Header
-          Padding(
-            padding: r.padding(left: 4, bottom: 12),
-            child: Text(
-              'Preferences',
-              style: TextStyle(
-                fontSize: r.font(16, min: 14, max: 20),
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade700,
-              ),
-            ),
-          ),
-
-          // Preferences
-          _buildSection(r, [
-            _buildSwitchTile(
-              context,
-              r,
-              Icons.dark_mode_outlined,
-              "Dark Mode",
-              "Switch to dark theme",
-              false,
-            ),
-            Divider(height: r.size(1), indent: r.size(60)),
-            _buildListTile(
-              context,
-              r,
-              Icons.notifications_outlined,
-              "Notification Reminders",
-              "Manage meal & milestone reminders",
-                  () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ReminderSettingsPage(),
-                ),
-              ),
             ),
           ]),
 
@@ -768,44 +722,6 @@ class _ProfilePageState extends State<ProfilePage> {
         color: Colors.grey.shade400,
         size: r.size(16),
       ),
-    );
-  }
-
-  static Widget _buildSwitchTile(
-      BuildContext context,
-      Responsive r,
-      IconData icon,
-      String title,
-      String subtitle,
-      bool value,
-      ) {
-    return SwitchListTile(
-      value: value,
-      onChanged: (_) {},
-      contentPadding: r.paddingSymmetric(horizontal: 20, vertical: 8),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: r.font(15, min: 13, max: 18),
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(fontSize: r.font(13, min: 11, max: 16), color: Colors.grey.shade600),
-      ),
-      secondary: Container(
-        padding: r.padding(all: 10),
-        decoration: BoxDecoration(
-          color: AppColors.secondary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(r.size(12)),
-        ),
-        child: Icon(icon, color: AppColors.secondary, size: r.size(22)),
-      ),
-      activeColor: AppColors.secondary,
-      activeTrackColor: AppColors.secondary.withValues(alpha: 0.3),
-      controlAffinity: ListTileControlAffinity.trailing,
     );
   }
 

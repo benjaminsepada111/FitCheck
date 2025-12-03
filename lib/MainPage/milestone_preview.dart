@@ -232,26 +232,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     super.dispose();
   }
 
-  void _startSlideshow() {
-    if (_isSlideshow) return;
-    setState(() => _isSlideshow = true);
-    _runSlideshow();
-  }
-
-  void _runSlideshow() async {
-    while (_isSlideshow && mounted) {
-      await Future.delayed(_slideshowInterval);
-      if (_isSlideshow && mounted && widget.milestones.isNotEmpty) {
-        int nextIndex = (_currentIndex + 1) % widget.milestones.length;
-        _pageController.animateToPage(
-          nextIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    }
-  }
-
   void _stopSlideshow() => setState(() => _isSlideshow = false);
 
   void _showSnackBar(String message) {
@@ -267,112 +247,31 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
     );
   }
 
-  void _showSlideshowSettings() {
-    showModalBottomSheet(
+  void _showLoadingDialog(String message) {
+    showDialog(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Slideshow Settings',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Color(0xFF1A1A1A)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Slide Interval',
-              style: TextStyle(
-                color: Color(0xFF666666),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          backgroundColor: Colors.black87,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const FitCheckLoader(),
+              const SizedBox(height: 20),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white),
               ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              children: [
-                _buildIntervalChip(const Duration(seconds: 1), '1s'),
-                _buildIntervalChip(const Duration(seconds: 2), '2s'),
-                _buildIntervalChip(const Duration(seconds: 3), '3s'),
-                _buildIntervalChip(const Duration(seconds: 5), '5s'),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _startSlideshow();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Start Slideshow',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildIntervalChip(Duration duration, String label) {
-    bool isSelected = _slideshowInterval == duration;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _slideshowInterval = duration;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.secondary : Colors.transparent,
-          border: Border.all(
-            color: isSelected ? AppColors.secondary : const Color(0xFFE0E0E0),
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF666666),
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -393,13 +292,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              _isSlideshow ? Icons.pause : Icons.play_arrow,
-              color: Colors.white,
-            ),
-            onPressed: _isSlideshow ? _stopSlideshow : () => _showSlideshowSettings(),
-          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             color: Colors.white,
@@ -925,39 +817,82 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
       final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
       if (pickedFile != null) {
-        setState(() => _isUpdating = true);
+        if (!mounted) return;
+        _showLoadingDialog('Uploading image...');
+        
+        try {
+          // Create updated milestone with new image
+          final updatedMilestone = milestone.copyWith(
+            imagePath: pickedFile.path,
+            updatedAt: DateTime.now(),
+          );
 
-        // Create updated milestone with new image
-        final updatedMilestone = milestone.copyWith(
-          imagePath: pickedFile.path,
-          updatedAt: DateTime.now(),
-        );
+          final success = await MilestoneService.updateMilestone(
+            updatedMilestone,
+            challengeId: widget.challengeId,
+            newImageFile: File(pickedFile.path),
+          );
 
-        final success = await MilestoneService.updateMilestone(
-          updatedMilestone,
-          challengeId: widget.challengeId,
-          newImageFile: File(pickedFile.path),
-        );
+          if (success && mounted) {
+            // Fetch the updated milestone from Firestore to get the new imageUrl
+            final fetchedMilestone = await MilestoneService.getMilestone(
+              milestone.id,
+              challengeId: widget.challengeId,
+            );
 
-        if (success && mounted) {
-          // Update the milestone in the list
-          setState(() {
-            widget.milestones[_currentIndex] = updatedMilestone;
-          });
+            if (fetchedMilestone != null && mounted) {
+              // Close loading dialog
+              Navigator.pop(context);
 
-          // Clear image cache to ensure new image loads
-          if (milestone.imageUrl != null) {
-            await NetworkImage(milestone.imageUrl!).evict();
+              // Clear old image cache
+              if (milestone.imageUrl != null) {
+                try {
+                  await NetworkImage(milestone.imageUrl!).evict();
+                } catch (e) {
+                  // Ignore cache eviction errors
+                }
+              }
+
+              // Clear cache for new image URL to force reload
+              if (fetchedMilestone.imageUrl != null) {
+                try {
+                  await NetworkImage(fetchedMilestone.imageUrl!).evict();
+                } catch (e) {
+                  // Ignore cache eviction errors
+                }
+              }
+
+              // Update the milestone in the list with the fetched milestone that has the new imageUrl
+              setState(() {
+                widget.milestones[_currentIndex] = fetchedMilestone;
+              });
+
+              widget.onMilestonesChanged?.call();
+              _showSnackBar('Image updated successfully');
+            } else {
+              if (mounted) {
+                Navigator.pop(context);
+                _showSnackBar('Failed to load updated image. Please refresh the page.');
+              }
+            }
+          } else {
+            if (mounted) {
+              Navigator.pop(context);
+              _showSnackBar('Failed to update image. Please try again.');
+            }
           }
-
-          widget.onMilestonesChanged?.call();
-          _showSnackBar('Image updated successfully');
-        } else {
-          _showSnackBar('Failed to update image. Please try again.');
+        } catch (e) {
+          if (mounted) {
+            Navigator.pop(context);
+            _showSnackBar('Error updating image: ${e.toString()}');
+          }
         }
       }
     } catch (e) {
-      _showSnackBar('Error: ${e.toString()}');
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog if open
+        _showSnackBar('Error: ${e.toString()}');
+      }
     } finally {
       if (mounted) {
         setState(() => _isUpdating = false);

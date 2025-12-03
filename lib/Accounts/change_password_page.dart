@@ -27,10 +27,46 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
+  // Error messages for inline display
+  String? _currentPasswordError;
+  String? _newPasswordError;
+  String? _retypePasswordError;
+  String? _generalError;
+
   @override
   void initState() {
     super.initState();
     _newController.addListener(_validatePassword);
+    _currentController.addListener(() {
+      setState(() {
+        _currentPasswordError = null;
+        _generalError = null;
+      });
+      // Trigger validation to clear errors
+      if (_formKey.currentState != null) {
+        _formKey.currentState!.validate();
+      }
+    });
+    _newController.addListener(() {
+      setState(() {
+        _newPasswordError = null;
+        _generalError = null;
+      });
+      // Trigger validation to clear errors and re-validate
+      if (_formKey.currentState != null) {
+        _formKey.currentState!.validate();
+      }
+    });
+    _retypeController.addListener(() {
+      setState(() {
+        _retypePasswordError = null;
+        _generalError = null;
+      });
+      // Trigger validation to clear errors and re-validate
+      if (_formKey.currentState != null) {
+        _formKey.currentState!.validate();
+      }
+    });
   }
 
   @override
@@ -78,27 +114,48 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 
   Future<void> _changePassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Clear previous errors
+    setState(() {
+      _currentPasswordError = null;
+      _newPasswordError = null;
+      _retypePasswordError = null;
+      _generalError = null;
+    });
+
+    // Validate form
+    if (!_formKey.currentState!.validate()) {
+      // Trigger validation again to show errors
+      _formKey.currentState!.validate();
+      return;
+    }
 
     // Check if new password meets all requirements
     if (!_hasMinLength || !_hasUppercase || !_hasLowercase || !_hasNumber || !_hasSpecialChar) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New password does not meet all requirements'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      setState(() {
+        _newPasswordError = 'Password must meet all requirements listed below';
+      });
+      // Trigger validation to show the error
+      _formKey.currentState!.validate();
+      return;
+    }
+
+    // Check if new password is different from current password
+    if (_currentController.text == _newController.text) {
+      setState(() {
+        _newPasswordError = 'New password must be different from your current password';
+      });
+      // Trigger validation to show the error
+      _formKey.currentState!.validate();
       return;
     }
 
     // Check if passwords match
     if (_newController.text != _retypeController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New passwords do not match'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      setState(() {
+        _retypePasswordError = 'Passwords do not match. Please re-enter your new password';
+      });
+      // Trigger validation to show the error
+      _formKey.currentState!.validate();
       return;
     }
 
@@ -107,7 +164,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        throw Exception('No user logged in');
+        setState(() {
+          _generalError = 'You must be logged in to change your password';
+          _isLoading = false;
+        });
+        return;
       }
 
       // Re-authenticate user with current password
@@ -116,16 +177,37 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         password: _currentController.text,
       );
 
-      await user.reauthenticateWithCredential(credential);
+      try {
+        await user.reauthenticateWithCredential(credential);
+      } on FirebaseAuthException catch (authError) {
+        // Handle re-authentication errors specifically
+        if (authError.code == 'wrong-password' || 
+            authError.code == 'invalid-credential' ||
+            authError.code == 'invalid-password' ||
+            authError.code == 'user-mismatch') {
+          setState(() {
+            _currentPasswordError = 'The current password you entered is incorrect';
+          });
+          // Trigger validation to show the error
+          if (_formKey.currentState != null) {
+            _formKey.currentState!.validate();
+          }
+          return;
+        }
+        // Re-throw if it's a different auth error
+        rethrow;
+      }
 
       // Update password
       await user.updatePassword(_newController.text);
 
       if (mounted) {
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Password changed successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
 
@@ -139,34 +221,53 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       String message;
       switch (e.code) {
         case 'wrong-password':
-          message = 'Current password is incorrect';
+        case 'invalid-credential':
+        case 'invalid-password':
+          message = 'The current password you entered is incorrect';
+          setState(() {
+            _currentPasswordError = message;
+          });
+          // Trigger validation to show the error
+          if (_formKey.currentState != null) {
+            _formKey.currentState!.validate();
+          }
           break;
         case 'weak-password':
-          message = 'New password is too weak';
+          message = 'The new password is too weak. Please choose a stronger password';
+          setState(() {
+            _newPasswordError = message;
+          });
+          // Trigger validation to show the error
+          if (_formKey.currentState != null) {
+            _formKey.currentState!.validate();
+          }
           break;
         case 'requires-recent-login':
-          message = 'Please log out and log in again before changing password';
+          message = 'For security, please log out and log back in before changing your password';
+          setState(() {
+            _generalError = message;
+          });
           break;
         case 'network-request-failed':
-          message = 'Network error. Please check your internet connection';
+          message = 'Unable to connect. Please check your internet connection and try again';
+          setState(() {
+            _generalError = message;
+          });
           break;
         default:
-          message = 'Failed to change password: ${e.message}';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
-        );
+          // Log the actual error code for debugging
+          debugPrint('FirebaseAuthException code: ${e.code}, message: ${e.message}');
+          message = 'Unable to change password. Please try again later';
+          setState(() {
+            _generalError = message;
+          });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('An error occurred: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        debugPrint('Unexpected error: $e');
+        setState(() {
+          _generalError = 'An unexpected error occurred. Please try again';
+        });
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -193,6 +294,33 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+              // General error banner
+              if (_generalError != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _generalError!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               _buildPasswordField(
                 label: "Current Password",
                 controller: _currentController,
@@ -202,9 +330,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     _obscureCurrent = !_obscureCurrent;
                   });
                 },
+                errorText: _currentPasswordError,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your current password';
+                  }
+                  if (_currentPasswordError != null) {
+                    return _currentPasswordError;
                   }
                   return null;
                 },
@@ -219,11 +351,21 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     _obscureNew = !_obscureNew;
                   });
                 },
+                errorText: _newPasswordError,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a new password';
                   }
-                  if (!_hasMinLength || !_hasUppercase || !_hasLowercase || !_hasNumber || !_hasSpecialChar) {
+                  // Check if custom error is set (from _changePassword)
+                  if (_newPasswordError != null) {
+                    return _newPasswordError;
+                  }
+                  // Check if password is different from current
+                  if (value == _currentController.text && _currentController.text.isNotEmpty) {
+                    return 'New password must be different from your current password';
+                  }
+                  // Check password requirements (only show if user has typed something)
+                  if (value.isNotEmpty && (!_hasMinLength || !_hasUppercase || !_hasLowercase || !_hasNumber || !_hasSpecialChar)) {
                     return 'Password does not meet all requirements';
                   }
                   return null;
@@ -269,12 +411,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     _obscureRetype = !_obscureRetype;
                   });
                 },
+                errorText: _retypePasswordError,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please re-type your new password';
                   }
-                  if (value != _newController.text) {
-                    return 'Passwords do not match';
+                  // Check if custom error is set (from _changePassword)
+                  if (_retypePasswordError != null) {
+                    return _retypePasswordError;
+                  }
+                  // Check if passwords match
+                  if (value != _newController.text && _newController.text.isNotEmpty) {
+                    return 'Passwords do not match. Please re-enter your new password';
                   }
                   return null;
                 },
@@ -332,7 +480,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     required bool obscure,
     required VoidCallback toggle,
     String? Function(String?)? validator,
+    String? errorText,
   }) {
+    final hasError = errorText != null;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -345,13 +496,38 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         TextFormField(
           controller: controller,
           obscureText: obscure,
-          validator: validator,
+          validator: (value) {
+            // First run the custom validator if provided
+            final validatorError = validator?.call(value);
+            // If there's a custom errorText, use that instead
+            if (errorText != null) {
+              return errorText;
+            }
+            return validatorError;
+          },
           decoration: InputDecoration(
             filled: true,
-            fillColor: const Color(0xFFD4E2EF),
+            fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(
+                color: hasError ? Colors.red : AppColors.secondary,
+                width: 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: hasError ? Colors.red : AppColors.secondary,
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: hasError ? Colors.red : AppColors.secondary,
+                width: 2,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/food_models.dart';
 import 'usda_api_service.dart';
+import 'user_food_preferences_service.dart';
 
 /// Service for caching food search results in Firebase Firestore
 ///
@@ -22,13 +23,15 @@ class FoodCacheService {
   // Cache expiration (30 days)
   static const Duration _cacheExpiration = Duration(days: 30);
 
-  /// Search for foods using three-tier cache system
+  /// Search for foods using enhanced multi-tier cache system
   ///
   /// Flow:
+  /// 0. Search user's manual foods (always included)
   /// 1. Check user's search cache
   /// 2. Check global foods cache
   /// 3. Fetch from USDA API if not found
   /// 4. Save results to both caches
+  /// 5. Combine manual foods with API results (manual foods prioritized)
   static Future<List<FoodSearchResult>> searchFoods(String query) async {
     if (query.trim().isEmpty) {
       return [];
@@ -37,11 +40,15 @@ class FoodCacheService {
     final normalizedQuery = query.trim().toLowerCase();
 
     try {
+      // Always search user's manual foods first (these are user-specific)
+      final manualFoods = await UserFoodPreferencesService.searchManualFoods(query);
+      
       // Tier 1: Check user's search cache
       final userCachedResults = await _searchUserCache(normalizedQuery);
       if (userCachedResults.isNotEmpty) {
         print('✓ Found ${userCachedResults.length} results in user cache');
-        return userCachedResults;
+        // Combine manual foods with cached results (manual foods first)
+        return _combineResults(manualFoods, userCachedResults);
       }
 
       // Tier 2: Check global foods cache
@@ -52,7 +59,8 @@ class FoodCacheService {
         // Save to user cache for faster future access
         await _saveToUserCache(normalizedQuery, globalCachedResults);
 
-        return globalCachedResults;
+        // Combine manual foods with cached results
+        return _combineResults(manualFoods, globalCachedResults);
       }
 
       // Tier 3: Fetch from USDA API
@@ -62,18 +70,17 @@ class FoodCacheService {
         pageSize: 15,
       );
 
-      if (apiResponse.foods.isEmpty) {
-        return [];
+      // Save to both caches for future use
+      if (apiResponse.foods.isNotEmpty) {
+        await Future.wait([
+          _saveToGlobalCache(apiResponse.foods),
+          _saveToUserCache(normalizedQuery, apiResponse.foods),
+        ]);
+        print('✓ Saved ${apiResponse.foods.length} results to cache');
       }
 
-      // Save to both caches for future use
-      await Future.wait([
-        _saveToGlobalCache(apiResponse.foods),
-        _saveToUserCache(normalizedQuery, apiResponse.foods),
-      ]);
-
-      print('✓ Saved ${apiResponse.foods.length} results to cache');
-      return apiResponse.foods;
+      // Combine manual foods with API results
+      return _combineResults(manualFoods, apiResponse.foods);
 
     } catch (e) {
       print('Error in food cache service: $e');
@@ -84,12 +91,50 @@ class FoodCacheService {
           query: query,
           pageSize: 15,
         );
-        return apiResponse.foods;
+        // Still include manual foods even on error
+        final manualFoods = await UserFoodPreferencesService.searchManualFoods(query);
+        return _combineResults(manualFoods, apiResponse.foods);
       } catch (apiError) {
         print('Error fetching from USDA API: $apiError');
-        rethrow;
+        // Return manual foods even if API fails
+        return await UserFoodPreferencesService.searchManualFoods(query);
       }
     }
+  }
+
+  /// Combine manual foods with API/cached results
+  /// Manual foods are prioritized and appear first
+  static List<FoodSearchResult> _combineResults(
+    List<FoodSearchResult> manualFoods,
+    List<FoodSearchResult> apiResults,
+  ) {
+    // Remove duplicates (manual foods take priority)
+    final combined = <int, FoodSearchResult>{};
+    
+    // Add manual foods first (they have negative fdcId)
+    for (final food in manualFoods) {
+      combined[food.fdcId] = food;
+    }
+    
+    // Add API results (skip if duplicate name exists in manual foods)
+    for (final food in apiResults) {
+      // Check if a manual food with similar name already exists
+      final exists = manualFoods.any((m) => 
+        m.description.toLowerCase() == food.description.toLowerCase()
+      );
+      if (!exists) {
+        combined[food.fdcId] = food;
+      }
+    }
+    
+    // Return manual foods first, then API results
+    final result = <FoodSearchResult>[];
+    result.addAll(manualFoods);
+    result.addAll(apiResults.where((f) => 
+      !manualFoods.any((m) => m.description.toLowerCase() == f.description.toLowerCase())
+    ));
+    
+    return result;
   }
 
   /// Search user's personal cache

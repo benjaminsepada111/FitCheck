@@ -26,6 +26,7 @@ class MealsSectionState extends State<MealsSection> {
   Map<String, List<FoodEntry>> _mealEntries = {};
   Map<String, int> _mealCalories = {};
   bool _isLoading = true;
+  String? _expandedMealName; // Track which meal card is currently expanded
 
   @override
   void initState() {
@@ -104,18 +105,29 @@ class MealsSectionState extends State<MealsSection> {
       String mealType, {
         double? grams,
         String? imageUrl,
+        double? servingSize,
+        String? unit,
       }) async {
     try {
       // Create new food entry
+      // For manual entry: use servingSize and unit directly
+      // For search entry: use grams and calculate calories per 100g
+      final isManualEntry = servingSize != null && unit != null;
+      final actualServingSize = isManualEntry ? servingSize : (grams ?? 100.0);
+      final actualUnit = isManualEntry ? unit : 'g';
+      final caloriesPer100 = isManualEntry
+          ? (calories / actualServingSize) * 100  // Calculate per 100g/ml for manual entry
+          : (grams != null && grams > 0
+              ? (calories / grams) * 100
+              : calories.toDouble());
+      
       final foodEntry = FoodEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         fdcId: 0,
         foodName: foodName,
-        servingSize: grams ?? 100.0,
-        servingUnit: 'g',
-        caloriesPer100g: grams != null && grams > 0
-            ? (calories / grams) * 100
-            : calories.toDouble(),
+        servingSize: actualServingSize,
+        servingUnit: actualUnit,
+        caloriesPer100g: caloriesPer100,
         imageUrl: imageUrl,
       );
 
@@ -386,15 +398,23 @@ class MealsSectionState extends State<MealsSection> {
             calories: meal["calories"] as String,
             iconPath: meal["icon"] as String,
             isRecommended: meal["isRecommended"] as bool,
+            isExpanded: _expandedMealName == meal["name"],
             foodEntries: _mealEntries[meal["name"]] ?? [],
             challengeId: widget.challengeId,
-            onFoodAdded: (foodName, calories, {grams, imageUrl}) =>
+            onExpansionChanged: (isExpanded) {
+              setState(() {
+                _expandedMealName = isExpanded ? meal["name"] as String : null;
+              });
+            },
+            onFoodAdded: (foodName, calories, {grams, imageUrl, servingSize, unit}) =>
                 _onFoodAdded(
                   foodName,
                   calories,
                   meal["name"] as String,
                   grams: grams,
                   imageUrl: imageUrl,
+                  servingSize: servingSize,
+                  unit: unit,
                 ),
             onFoodRemoved: _removeFoodEntry,
           ),
@@ -427,12 +447,16 @@ class _MealCard extends StatefulWidget {
   final String calories;
   final String iconPath;
   final bool isRecommended;
+  final bool isExpanded;
   final List<FoodEntry> foodEntries;
+  final Function(bool) onExpansionChanged;
   final Function(
       String foodName,
       int calories, {
       double? grams,
       String? imageUrl,
+      double? servingSize,
+      String? unit,
       })
   onFoodAdded;
   final Function(FoodEntry entry) onFoodRemoved;
@@ -443,7 +467,9 @@ class _MealCard extends StatefulWidget {
     required this.calories,
     required this.iconPath,
     required this.isRecommended,
+    required this.isExpanded,
     required this.foodEntries,
+    required this.onExpansionChanged,
     required this.onFoodAdded,
     required this.onFoodRemoved,
     this.challengeId,
@@ -487,14 +513,30 @@ class _MealCardState extends State<_MealCard> {
   Widget build(BuildContext context) {
     final r = context.responsive;
 
+    // Determine border color and width based on state
+    Color borderColor;
+    double borderWidth;
+    
+    if (widget.isExpanded) {
+      // Red outline for active (expanded) meals (thicker, high contrast)
+      borderColor = AppColors.secondary; // Full opacity for high contrast
+      borderWidth = r.size(2.5); // Slightly thicker than recommended
+    } else if (widget.isRecommended) {
+      // Red outline for recommended meals (thinner, semi-transparent)
+      borderColor = AppColors.secondary.withValues(alpha: 0.5);
+      borderWidth = r.size(2);
+    } else {
+      // Default border for inactive cards
+      borderColor = Colors.black12;
+      borderWidth = r.size(1);
+    }
+
     return Container(
       margin: EdgeInsets.only(bottom: r.size(12)),
       decoration: BoxDecoration(
         border: Border.all(
-          color: widget.isRecommended
-              ? AppColors.secondary.withValues(alpha: 0.5)
-              : Colors.black12,
-          width: r.size(widget.isRecommended ? 2 : 1),
+          color: borderColor,
+          width: borderWidth,
         ),
         borderRadius: BorderRadius.circular(r.size(12)),
         color: Colors.white,
@@ -502,6 +544,8 @@ class _MealCardState extends State<_MealCard> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          initiallyExpanded: widget.isExpanded,
+          onExpansionChanged: widget.onExpansionChanged,
           tilePadding: EdgeInsets.symmetric(
             horizontal: r.size(16),
             vertical: r.size(8),
@@ -598,12 +642,14 @@ class _MealCardState extends State<_MealCard> {
                         builder: (context) => AddFoodSheet(
                           mealName: widget.name,
                           challengeId: widget.challengeId,
-                          onFoodAdded: (foodName, calories, {grams, imageUrl}) {
+                          onFoodAdded: (foodName, calories, {grams, imageUrl, servingSize, unit}) {
                             widget.onFoodAdded(
                               foodName,
                               calories,
                               grams: grams,
                               imageUrl: imageUrl,
+                              servingSize: servingSize,
+                              unit: unit,
                             );
                           },
                         ),
@@ -764,7 +810,7 @@ class _MealCardState extends State<_MealCard> {
                                             ),
                                           ),
                                           Text(
-                                            '${entry.servingSize.toStringAsFixed(0)}g',
+                                            '${entry.servingSize.toStringAsFixed(0)}${entry.servingUnit}',
                                             style: TextStyle(
                                               fontSize: r.font(
                                                 12,

@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Action</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color: #06111D;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background-color: #0a1929;
+      padding: 40px;
+      border-radius: 16px;
+      border: 1px solid #ffffff20;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    h2 {
+      font-size: 28px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #ffffff90;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    /* Input styles */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid #ffffff30;
+      border-radius: 10px;
+      background-color: #0d1f30;
+      color: white;
+      font-size: 15px;
+      transition: all 0.3s ease;
+    }
+
+    input::placeholder {
+      color: #ffffff50;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #ff6b6b;
+      background-color: #112233;
+    }
+
+    /* Button styles */
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #ff6b6b;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+      letter-spacing: 0.5px;
+    }
+
+    button:hover {
+      background-color: #ff5252;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    }
+
+    button:disabled {
+      background-color: #4a5568;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    /* Message styles */
+    .message {
+      font-size: 15px;
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .error {
+      background-color: rgba(255, 82, 82, 0.15);
+      border: 1px solid rgba(255, 82, 82, 0.3);
+      color: #ff8a8a;
+    }
+
+    .success {
+      background-color: rgba(76, 175, 80, 0.15);
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      color: #81c784;
+    }
+
+    .info {
+      background-color: rgba(255, 107, 107, 0.1);
+      border: 1px solid rgba(255, 107, 107, 0.2);
+      color: #ffffff90;
+    }
+
+    /* Validation section */
+    .validation-section {
+      margin: 24px 0;
+      padding: 20px;
+      background-color: #0d1f30;
+      border-radius: 12px;
+      border: 1px solid #ffffff15;
+    }
+
+    .validation-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: #ffffff90;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .validation-item {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      margin: 8px 0;
+      color: #ffffff60;
+      transition: all 0.2s ease;
+    }
+
+    .validation-item.valid {
+      color: #81c784;
+    }
+
+    .validation-item.invalid {
+      color: #ff8a8a;
+    }
+
+    .validation-icon {
+      margin-right: 10px;
+      font-size: 18px;
+      min-width: 20px;
+      font-weight: bold;
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #ffffff30;
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Icon styles for verification page */
+    .icon-container {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .icon {
+      font-size: 72px;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+
+    .success-icon {
+      color: #4caf50;
+      animation: successPop 0.5s ease;
+    }
+
+    .error-icon {
+      color: #ff5252;
+      animation: errorShake 0.5s ease;
+    }
+
+    .loading-icon-large {
+      width: 60px;
+      height: 60px;
+      border: 5px solid #ffffff20;
+      border-top-color: #ff6b6b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes successPop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes errorShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .centered-text {
+      text-align: center;
+    }
+
+    .details {
+      font-size: 14px;
+      color: #ffffff70;
+      margin-top: 12px;
+      line-height: 1.6;
+    }
+
+    /* Hidden by default */
+    .hidden {
+      display: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .container {
+        padding: 30px 20px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      .icon {
+        font-size: 56px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Loading State -->
+    <div id="loadingState" class="centered-text">
+      <div class="loading-icon-large"></div>
+      <h2>Processing...</h2>
+      <p class="subtitle">Please wait while we process your request.</p>
+    </div>
+
+    <!-- Password Reset Section -->
+    <div id="resetPasswordSection" class="hidden">
+      <h2>Reset Your Password</h2>
+      <p class="subtitle">Enter your new password below. Make sure it meets all the requirements.</p>
+
+      <div class="input-wrapper">
+        <input type="password" id="newPassword" placeholder="New Password" autocomplete="new-password">
+      </div>
+
+      <div class="validation-section">
+        <div class="validation-title">Password Requirements</div>
+        <div class="validation-item" id="check-length">
+          <span class="validation-icon">○</span>
+          <span>Minimum of 8 characters</span>
+        </div>
+        <div class="validation-item" id="check-uppercase">
+          <span class="validation-icon">○</span>
+          <span>At least 1 uppercase character</span>
+        </div>
+        <div class="validation-item" id="check-lowercase">
+          <span class="validation-icon">○</span>
+          <span>At least 1 lowercase character</span>
+        </div>
+        <div class="validation-item" id="check-number">
+          <span class="validation-icon">○</span>
+          <span>At least 1 number</span>
+        </div>
+        <div class="validation-item" id="check-special">
+          <span class="validation-icon">○</span>
+          <span>At least 1 special character (!@#$%^&*(),.?":{}|&lt;&gt;)</span>
+        </div>
+      </div>
+
+      <div class="input-wrapper">
+        <input type="password" id="confirmPassword" placeholder="Confirm Password" autocomplete="new-password">
+      </div>
+
+      <button id="resetPasswordBtn">Reset Password</button>
+
+      <div id="resetMessage"></div>
+    </div>
+
+    <!-- Email Verification Section -->
+    <div id="verifyEmailSection" class="hidden centered-text">
+      <div id="verifyLoading">
+        <div class="loading-icon-large"></div>
+        <h2>Verifying your email...</h2>
+        <p class="subtitle">Please wait while we verify your email address.</p>
+      </div>
+
+      <div id="verifySuccess" class="hidden">
+        <div class="icon-container">
+          <div class="icon success-icon">✓</div>
+        </div>
+        <h2>Email Verified!</h2>
+        <p class="subtitle">Your email has been successfully verified. You can now close this page and return to the app to access all features.</p>
+        <button onclick="window.close()">Close This Page</button>
+      </div>
+
+      <div id="verifyError" class="hidden">
+        <div class="icon-container">
+          <div class="icon error-icon">✕</div>
+        </div>
+        <h2 id="verifyErrorTitle">Verification Failed</h2>
+        <p class="subtitle" id="verifyErrorMessage"></p>
+        <p class="details" id="verifyErrorDetails"></p>
+      </div>
+    </div>
+
+    <!-- Error State (for invalid mode or missing code) -->
+    <div id="errorState" class="hidden centered-text">
+      <div class="icon-container">
+        <div class="icon error-icon">✕</div>
+      </div>
+      <h2>Invalid Request</h2>
+      <p class="subtitle" id="errorStateMessage"></p>
+    </div>
+  </div>
+
+  <!-- Firebase JS SDK v10 (modular) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+    import {
+      getAuth,
+      confirmPasswordReset,
+      verifyPasswordResetCode,
+      applyActionCode,
+      checkActionCode
+    } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBENkupVLosqzbMoGmy8eI8qqGXzC-GXE8",
+      authDomain: "capstone-project-a9296.firebaseapp.com",
+      projectId: "capstone-project-a9296",
+      storageBucket: "capstone-project-a9296.firebasestorage.app",
+      messagingSenderId: "189435347287",
+      appId: "1:189435347287:web:1f434e65459a9a22e53e12",
+      measurementId: "G-WJNLT84WTJ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+
+    // DOM elements
+    const loadingState = document.getElementById('loadingState');
+    const resetPasswordSection = document.getElementById('resetPasswordSection');
+    const verifyEmailSection = document.getElementById('verifyEmailSection');
+    const errorState = document.getElementById('errorState');
+
+    // Route based on mode
+    function routeAction() {
+      // Hide loading
+      loadingState.classList.add('hidden');
+
+      // Check if oobCode exists
+      if (!oobCode) {
+        showError("Invalid or missing action code in URL. Please use the link from your email.");
+        return;
+      }
+
+      // Route based on mode
+      switch (mode) {
+        case 'resetPassword':
+          handlePasswordReset();
+          break;
+        case 'verifyEmail':
+          handleEmailVerification();
+          break;
+        default:
+          showError("Invalid action mode. Please check the link from your email.");
+          break;
+      }
+    }
+
+    // Show error state
+    function showError(message) {
+      errorState.classList.remove('hidden');
+      document.getElementById('errorStateMessage').textContent = message;
+    }
+
+    // ============================================
+    // PASSWORD RESET LOGIC
+    // ============================================
+
+    async function handlePasswordReset() {
+      resetPasswordSection.classList.remove('hidden');
+
+      const newPasswordInput = document.getElementById('newPassword');
+      const confirmPasswordInput = document.getElementById('confirmPassword');
+      const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+      const resetMessage = document.getElementById('resetMessage');
+
+      // Validation state
+      let validationState = {
+        hasMinLength: false,
+        hasUppercase: false,
+        hasLowercase: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+      };
+
+      // Verify password reset code
+      try {
+        const email = await verifyPasswordResetCode(auth, oobCode);
+        console.log("Password reset code is valid for:", email);
+        resetMessage.innerHTML = `<div class="message info">Resetting password for: <strong>${email}</strong></div>`;
+      } catch (error) {
+        console.error("Code verification error:", error);
+        resetPasswordBtn.disabled = true;
+
+        let errorMessage = "This password reset link is invalid or has expired.";
+
+        if (error.code === 'auth/expired-action-code') {
+          errorMessage = "This password reset link has expired. Please request a new one.";
+        } else if (error.code === 'auth/invalid-action-code') {
+          errorMessage = "This password reset link is invalid or has already been used.";
+        } else if (error.code === 'auth/user-disabled') {
+          errorMessage = "This account has been disabled.";
+        } else if (error.code === 'auth/user-not-found') {
+          errorMessage = "This account no longer exists.";
+        }
+
+        resetMessage.innerHTML = `<div class="message error">${errorMessage}</div>`;
+        return;
+      }
+
+      // Real-time password validation
+      function validatePassword(password) {
+        const hasMinLength = password.length >= 8;
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasLowercase = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+        validationState = {
+          hasMinLength,
+          hasUppercase,
+          hasLowercase,
+          hasNumber,
+          hasSpecialChar,
+        };
+
+        // Update UI
+        updateValidationUI('check-length', hasMinLength);
+        updateValidationUI('check-uppercase', hasUppercase);
+        updateValidationUI('check-lowercase', hasLowercase);
+        updateValidationUI('check-number', hasNumber);
+        updateValidationUI('check-special', hasSpecialChar);
+
+        return hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
+      }
+
+      function updateValidationUI(elementId, isValid) {
+        const element = document.getElementById(elementId);
+        const icon = element.querySelector('.validation-icon');
+
+        if (isValid) {
+          element.classList.add('valid');
+          element.classList.remove('invalid');
+          icon.textContent = '✓';
+        } else {
+          element.classList.add('invalid');
+          element.classList.remove('valid');
+          icon.textContent = '○';
+        }
+      }
+
+      // Event listeners
+      newPasswordInput.addEventListener('input', (e) => {
+        validatePassword(e.target.value);
+      });
+
+      resetPasswordBtn.addEventListener('click', async () => {
+        const newPassword = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        resetMessage.innerHTML = "";
+
+        // Validate password requirements
+        if (!validatePassword(newPassword)) {
+          resetMessage.innerHTML = '<div class="message error">Password does not meet all requirements.</div>';
+          return;
+        }
+
+        // Check passwords match
+        if (newPassword !== confirmPassword) {
+          resetMessage.innerHTML = '<div class="message error">Passwords do not match.</div>';
+          return;
+        }
+
+        // Disable button and show loading
+        resetPasswordBtn.disabled = true;
+        resetPasswordBtn.innerHTML = '<span class="loading-spinner"></span>';
+
+        try {
+          await confirmPasswordReset(auth, oobCode, newPassword);
+
+          resetMessage.innerHTML = '<div class="message success">Password successfully reset! You can now log in with your new password.</div>';
+
+          // Clear the form
+          newPasswordInput.value = "";
+          confirmPasswordInput.value = "";
+
+          // Reset validation UI
+          document.querySelectorAll('.validation-item').forEach(item => {
+            item.classList.remove('valid', 'invalid');
+            item.querySelector('.validation-icon').textContent = '○';
+          });
+
+          resetPasswordBtn.textContent = "Password Reset Complete";
+
+        } catch (error) {
+          console.error("Password reset error:", error);
+
+          let errorMessage = "Error resetting password. Please try again.";
+
+          if (error.code === 'auth/expired-action-code') {
+            errorMessage = "This password reset link has expired. Please request a new one.";
+          } else if (error.code === 'auth/invalid-action-code') {
+            errorMessage = "This password reset link is invalid or has already been used.";
+          } else if (error.code === 'auth/weak-password') {
+            errorMessage = "Password is too weak. Please use a stronger password.";
+          } else if (error.code === 'auth/user-disabled') {
+            errorMessage = "This account has been disabled.";
+          } else if (error.code === 'auth/user-not-found') {
+            errorMessage = "This account no longer exists.";
+          } else {
+            errorMessage = "Error: " + error.message;
+          }
+
+          resetMessage.innerHTML = `<div class="message error">${errorMessage}</div>`;
+
+          // Re-enable button
+          resetPasswordBtn.disabled = false;
+          resetPasswordBtn.textContent = "Reset Password";
+        }
+      });
+    }
+
+    // ============================================
+    // EMAIL VERIFICATION LOGIC
+    // ============================================
+
+    async function handleEmailVerification() {
+      verifyEmailSection.classList.remove('hidden');
+
+      const verifyLoading = document.getElementById('verifyLoading');
+      const verifySuccess = document.getElementById('verifySuccess');
+      const verifyError = document.getElementById('verifyError');
+      const verifyErrorTitle = document.getElementById('verifyErrorTitle');
+      const verifyErrorMessage = document.getElementById('verifyErrorMessage');
+      const verifyErrorDetails = document.getElementById('verifyErrorDetails');
+
+      try {
+        // Check the action code info
+        console.log("Checking action code validity...");
+        const info = await checkActionCode(auth, oobCode);
+        console.log("Action code info:", info);
+
+        // Verify the operation
+        if (info.operation !== 'VERIFY_EMAIL') {
+          throw new Error('Invalid operation type');
+        }
+
+        // Apply the action code to verify email
+        console.log("Applying action code...");
+        await applyActionCode(auth, oobCode);
+        console.log("Email verified successfully!");
+
+        // Show success
+        verifyLoading.classList.add('hidden');
+        verifySuccess.classList.remove('hidden');
+
+      } catch (error) {
+        console.error("Verification error:", error);
+
+        verifyLoading.classList.add('hidden');
+        verifyError.classList.remove('hidden');
+
+        let mainMessage = "Verification Failed";
+        let errorMsg = "An error occurred while verifying your email.";
+        let detailMsg = "";
+
+        switch (error.code) {
+          case 'auth/expired-action-code':
+            mainMessage = "Link Expired";
+            errorMsg = "This verification link has expired.";
+            detailMsg = "Verification links are only valid for a limited time. Please request a new verification email from the app.";
+            break;
+
+          case 'auth/invalid-action-code':
+            mainMessage = "Invalid or Already Used";
+            errorMsg = "This verification link is invalid or has already been used.";
+            detailMsg = "If you've already verified your email, you can close this page. Otherwise, please request a new verification email from the app.";
+            break;
+
+          case 'auth/user-disabled':
+            mainMessage = "Account Disabled";
+            errorMsg = "This user account has been disabled.";
+            detailMsg = "Please contact support for assistance.";
+            break;
+
+          case 'auth/user-not-found':
+            mainMessage = "Account Not Found";
+            errorMsg = "The account associated with this verification link no longer exists.";
+            detailMsg = "";
+            break;
+
+          case 'auth/network-request-failed':
+            mainMessage = "Network Error";
+            errorMsg = "Unable to connect to the server.";
+            detailMsg = "Please check your internet connection and try again.";
+            break;
+
+          default:
+            errorMsg = error.message || "Unknown error occurred.";
+            detailMsg = "Please try requesting a new verification email from the app.";
+            break;
+        }
+
+        verifyErrorTitle.textContent = mainMessage;
+        verifyErrorMessage.textContent = errorMsg;
+        verifyErrorDetails.textContent = detailMsg;
+      }
+    }
+
+    // Initialize
+    routeAction();
+  </script>
+</body>
+</html>

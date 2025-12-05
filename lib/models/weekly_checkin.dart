@@ -15,6 +15,10 @@ class WeeklyCheckIn {
   final int? calorieAdjustment; // Applied adjustment (+/- calories)
   final String? progressInterpretation; // 'maintained', 'slight_deficit', 'surplus', etc.
   final String? adaptiveReason; // Why the adjustment was made
+  final bool? goalAdjusted; // Whether the calorie goal was actually adjusted
+  final String? adjustmentNotice; // Notice message if adjustment was not made
+  final int? weeklyCaloriesConsumed; // Total calories consumed in that week
+  final int? weeklyCaloriesBurned; // Total calories burned in that week
   final DateTime createdAt;
 
   WeeklyCheckIn({
@@ -33,6 +37,10 @@ class WeeklyCheckIn {
     this.calorieAdjustment,
     this.progressInterpretation,
     this.adaptiveReason,
+    this.goalAdjusted,
+    this.adjustmentNotice,
+    this.weeklyCaloriesConsumed,
+    this.weeklyCaloriesBurned,
     required this.createdAt,
   });
 
@@ -53,6 +61,10 @@ class WeeklyCheckIn {
       'calorieAdjustment': calorieAdjustment,
       'progressInterpretation': progressInterpretation,
       'adaptiveReason': adaptiveReason,
+      'goalAdjusted': goalAdjusted,
+      'adjustmentNotice': adjustmentNotice,
+      'weeklyCaloriesConsumed': weeklyCaloriesConsumed,
+      'weeklyCaloriesBurned': weeklyCaloriesBurned,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -74,6 +86,10 @@ class WeeklyCheckIn {
       calorieAdjustment: json['calorieAdjustment'],
       progressInterpretation: json['progressInterpretation'],
       adaptiveReason: json['adaptiveReason'],
+      goalAdjusted: json['goalAdjusted'],
+      adjustmentNotice: json['adjustmentNotice'],
+      weeklyCaloriesConsumed: json['weeklyCaloriesConsumed'],
+      weeklyCaloriesBurned: json['weeklyCaloriesBurned'],
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -94,6 +110,10 @@ class WeeklyCheckIn {
     int? calorieAdjustment,
     String? progressInterpretation,
     String? adaptiveReason,
+    bool? goalAdjusted,
+    String? adjustmentNotice,
+    int? weeklyCaloriesConsumed,
+    int? weeklyCaloriesBurned,
     DateTime? createdAt,
   }) {
     return WeeklyCheckIn(
@@ -112,6 +132,10 @@ class WeeklyCheckIn {
       calorieAdjustment: calorieAdjustment ?? this.calorieAdjustment,
       progressInterpretation: progressInterpretation ?? this.progressInterpretation,
       adaptiveReason: adaptiveReason ?? this.adaptiveReason,
+      goalAdjusted: goalAdjusted ?? this.goalAdjusted,
+      adjustmentNotice: adjustmentNotice ?? this.adjustmentNotice,
+      weeklyCaloriesConsumed: weeklyCaloriesConsumed ?? this.weeklyCaloriesConsumed,
+      weeklyCaloriesBurned: weeklyCaloriesBurned ?? this.weeklyCaloriesBurned,
       createdAt: createdAt ?? this.createdAt,
     );
   }

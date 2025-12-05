@@ -12,6 +12,8 @@ import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/models/food_models.dart';
 import 'package:capstone_project/models/workout.dart';
+import 'package:capstone_project/models/challenge.dart';
+import 'package:capstone_project/services/simple_weekly_summary_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
@@ -141,6 +143,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   bool _useMonthsForOverall = false;
   List<WeeklyCheckIn> _weeklyCheckIns = []; // Weekly check-in history
   bool _isLoadingWeeklyCheckIns = false; // Loading state for weekly check-ins
+  WeeklySummaryData? _currentWeekSummary; // Weekly summary data for current week
 
   // Calories burned data
   List<FlSpot> _dailyCaloriesBurnedDataPoints = [];
@@ -1234,6 +1237,18 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
       // Load weekly check-ins for this challenge
       final checkIns = await WeeklyCheckInService.getCheckInsForChallenge(challengeId);
+      
+      // Load weekly summary for current week
+      WeeklySummaryData? weekSummary;
+      try {
+        final challenge = Challenge.fromJson(widget.challenge);
+        weekSummary = await SimpleWeeklySummaryService.getWeeklySummary(
+          challenge: challenge,
+          weekNumber: _currentWeek,
+        );
+      } catch (e) {
+        // Ignore error, weekSummary will remain null
+      }
 
       setState(() {
         _dailyCalorieDataPoints = dataPoints;
@@ -1264,6 +1279,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         _currentWeek = 1;
         _currentPeriod = 1;
         _weeklyCheckIns = checkIns;
+        _currentWeekSummary = weekSummary;
         _isLoading = false;
         _isLoadingWeeklyCheckIns = false;
       });
@@ -1277,6 +1293,27 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
   String _formatDateKey(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadWeeklySummaryForWeek(int weekNumber) async {
+    try {
+      final challenge = Challenge.fromJson(widget.challenge);
+      final weekSummary = await SimpleWeeklySummaryService.getWeeklySummary(
+        challenge: challenge,
+        weekNumber: weekNumber,
+      );
+      if (mounted) {
+        setState(() {
+          _currentWeekSummary = weekSummary;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _currentWeekSummary = null;
+        });
+      }
+    }
   }
 
   int _calculateDuration(Map<String, dynamic> challenge) {
@@ -1873,6 +1910,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               ),
               child: GestureDetector(
                 onTap: () {
+                  _loadWeeklySummaryForWeek(weekNumber);
                   setState(() {
                     _currentWeek = weekNumber;
                   });
@@ -3792,6 +3830,170 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
             ),
             const SizedBox(height: 20),
 
+            // Weekly Summary Section (if available)
+            if (_currentWeekSummary != null) ...[
+              // Calories Consumed
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.red,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.restaurant, color: Colors.red, size: 20),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Total Calories Consumed',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${_currentWeekSummary!.totalCaloriesConsumed} Kcal',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Calories Burned
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.red,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.local_fire_department, color: Colors.red, size: 20),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Total Calories Burned',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${_currentWeekSummary!.totalCaloriesBurned} Kcal',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Meals and Workouts
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.red,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '${_currentWeekSummary!.totalMeals}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'meals logged',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.red,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '${_currentWeekSummary!.totalWorkouts}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'workout logged',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Divider
+              Divider(color: Colors.grey.shade300, thickness: 1),
+              const SizedBox(height: 20),
+            ],
+
             // Weight and Calorie Info
             _buildInfoRow(
               'Weight',
@@ -3821,6 +4023,58 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
                 _formatActivityLevelChange(checkIn.activityLevelChange!),
                 _getActivityLevelChangeIcon(checkIn.activityLevelChange!),
                 AppColors.secondary,
+              ),
+            ],
+
+            // Weekly Calories Summary
+            if (checkIn.weeklyCaloriesConsumed != null || checkIn.weeklyCaloriesBurned != null) ...[
+              const SizedBox(height: 12),
+              _buildInfoRow(
+                'Weekly Calories Consumed',
+                '${checkIn.weeklyCaloriesConsumed ?? 0}',
+                '',
+                Colors.orange.shade600,
+              ),
+              const SizedBox(height: 12),
+              _buildInfoRow(
+                'Weekly Calories Burned',
+                '${checkIn.weeklyCaloriesBurned ?? 0}',
+                '',
+                Colors.red.shade600,
+              ),
+            ],
+
+            // Adjustment Notice (if goal was not adjusted)
+            if (checkIn.goalAdjusted == false && checkIn.adjustmentNotice != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.orange.shade200,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.orange.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        checkIn.adjustmentNotice!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade900,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
 

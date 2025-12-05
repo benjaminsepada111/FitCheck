@@ -7,6 +7,9 @@ import '../models/challenge.dart';
 import 'user_data_service.dart';
 import 'challenge_service.dart';
 import 'calorie_calculator.dart';
+import 'food_log_service.dart';
+import 'workout_service_v2.dart';
+import 'stats_service.dart';
 
 class WeeklyCheckInService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -96,17 +99,20 @@ class WeeklyCheckInService {
     try {
       final daysSinceStart = challenge.daysSinceStart;
 
-      // Check every 7 days
-      if (daysSinceStart < 7) return false;
+      // Check-in should appear on the first day of each new week (day 8, 15, 22, etc.)
+      // Week 1 = days 0-6, Week 2 = days 7-13, so check-in appears on day 8 (first day of week 2)
+      // Not on day 7 (last day of week 1), but on day 8 (first day of week 2)
+      if (daysSinceStart < 8) return false;
 
-      final weekNumber = (daysSinceStart / 7).floor();
+      final weekNumber = getCurrentWeekNumber(challenge);
       final latestCheckIn = await getLatestCheckIn(challenge.id);
 
-      // No check-in yet, or current week hasn't been checked in
+      // No check-in yet - check if we're on day 8 or later (first day of week 2)
       if (latestCheckIn == null) {
-        return daysSinceStart >= 7;
+        return daysSinceStart >= 8;
       }
 
+      // Check if current week hasn't been checked in yet
       return latestCheckIn.weekNumber < weekNumber;
     } catch (e) {
       return false;
@@ -119,7 +125,7 @@ class WeeklyCheckInService {
     return (daysSinceStart / 7).floor();
   }
 
-  /// Process check-in with adaptive calorie adjustment
+  /// Process check-in with adaptive calorie adjustment and validation
   static Future<bool> processCheckInAndUpdateGoals({
     required Challenge challenge,
     required double newWeight, // Accept double for precision
@@ -136,45 +142,155 @@ class WeeklyCheckInService {
       if (userData == null) return false;
 
       final currentCalorieGoal = challenge.dailyCalorieGoal;
+      final weekNumber = getCurrentWeekNumber(challenge);
+
+      // Calculate week start and end dates
+      final weekStart = challenge.startDate.add(Duration(days: (weekNumber - 1) * 7));
+      final weekEnd = weekStart.add(const Duration(days: 6));
+      final now = DateTime.now();
+      final actualWeekEnd = weekEnd.isAfter(now) ? now : weekEnd;
 
       // Get previous check-in to compare weight (convert to double for calculation)
       final latestCheckIn = await getLatestCheckIn(challenge.id);
       final previousWeight = (latestCheckIn?.currentWeight ?? userData.weight ?? newWeight.round()).toDouble();
 
-      // Determine updated activity level based on user input
-      String? updatedActivityLevel = challenge.activityLevel;
-      if (activityLevelChange != null && challenge.activityLevel != null) {
-        if (activityLevelChange == 'increased') {
-          // Move up one activity level
-          updatedActivityLevel = _increaseActivityLevel(challenge.activityLevel!);
-        } else if (activityLevelChange == 'decreased') {
-          // Move down one activity level
-          updatedActivityLevel = _decreaseActivityLevel(challenge.activityLevel!);
-        }
-        // If 'no_change', keep the same activity level
-      }
+      // Calculate weekly calories consumed and burned
+      int weeklyCaloriesConsumed = 0;
+      int weeklyCaloriesBurned = 0;
+      int daysWithFoodIntake = 0;
+      int daysWithinTarget = 0;
 
-      // Calculate adaptive adjustment using challenge-specific activity level and goal
-      // Convert int weights to double for precise calculation
-      final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
-        userData: userData,
-        currentWeight: newWeight.toDouble(),
-        previousWeight: previousWeight.toDouble(),
-        currentCalorieGoal: currentCalorieGoal,
-        activityLevel: updatedActivityLevel, // Use updated activity level
-        goal: challenge.goal, // Use challenge-specific goal
+      // Get stats for the week
+      final statsList = await StatsService.getStatsForDateRange(
+        challenge.id,
+        weekStart,
+        actualWeekEnd,
       );
 
-      final newCalorieGoal = adaptiveResult['newCalorieGoal'] as int;
-      final adjustment = adaptiveResult['adjustment'] as int;
-      final interpretation = adaptiveResult['interpretation'] as String;
-      final reason = adaptiveResult['reason'] as String;
-      final weightChange = adaptiveResult['weightChange'] as double;
+      for (final stats in statsList) {
+        if (stats.foodCalories > 0) {
+          daysWithFoodIntake++;
+          weeklyCaloriesConsumed += stats.foodCalories;
+          
+          // Check if calories are within ±20% of target
+          final lowerBound = currentCalorieGoal * 0.8;
+          final upperBound = currentCalorieGoal * 1.2;
+          if (stats.foodCalories >= lowerBound && stats.foodCalories <= upperBound) {
+            daysWithinTarget++;
+          }
+        }
+        weeklyCaloriesBurned += stats.totalBurned;
+      }
+
+      // Also check food logs directly for days that might not have stats yet
+      for (int i = 0; i <= actualWeekEnd.difference(weekStart).inDays; i++) {
+        final date = weekStart.add(Duration(days: i));
+        if (date.isAfter(now)) break;
+
+        // Check if we already counted this day in stats
+        final dateKey = '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
+        final alreadyCounted = statsList.any((s) => s.dateId == dateKey && s.foodCalories > 0);
+        
+        if (!alreadyCounted) {
+          final foodLogs = await FoodLogService.getFoodLogsForDate(date, challengeId: challenge.id);
+          if (foodLogs.isNotEmpty) {
+            double dayCalories = 0;
+            for (final log in foodLogs) {
+              dayCalories += log.totalCalories;
+            }
+            if (dayCalories > 0) {
+              daysWithFoodIntake++;
+              weeklyCaloriesConsumed += dayCalories.round();
+              
+              // Check if calories are within ±20% of target
+              final lowerBound = currentCalorieGoal * 0.8;
+              final upperBound = currentCalorieGoal * 1.2;
+              if (dayCalories >= lowerBound && dayCalories <= upperBound) {
+                daysWithinTarget++;
+              }
+            }
+          }
+        }
+
+        // Get workouts for calories burned
+        final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+          challengeId: challenge.id,
+          date: date,
+        );
+        final userWeight = userData.weight?.toDouble() ?? 70.0;
+        for (var workout in workouts) {
+          weeklyCaloriesBurned += workout.calculateCaloriesBurned(userWeight).round();
+        }
+      }
+
+      // Validate conditions for adjustment
+      final hasEnoughDays = daysWithFoodIntake >= 5;
+      final hasReliableWeightData = newWeight > 0 && previousWeight > 0;
+      final hasReasonableCalories = daysWithinTarget >= 3; // At least 3 days within ±20%
+
+      // Determine if adjustment should be made
+      bool shouldAdjust = hasEnoughDays && hasReliableWeightData && hasReasonableCalories;
+      String? adjustmentNotice;
+      int finalCalorieGoal = currentCalorieGoal;
+      int finalAdjustment = 0;
+      String finalInterpretation = 'unchanged';
+      String finalReason = 'No adjustment needed';
+
+      if (shouldAdjust) {
+        // Determine updated activity level based on user input
+        String? updatedActivityLevel = challenge.activityLevel;
+        if (activityLevelChange != null && challenge.activityLevel != null) {
+          if (activityLevelChange == 'increased') {
+            updatedActivityLevel = _increaseActivityLevel(challenge.activityLevel!);
+          } else if (activityLevelChange == 'decreased') {
+            updatedActivityLevel = _decreaseActivityLevel(challenge.activityLevel!);
+          }
+        }
+
+        // Calculate adaptive adjustment using challenge-specific activity level and goal
+        final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
+          userData: userData,
+          currentWeight: newWeight.toDouble(),
+          previousWeight: previousWeight.toDouble(),
+          currentCalorieGoal: currentCalorieGoal,
+          activityLevel: updatedActivityLevel,
+          goal: challenge.goal,
+        );
+
+        finalCalorieGoal = adaptiveResult['newCalorieGoal'] as int;
+        finalAdjustment = adaptiveResult['adjustment'] as int;
+        finalInterpretation = adaptiveResult['interpretation'] as String;
+        finalReason = adaptiveResult['reason'] as String;
+
+        // Update challenge with new calorie goal and activity level if changed
+        if (finalCalorieGoal != currentCalorieGoal || updatedActivityLevel != challenge.activityLevel) {
+          final updatedChallenge = challenge.copyWith(
+            dailyCalorieGoal: finalCalorieGoal,
+            activityLevel: updatedActivityLevel,
+          );
+          await ChallengeService.updateChallenge(updatedChallenge);
+        }
+      } else {
+        // Build adjustment notice explaining why adjustment wasn't made
+        final reasons = <String>[];
+        if (!hasEnoughDays) {
+          reasons.add('insufficient food tracking (only $daysWithFoodIntake days logged, need at least 5)');
+        }
+        if (!hasReasonableCalories) {
+          reasons.add('calories not consistently within target range (only $daysWithinTarget days within ±20% of goal)');
+        }
+        if (!hasReliableWeightData) {
+          reasons.add('unreliable weight data');
+        }
+        adjustmentNotice = 'Your calorie goal was not adjusted this week due to incomplete tracking: ${reasons.join(', ')}. Please log at least 5 days of food intake with calories reasonably close to your target (±20%) to enable automatic adjustments.';
+      }
 
       // Update user weight in profile (round to int for storage)
       await UserDataService.updateUserData(weight: newWeight.round());
 
-      // Create detailed check-in record (round weights to int for storage)
+      final weightChange = (newWeight - previousWeight).toDouble();
+
+      // Create detailed check-in record
       final checkIn = WeeklyCheckIn(
         id: _firestore
             .collection(_usersCollection)
@@ -186,32 +302,27 @@ class WeeklyCheckInService {
             .id,
         challengeId: challenge.id,
         checkInDate: DateTime.now(),
-        weekNumber: getCurrentWeekNumber(challenge),
-        currentWeight: newWeight.round(), // Round to int for storage
-        previousWeight: previousWeight.round(), // Round to int for storage
+        weekNumber: weekNumber,
+        currentWeight: newWeight.round(),
+        previousWeight: previousWeight.round(),
         weightChange: weightChange,
         notes: notes,
         progressFeeling: progressFeeling,
         activityLevelChange: activityLevelChange,
         previousCalorieGoal: currentCalorieGoal,
-        newCalorieGoal: newCalorieGoal,
-        calorieAdjustment: adjustment,
-        progressInterpretation: interpretation,
-        adaptiveReason: reason,
+        newCalorieGoal: shouldAdjust ? finalCalorieGoal : currentCalorieGoal,
+        calorieAdjustment: shouldAdjust ? finalAdjustment : 0,
+        progressInterpretation: finalInterpretation,
+        adaptiveReason: finalReason,
+        goalAdjusted: shouldAdjust,
+        adjustmentNotice: adjustmentNotice,
+        weeklyCaloriesConsumed: weeklyCaloriesConsumed,
+        weeklyCaloriesBurned: weeklyCaloriesBurned,
         createdAt: DateTime.now(),
       );
 
       // Save check-in to history
       await saveCheckIn(checkIn);
-
-      // Update challenge with new calorie goal and activity level if changed
-      if (newCalorieGoal != currentCalorieGoal || updatedActivityLevel != challenge.activityLevel) {
-        final updatedChallenge = challenge.copyWith(
-          dailyCalorieGoal: newCalorieGoal,
-          activityLevel: updatedActivityLevel,
-        );
-        await ChallengeService.updateChallenge(updatedChallenge);
-      }
 
       return true;
     } catch (e) {

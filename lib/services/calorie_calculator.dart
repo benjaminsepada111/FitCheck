@@ -246,6 +246,13 @@ class CalorieCalculator {
 
     final goalLower = effectiveGoal.toLowerCase();
     final weightChangeKg = (currentWeight - previousWeight).toDouble(); // kg
+    
+    // Weight Validation: Cap unrealistic weight changes (>2% per week is considered extreme)
+    final weightChangePercent = (weightChangeKg / previousWeight) * 100;
+    final bool isExtremeChange = weightChangePercent.abs() > 2.0; // More than 2% change per week
+    
+    // Note: Even if weight change is extreme, we'll still calculate adjustments
+    // but cap them more conservatively. The user can verify and proceed if the weight is correct.
 
     // Define weight change states (0.3 kg threshold for "slight" vs "significant")
     final bool isStableWeight = weightChangeKg.abs() <= 0.3;
@@ -298,10 +305,10 @@ class CalorieCalculator {
         reason = 'Weight stable (${weightChangeKg.abs().toStringAsFixed(1)}kg change). Reducing calories by 100 to increase progress.';
       } else if (isWeightGain) {
         // 1.3: WeightGain occurred - User is moving opposite of goal
-        // Decrease calories by an additional 100-150 kcal (using 150)
-        baseAdjustment = -150;
+        // Decrease calories by 100 kcal
+        baseAdjustment = -100;
         interpretation = 'no_progress';
-        reason = 'Weight increased by ${weightChangeKg.toStringAsFixed(1)}kg. Reducing calories by 150 to correct course.';
+        reason = 'Weight increased by ${weightChangeKg.toStringAsFixed(1)}kg. Adjusting calorie goal to help you get back on track.';
       }
     } else if (isMaintainWeightGoal) {
       // FOR "MAINTAIN WEIGHT" GOAL
@@ -317,7 +324,7 @@ class CalorieCalculator {
         // Keep calories the same or reduce slightly (-50 to -100 kcal)
         baseAdjustment = -100; // Use -100 kcal (within -50 to -100 range)
         interpretation = 'surplus';
-        reason = 'Weight increased by ${weightChangeKg.toStringAsFixed(1)}kg. Reducing calories by 100 to correct.';
+        reason = 'Weight increased by ${weightChangeKg.toStringAsFixed(1)}kg. Adjusting calorie goal to maintain your target weight.';
       } else if (isWeightLoss) {
         // 2.3: WeightLoss occurred - Losing weight unintentionally means calories were too low
         // Increase calories slightly (+50 to +100 kcal)
@@ -346,10 +353,10 @@ class CalorieCalculator {
         reason = 'Weight stable (${weightChangeKg.abs().toStringAsFixed(1)}kg change). Increasing calories by 100 to boost progress.';
       } else if (isWeightLoss) {
         // 3.3: WeightLoss occurred - User moved opposite of goal
-        // Increase calories by +150 kcal
-        baseAdjustment = 150;
+        // Increase calories by +100 kcal (capped)
+        baseAdjustment = 100;
         interpretation = 'no_progress';
-        reason = 'Weight decreased by ${weightChangeKg.abs().toStringAsFixed(1)}kg. Increasing calories by 150 to correct course.';
+        reason = 'Weight decreased by ${weightChangeKg.abs().toStringAsFixed(1)}kg. Increasing calories by 100 to correct course.';
       }
     } else {
       // Unknown goal type - fallback to theoretical goal with safety minimums
@@ -358,44 +365,57 @@ class CalorieCalculator {
       reason = 'Calorie goal recalculated based on new weight and activity level.';
     }
 
-    // STEP 6: Detect extreme weight changes (>1% of previous weight per week)
-    final weightChangePercent = (weightChangeKg / previousWeight) * 100;
-    final bool isTooMuchGain = weightChangePercent > 1.0;
-    final bool isTooMuchLoss = weightChangePercent < -1.0;
+    // STEP 6: Detect moderate weight changes (1-2% of previous weight per week)
+    // Note: Extreme changes (>2%) are already handled above and return early
+    final bool isModerateGain = weightChangePercent > 1.0 && weightChangePercent <= 2.0;
+    final bool isModerateLoss = weightChangePercent < -1.0 && weightChangePercent >= -2.0;
 
-    int extremeAdjustment = 0; // Additional adjustment for extreme changes
-    String extremeReason = '';
+    int moderateAdjustment = 0; // Additional adjustment for moderate changes
+    String moderateReason = '';
 
-    if (isTooMuchGain) {
-      // TooMuchGain: reduce daily goal slightly (-100 to -150 kcal) to prevent excessive gain
-      extremeAdjustment = -100; // Use -100 kcal (within -100 to -150 range)
-      extremeReason = ' Excessive weight gain detected (${weightChangePercent.toStringAsFixed(1)}% of body weight).';
-    } else if (isTooMuchLoss) {
-      // TooMuchLoss: increase daily goal slightly (+100 to +150 kcal) to prevent excessive loss
-      extremeAdjustment = 100; // Use +100 kcal (within +100 to +150 range)
-      extremeReason = ' Excessive weight loss detected (${weightChangePercent.abs().toStringAsFixed(1)}% of body weight).';
+    if (isModerateGain) {
+      // ModerateGain: reduce daily goal slightly (-50 to -100 kcal) to prevent excessive gain
+      moderateAdjustment = -50; // Use -50 kcal for moderate changes
+      moderateReason = ' Moderate weight gain detected (${weightChangePercent.toStringAsFixed(1)}% of body weight).';
+    } else if (isModerateLoss) {
+      // ModerateLoss: increase daily goal slightly (+50 to +100 kcal) to prevent excessive loss
+      moderateAdjustment = 50; // Use +50 kcal for moderate changes
+      moderateReason = ' Moderate weight loss detected (${weightChangePercent.abs().toStringAsFixed(1)}% of body weight).';
     }
 
-    // STEP 7: Combine base adjustments and extreme-change adjustments
-    int totalAdjustment = baseAdjustment + extremeAdjustment;
+    // STEP 7: Combine base adjustments and moderate-change adjustments
+    int totalAdjustment = baseAdjustment + moderateAdjustment;
 
-    // Do not exceed ±150 kcal per week (upper limit)
-    if (totalAdjustment.abs() > 150) {
-      totalAdjustment = totalAdjustment > 0 ? 150 : -150;
+    // Cap adjustments based on weight change severity
+    if (isExtremeChange) {
+      // For extreme changes (>2%), cap at ±50 kcal for safety (user can verify and proceed)
+      if (totalAdjustment.abs() > 50) {
+        totalAdjustment = totalAdjustment > 0 ? 50 : -50;
+      }
+      // Update reason to mention extreme change with conservative adjustment
+      if (weightChangePercent > 0) {
+        reason = 'Extreme weight gain detected (${weightChangePercent.toStringAsFixed(1)}% of body weight). Conservative adjustment applied.';
+      } else {
+        reason = 'Extreme weight loss detected (${weightChangePercent.abs().toStringAsFixed(1)}% of body weight). Conservative adjustment applied.';
+      }
+    } else {
+      // For normal/moderate changes, cap at ±100 kcal per week
+      if (totalAdjustment.abs() > 100) {
+        totalAdjustment = totalAdjustment > 0 ? 100 : -100;
+      }
+      // Update reason if moderate change was detected
+      if (moderateReason.isNotEmpty) {
+        reason += moderateReason;
+        if (isModerateGain) {
+          reason += ' Reducing calories by additional 50 to prevent excessive gain.';
+        } else {
+          reason += ' Increasing calories by additional 50 to prevent excessive loss.';
+        }
+      }
     }
 
     // Apply total adjustment
     finalDailyGoal = currentCalorieGoal + totalAdjustment;
-
-    // Update reason if extreme change was detected
-    if (extremeReason.isNotEmpty) {
-      reason += extremeReason;
-      if (isTooMuchGain) {
-        reason += ' Reducing calories by additional 100 to prevent excessive gain.';
-      } else {
-        reason += ' Increasing calories by additional 100 to prevent excessive loss.';
-      }
-    }
 
     // STEP 8: Apply safety minimums as final check
     finalDailyGoal = finalDailyGoal < safetyMinimum ? safetyMinimum : finalDailyGoal;

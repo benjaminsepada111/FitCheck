@@ -191,9 +191,6 @@ class TrackersState extends State<Trackers>
     ).listen((workouts) async {
       if (!mounted) return;
 
-      // Ignore empty stream events to prevent resetting to 0
-      if (workouts.isEmpty) return;
-
       // Get user weight for calorie calculation
       final userData = await UserDataService.loadUserData();
       final userWeight = userData?.weight?.toDouble() ?? 70.0;

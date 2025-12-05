@@ -20,7 +20,6 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _loaderController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeOutAnimation;
   late Animation<double> _loaderFadeAnimation;
 
   @override
@@ -62,14 +61,6 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(
         parent: _scaleController,
         curve: Curves.easeOutCubic,
-      ),
-    );
-
-    // Fade out animation
-    _fadeOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _fadeController,
-        curve: Curves.easeInOut,
       ),
     );
 

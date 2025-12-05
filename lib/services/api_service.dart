@@ -104,10 +104,6 @@
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
 
-        // Log status for debugging
-        final status = data['data']?['response']?['status'];
-        final progress = data['data']?['response']?['progress'];
-
         return data;
       } else {
         throw Exception('Status check failed: ${resp.statusCode} ${resp.body}');

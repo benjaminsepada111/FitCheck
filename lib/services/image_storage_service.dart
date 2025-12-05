@@ -265,15 +265,6 @@ class ImageStorageService {
     }
   }
 
-  /// Format bytes to human-readable size
-  static String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
 
   /// Check if an image URL is valid and accessible
   static Future<bool> isImageAccessible(String imageUrl) async {

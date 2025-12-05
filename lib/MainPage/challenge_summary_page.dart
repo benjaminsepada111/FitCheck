@@ -21,7 +21,6 @@ import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'video_preview_page.dart';
-import 'package:capstone_project/widgets/fitcheck_loader.dart';
 
 class DailyLogData {
   final DateTime date;
@@ -252,20 +251,6 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
     }
   }
 
-  Future<void> _clearCachedVideoUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cacheKey = _getCacheKey();
-      final textLogsCacheKey = _getTextLogsCacheKey();
-
-      await prefs.remove(cacheKey);
-      await prefs.remove(textLogsCacheKey);
-
-      print('✅ Cleared video and text logs cache');
-    } catch (e) {
-      print('❌ Error clearing cache: $e');
-    }
-  }
 
   // ======================
   // MILESTONE & DAILY LOGS LOADING
@@ -1291,9 +1276,6 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
     }
   }
 
-  String _formatDateKey(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
 
   Future<void> _loadWeeklySummaryForWeek(int weekNumber) async {
     try {

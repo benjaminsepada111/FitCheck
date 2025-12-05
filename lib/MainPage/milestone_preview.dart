@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:capstone_project/models/milestone.dart';
 import 'package:capstone_project/services/milestone_service.dart';
@@ -136,9 +135,6 @@ class _MilestonePreviewPageState extends State<MilestonePreviewPage> {
 
   // Expanded state for each milestone
   Map<int, bool> _expandedStates = {};
-
-  // Key to force rebuild of image widget
-  final GlobalKey _imageKey = GlobalKey();
 
   @override
   void initState() {

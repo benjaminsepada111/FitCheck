@@ -107,8 +107,6 @@ class FoodLoggerState extends State<FoodLogger> {
   double get _progress => _dailyGoal > 0 ? (_consumed / _dailyGoal).clamp(0.0, 1.0) : 0.0;
   int get _progressPercentage => (_progress * 100).round();
 
-  Color get _progressColor => AppColors.secondary;
-
   String get _statusText {
     if (_consumed > _dailyGoal) {
       final excess = _consumed - _dailyGoal;

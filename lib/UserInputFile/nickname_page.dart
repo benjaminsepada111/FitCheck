@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
-import 'package:capstone_project/services/user_data_service.dart';
 import 'onboarding_navigation.dart';
 
 class NicknamePage extends StatefulWidget {

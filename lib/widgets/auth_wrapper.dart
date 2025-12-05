@@ -53,7 +53,6 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  bool _isLoading = false;
   bool _isResendLoading = false;
   String? _errorMessage;
   Timer? _timer;

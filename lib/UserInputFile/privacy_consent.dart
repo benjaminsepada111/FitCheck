@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:capstone_project/color/colors.dart';
-import 'nickname_page.dart';
 
 class PrivacyConsentPage extends StatefulWidget {
   const PrivacyConsentPage({super.key});
@@ -10,7 +9,6 @@ class PrivacyConsentPage extends StatefulWidget {
 }
 
 class _PrivacyConsentPageState extends State<PrivacyConsentPage> with TickerProviderStateMixin {
-  bool _isChecked = false;
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _scaleController;
@@ -67,60 +65,6 @@ class _PrivacyConsentPageState extends State<PrivacyConsentPage> with TickerProv
     _slideController.dispose();
     _scaleController.dispose();
     super.dispose();
-  }
-
-  void _onNextPressed() {
-    if (_isChecked) {
-      // Add button press animation
-      _scaleController.reverse().then((_) {
-        _scaleController.forward();
-      });
-
-      // Navigate to nickname page (first onboarding step)
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const NicknamePage()),
-      );
-    } else {
-      // Show enhanced warning with better styling
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                Icons.warning_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Please accept the Terms and Privacy Policy to continue.",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.orange.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'OK',
-            textColor: Colors.white,
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            },
-          ),
-        ),
-      );
-    }
   }
 
   @override
@@ -225,67 +169,4 @@ class _PrivacyConsentPageState extends State<PrivacyConsentPage> with TickerProv
     );
   }
 
-  Widget _buildSectionHeader(IconData icon, String title) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.secondary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: AppColors.secondary,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.secondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBulletPoint(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 8, right: 12),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.secondary,
-                  AppColors.secondary.withOpacity(0.7),
-                ],
-              ),
-              shape: BoxShape.circle,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                height: 1.5,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

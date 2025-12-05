@@ -7,7 +7,6 @@ import 'onboarding.dart';
 import 'LoginPages/login_page.dart';
 import 'SignUpPages/signuppage.dart';
 import 'main_page.dart';
-import 'app_text_styles.dart';
 import 'splash_screen.dart';
 
 void main() async {

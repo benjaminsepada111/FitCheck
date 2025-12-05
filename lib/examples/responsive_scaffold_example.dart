@@ -39,8 +39,6 @@ class _ResponsiveBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final r = context.responsive;
-
     return SingleChildScrollView(
       child: ResponsivePadding(
         horizontal: 16,

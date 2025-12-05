@@ -1,20 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../models/recommendation.dart';
 import '../models/challenge.dart';
-import '../models/food_models.dart';
-import '../models/workout.dart';
-import '../models/milestone.dart';
 import 'food_log_service.dart';
 import 'workout_service_v2.dart';
 import 'milestone_service.dart';
 
 class WeeklyRecommendationsService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
-
   /// Generate personalized recommendations based on past week performance
   static Future<List<Recommendation>> generateRecommendations({
     required Challenge challenge,

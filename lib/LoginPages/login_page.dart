@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io' show Platform, SocketException;
+import 'dart:io' show SocketException;
 import 'dart:async';
 import 'forgot_password.dart';
 import 'package:capstone_project/SignUpPages/signuppage.dart';
-import '../app_text_styles.dart';
 import '../color/colors.dart';
 import '../services/auth_service.dart';
 import '../utils/page_transitions.dart';
@@ -22,8 +21,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _rememberMe = false;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
-  bool _isAppleLoading = false;
-  bool _isFacebookLoading = false;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -235,118 +232,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Apple Sign In
-  Future<void> _signInWithApple() async {
-    _clearErrors();
-
-    if (!Platform.isIOS) {
-      _setSocialError('Apple Sign In is only available on iOS devices');
-      return;
-    }
-
-    setState(() {
-      _isAppleLoading = true;
-    });
-
-    try {
-      final userCredential = await _authService.signInWithApple();
-
-      if (userCredential != null && mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/auth',
-              (route) => false,
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        if (e.code == 'account-exists-with-different-credential') {
-          _setSocialError('An account already exists with this email using a different sign-in method');
-        } else if (e.code == 'network-request-failed') {
-          _setSocialError('Network error. Please check your internet connection and try again');
-        } else if (e.code == 'user-disabled') {
-          _setSocialError('This account has been disabled. Please contact support');
-        } else {
-          _setSocialError('Apple sign-in failed. Please try again');
-        }
-      }
-    } on SocketException {
-      if (mounted) {
-        _setSocialError('No internet connection. Please check your network and try again');
-      }
-    } on TimeoutException {
-      if (mounted) {
-        _setSocialError('Connection timeout. Please check your internet connection and try again');
-      }
-    } catch (e) {
-      if (mounted) {
-        if (e.toString().contains('cancelled') || e.toString().contains('canceled')) {
-          return;
-        }
-        _setSocialError('Apple sign-in failed. Please try again');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isAppleLoading = false;
-        });
-      }
-    }
-  }
-
-  // Facebook Sign In
-  Future<void> _signInWithFacebook() async {
-    _clearErrors();
-
-    setState(() {
-      _isFacebookLoading = true;
-    });
-
-    try {
-      final userCredential = await _authService.signInWithFacebook();
-
-      if (userCredential != null && mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/auth',
-              (route) => false,
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        if (e.code == 'account-exists-with-different-credential') {
-          _setSocialError('An account already exists with this email using a different sign-in method');
-        } else if (e.code == 'network-request-failed') {
-          _setSocialError('Network error. Please check your internet connection and try again');
-        } else if (e.code == 'user-disabled') {
-          _setSocialError('This account has been disabled. Please contact support');
-        } else {
-          _setSocialError('Facebook sign-in failed. Please try again');
-        }
-      }
-    } on SocketException {
-      if (mounted) {
-        _setSocialError('No internet connection. Please check your network and try again');
-      }
-    } on TimeoutException {
-      if (mounted) {
-        _setSocialError('Connection timeout. Please check your internet connection and try again');
-      }
-    } catch (e) {
-      if (mounted) {
-        if (e.toString().contains('cancelled') || e.toString().contains('canceled')) {
-          return;
-        }
-        _setSocialError('Facebook sign-in failed. Please try again');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isFacebookLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

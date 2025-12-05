@@ -4,6 +4,7 @@ import 'package:capstone_project/services/food_log_service.dart';
 import 'package:capstone_project/services/workout_service_v2.dart';
 import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/utils/responsive_utils.dart';
+import 'dart:async';
 
 class CalorieTrackerHeader extends StatefulWidget {
   final Challenge? currentChallenge;
@@ -18,10 +19,34 @@ class CalorieTrackerHeaderState extends State<CalorieTrackerHeader> {
   double _caloriesConsumed = 0;
   int _caloriesBurned = 0;
 
+  // Stream subscriptions for real-time updates
+  StreamSubscription? _foodLogSubscription;
+  StreamSubscription? _workoutSubscription;
+
   @override
   void initState() {
     super.initState();
     loadCalorieData();
+    _setupRealtimeListeners();
+  }
+
+  @override
+  void dispose() {
+    _foodLogSubscription?.cancel();
+    _workoutSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(CalorieTrackerHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload data when challenge changes
+    if (oldWidget.currentChallenge != widget.currentChallenge) {
+      _foodLogSubscription?.cancel();
+      _workoutSubscription?.cancel();
+      loadCalorieData();
+      _setupRealtimeListeners();
+    }
   }
 
   // Public method to refresh calorie data
@@ -63,6 +88,53 @@ class CalorieTrackerHeaderState extends State<CalorieTrackerHeader> {
     } catch (e) {
       // Handle error silently
     }
+  }
+
+  void _setupRealtimeListeners() {
+    if (widget.currentChallenge == null) return;
+
+    final today = DateTime.now();
+
+    // Listen to food log changes
+    _foodLogSubscription = FoodLogService.getFoodLogsStreamForDate(
+      today,
+      challengeId: widget.currentChallenge!.id,
+    ).listen((foodLogs) {
+      if (!mounted) return;
+
+      // Calculate total calories from food logs
+      double totalCalories = 0;
+      for (final log in foodLogs) {
+        totalCalories += log.totalCalories;
+      }
+
+      setState(() {
+        _caloriesConsumed = totalCalories;
+      });
+    });
+
+    // Listen to workout changes
+    _workoutSubscription = WorkoutServiceV2.getWorkoutsStreamForDate(
+      challengeId: widget.currentChallenge!.id,
+      date: today,
+    ).listen((workouts) async {
+      if (!mounted) return;
+
+      // Get user weight for calorie calculation
+      final userData = await UserDataService.loadUserData();
+      final userWeight = userData?.weight?.toDouble() ?? 70.0;
+
+      int caloriesBurned = 0;
+      for (var workout in workouts) {
+        caloriesBurned += workout.calculateCaloriesBurned(userWeight).toInt();
+      }
+
+      if (mounted) {
+        setState(() {
+          _caloriesBurned = caloriesBurned;
+        });
+      }
+    });
   }
 
   @override

@@ -1,8 +1,6 @@
 // services/achievement_time_service.dart
-import 'package:capstone_project/services/user_time_tracker.dart';
 import 'package:capstone_project/services/statistics_service.dart';
 import 'package:capstone_project/services/challenge_service.dart';
-import 'package:flutter/foundation.dart';
 
 /// Service to check challenge-based achievements
 ///
@@ -27,7 +25,6 @@ class AchievementTimeService {
       final challenges = results[0] as List;
       final stats = results[1] as Map<String, int>;
       final activeDays = results[2] as int;
-      final loginDays = results[3] as int;
 
       final achievements = <String, AchievementStatus>{};
 

@@ -1,7 +1,6 @@
 // services/user_time_tracker.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
 /// A service for tracking per-user time-based metrics using UTC timestamps
 ///

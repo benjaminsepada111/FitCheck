@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../models/workout.dart';
 import 'stats_service.dart';
 
@@ -335,11 +336,10 @@ class WorkoutServiceV2 {
   static Stream<List<Workout>> getWorkoutsStreamForDate({
     required String challengeId,
     required DateTime date,
-  }) async* {
+  }) {
     final user = _auth.currentUser;
     if (user == null) {
-      yield [];
-      return;
+      return Stream.value([]);
     }
 
     final dateId = _formatDateId(date);
@@ -367,24 +367,69 @@ class WorkoutServiceV2 {
         .orderBy('timestamp', descending: true)
         .snapshots();
 
-    await for (final cardioSnapshot in cardioStream) {
-      final strengthSnapshot = await strengthStream.first;
+    // Use StreamController to combine both streams
+    final controller = StreamController<List<Workout>>();
+    QuerySnapshot? latestCardioSnapshot;
+    QuerySnapshot? latestStrengthSnapshot;
+    bool hasCardio = false;
+    bool hasStrength = false;
 
-      final allWorkouts = <Workout>[];
+    StreamSubscription? cardioSub;
+    StreamSubscription? strengthSub;
 
-      allWorkouts.addAll(
-        cardioSnapshot.docs.map((doc) => Workout.fromMap(doc.data())),
-      );
+    void emitCombined() {
+      if (hasCardio && hasStrength && latestCardioSnapshot != null && latestStrengthSnapshot != null) {
+        final allWorkouts = <Workout>[];
 
-      allWorkouts.addAll(
-        strengthSnapshot.docs.map((doc) => Workout.fromMap(doc.data())),
-      );
+        allWorkouts.addAll(
+          latestCardioSnapshot!.docs.map((doc) => Workout.fromMap(doc.data() as Map<String, dynamic>)),
+        );
 
-      // Sort by timestamp
-      allWorkouts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        allWorkouts.addAll(
+          latestStrengthSnapshot!.docs.map((doc) => Workout.fromMap(doc.data() as Map<String, dynamic>)),
+        );
 
-      yield allWorkouts;
+        // Sort by timestamp
+        allWorkouts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+        if (!controller.isClosed) {
+          controller.add(allWorkouts);
+        }
+      }
     }
+
+    cardioSub = cardioStream.listen(
+      (snapshot) {
+        latestCardioSnapshot = snapshot;
+        hasCardio = true;
+        emitCombined();
+      },
+      onError: (error) {
+        if (!controller.isClosed) {
+          controller.addError(error);
+        }
+      },
+    );
+
+    strengthSub = strengthStream.listen(
+      (snapshot) {
+        latestStrengthSnapshot = snapshot;
+        hasStrength = true;
+        emitCombined();
+      },
+      onError: (error) {
+        if (!controller.isClosed) {
+          controller.addError(error);
+        }
+      },
+    );
+
+    controller.onCancel = () {
+      cardioSub?.cancel();
+      strengthSub?.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Calculate total calories burned from cardio for a specific date

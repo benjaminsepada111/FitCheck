@@ -159,6 +159,7 @@ class WeeklyCheckInService {
       int weeklyCaloriesBurned = 0;
       int daysWithFoodIntake = 0;
       int daysWithinTarget = 0;
+      Set<String> activeDays = {}; // Track days with any activity (food or workouts)
 
       // Get stats for the week
       final statsList = await StatsService.getStatsForDateRange(
@@ -170,6 +171,7 @@ class WeeklyCheckInService {
       for (final stats in statsList) {
         if (stats.foodCalories > 0) {
           daysWithFoodIntake++;
+          activeDays.add(stats.dateId); // Mark day as active
           weeklyCaloriesConsumed += stats.foodCalories;
           
           // Check if calories are within ±20% of target
@@ -179,6 +181,9 @@ class WeeklyCheckInService {
             daysWithinTarget++;
           }
         }
+        if (stats.totalBurned > 0) {
+          activeDays.add(stats.dateId); // Mark day as active if workout was logged
+        }
         weeklyCaloriesBurned += stats.totalBurned;
       }
 
@@ -187,8 +192,9 @@ class WeeklyCheckInService {
         final date = weekStart.add(Duration(days: i));
         if (date.isAfter(now)) break;
 
-        // Check if we already counted this day in stats
         final dateKey = '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
+        
+        // Check if we already counted this day in stats
         final alreadyCounted = statsList.any((s) => s.dateId == dateKey && s.foodCalories > 0);
         
         if (!alreadyCounted) {
@@ -200,6 +206,7 @@ class WeeklyCheckInService {
             }
             if (dayCalories > 0) {
               daysWithFoodIntake++;
+              activeDays.add(dateKey); // Mark day as active
               weeklyCaloriesConsumed += dayCalories.round();
               
               // Check if calories are within ±20% of target
@@ -217,19 +224,31 @@ class WeeklyCheckInService {
           challengeId: challenge.id,
           date: date,
         );
+        if (workouts.isNotEmpty) {
+          activeDays.add(dateKey); // Mark day as active if workout was logged
+        }
         final userWeight = userData.weight?.toDouble() ?? 70.0;
         for (var workout in workouts) {
           weeklyCaloriesBurned += workout.calculateCaloriesBurned(userWeight).round();
         }
       }
 
+      // Calculate total days in week and inactive days
+      final totalDaysInWeek = actualWeekEnd.difference(weekStart).inDays + 1;
+      final daysWithActivity = activeDays.length;
+      final inactiveDays = totalDaysInWeek - daysWithActivity;
+
       // Validate conditions for adjustment
       final hasEnoughDays = daysWithFoodIntake >= 5;
       final hasReliableWeightData = newWeight > 0 && previousWeight > 0;
       final hasReasonableCalories = daysWithinTarget >= 3; // At least 3 days within ±20%
+      // If user wasn't active for more than 2 days, don't adjust regardless of weight change
+      final hasConsistentActivity = inactiveDays <= 2; // Allow max 2 inactive days
 
       // Determine if adjustment should be made
-      bool shouldAdjust = hasEnoughDays && hasReliableWeightData && hasReasonableCalories;
+      // Note: If user isn't active for a few days, calorie adjustment shouldn't happen
+      // regardless of weight increase or decrease
+      bool shouldAdjust = hasEnoughDays && hasReliableWeightData && hasReasonableCalories && hasConsistentActivity;
       String? adjustmentNotice;
       int finalCalorieGoal = currentCalorieGoal;
       int finalAdjustment = 0;
@@ -282,7 +301,10 @@ class WeeklyCheckInService {
         if (!hasReliableWeightData) {
           reasons.add('unreliable weight data');
         }
-        adjustmentNotice = 'Your calorie goal was not adjusted this week due to incomplete tracking: ${reasons.join(', ')}. Please log at least 5 days of food intake with calories reasonably close to your target (±20%) to enable automatic adjustments.';
+        if (!hasConsistentActivity) {
+          reasons.add('too many inactive days ($inactiveDays days without food or workout logs, maximum 2 allowed)');
+        }
+        adjustmentNotice = 'Your calorie goal was not adjusted this week due to incomplete tracking: ${reasons.join(', ')}. Please log at least 5 days of food intake with calories reasonably close to your target (±20%) and stay active throughout the week to enable automatic adjustments.';
       }
 
       // Update user weight in profile (round to int for storage)

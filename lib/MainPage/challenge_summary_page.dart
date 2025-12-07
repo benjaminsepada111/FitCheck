@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'video_preview_page.dart';
 
 class DailyLogData {
@@ -164,11 +165,37 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
   Map<String, DailyLogData> _dailyLogs = {};
   bool _isLoadingLogs = false;
 
+  // Stream subscriptions for real-time updates
+  StreamSubscription? _workoutSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadChallengeData();
     _loadMilestones(); // This will also load cached video URL after milestones load
+    _setupRealtimeListeners();
+  }
+
+  @override
+  void dispose() {
+    _workoutSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupRealtimeListeners() {
+    final challengeId = widget.challenge['challengeId'] as String?;
+    if (challengeId == null) return;
+
+    final today = DateTime.now();
+    
+    // Listen to today's workouts - when they change, refresh the chart
+    _workoutSubscription = WorkoutServiceV2.getWorkoutsStreamForDate(
+      challengeId: challengeId,
+      date: today,
+    ).listen((workouts) {
+      // Refresh chart data when workouts change
+      _loadChallengeData();
+    });
   }
 
   // ======================

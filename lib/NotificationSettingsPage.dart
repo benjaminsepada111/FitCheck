@@ -31,6 +31,25 @@ class _NotificationPageState extends State<NotificationPage> {
     }
   }
 
+  /// Mark all notifications as read
+  Future<void> _markAllAsRead() async {
+    await NotificationStorageService.markAllAsRead();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('All notifications marked as read'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
   /// Clear all notifications
   Future<void> _clearAllNotifications() async {
     final confirmed = await showDialog<bool>(
@@ -93,6 +112,11 @@ class _NotificationPageState extends State<NotificationPage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.done_all, color: Colors.black87),
+            onPressed: _markAllAsRead,
+            tooltip: 'Mark all as read',
+          ),
           IconButton(
             icon: const Icon(Icons.delete_sweep, color: Colors.black87),
             onPressed: _clearAllNotifications,

@@ -11,6 +11,7 @@ import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
 import 'package:capstone_project/reminder_settings.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -289,6 +290,161 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Checks if the current user signed in with Google
+  bool _isGoogleSignIn() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    
+    // Check if user has Google provider
+    return user.providerData.any((info) => info.providerId == 'google.com');
+  }
+
+  /// Shows a notice dialog to Google users before redirecting them
+  Future<bool> _showGooglePasswordRedirectNotice() async {
+    final r = context.responsive;
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(r.size(20)),
+          ),
+          child: Padding(
+            padding: r.padding(all: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Google Account Password',
+                  style: TextStyle(
+                    fontSize: r.font(20, min: 18, max: 24),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                ResponsiveGap(12),
+                Text(
+                  'You\'ll be redirected to Google\'s security page. Please make sure you\'re signed in with the same Google account used in this app.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: r.font(15, min: 13, max: 18),
+                    color: Colors.grey.shade600,
+                    height: 1.4,
+                  ),
+                ),
+                ResponsiveGap(24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        style: TextButton.styleFrom(
+                          padding: r.paddingSymmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(r.size(12)),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: r.font(16, min: 14, max: 20),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    ResponsiveGap(12, vertical: false),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade600,
+                          padding: r.paddingSymmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(r.size(12)),
+                          ),
+                        ),
+                        child: Text(
+                          'Continue',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: r.font(16, min: 14, max: 20),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ) ?? false;
+  }
+
+  /// Handles the Change Password button press
+  /// Redirects Google users to Google's security page, 
+  /// or shows the change password form for email/password users
+  Future<void> _handleChangePassword() async {
+    final r = context.responsive;
+    
+    if (_isGoogleSignIn()) {
+      // Show notice dialog to Google users
+      final shouldProceed = await _showGooglePasswordRedirectNotice();
+      
+      if (!shouldProceed || !mounted) {
+        return; // User cancelled
+      }
+      
+      // User signed in with Google - redirect to Google's security page
+      final url = Uri.parse('https://myaccount.google.com/security');
+      try {
+        // Try to launch URL with external application mode
+        final launched = await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication,
+        );
+        
+        if (!launched) {
+          // Fallback: try platform default mode
+          await launchUrl(
+            url,
+            mode: LaunchMode.platformDefault,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to open Google security page. Please visit: myaccount.google.com/security',
+                style: TextStyle(fontSize: r.font(14, min: 12, max: 18)),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(r.size(10)),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } else {
+      // User signed in with email/password - show change password form
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ChangePasswordPage(),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
@@ -563,12 +719,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Icons.vpn_key_outlined,
               "Change Password",
               "Update your password",
-                  () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ChangePasswordPage(),
-                ),
-              ),
+              _handleChangePassword,
             ),
             Divider(height: r.size(1), indent: r.size(60)),
             _buildListTile(

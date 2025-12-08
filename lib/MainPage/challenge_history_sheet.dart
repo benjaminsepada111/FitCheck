@@ -20,6 +20,7 @@ class ChallengeHistorySheet extends StatefulWidget {
 
 class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
   late List<Challenge> _challenges;
+  final Set<String> _expandedCards = {}; // Track which cards are expanded
 
   @override
   void initState() {
@@ -407,28 +408,6 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-
-              // Challenge Goals
-              Row(
-                children: [
-                  Icon(
-                    Icons.track_changes,
-                    size: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Goal: ${challenge.dailyCalorieGoal} cal daily',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 16),
 
               // Progress Section
@@ -466,6 +445,105 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
                   valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                   minHeight: 6,
                 ),
+              ),
+              const SizedBox(height: 12),
+
+              // Dropdown Button to show/hide details
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    if (_expandedCards.contains(challenge.id)) {
+                      _expandedCards.remove(challenge.id);
+                    } else {
+                      _expandedCards.add(challenge.id);
+                    }
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _expandedCards.contains(challenge.id) ? 'Hide Details' : 'Show Details',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: _expandedCards.contains(challenge.id) ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Expandable Details Section
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Daily Calorie Goal
+                      _buildDetailRow(
+                        Icons.local_fire_department,
+                        'Daily Calorie',
+                        '${challenge.dailyCalorieGoal} cal',
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Starting Weight
+                      if (challenge.originalWeight != null && challenge.originalWeight! > 0)
+                        ...[
+                          _buildDetailRow(
+                            Icons.monitor_weight_outlined,
+                            'Starting Weight',
+                            '${challenge.originalWeight!.toStringAsFixed(1)} kg',
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                      // Duration
+                      _buildDetailRow(
+                        Icons.timer_outlined,
+                        'Duration',
+                        '$daysTotal days',
+                      ),
+
+                      // Note
+                      if (challenge.notes != null && challenge.notes!.isNotEmpty)
+                        ...[
+                          const SizedBox(height: 8),
+                          _buildDetailRow(
+                            Icons.note_outlined,
+                            'Note',
+                            challenge.notes!,
+                            isMultiLine: true,
+                          ),
+                        ],
+                    ],
+                  ),
+                ),
+                crossFadeState: _expandedCards.contains(challenge.id)
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 200),
               ),
 
               // Swipe hint for history items (only show for non-active challenges)
@@ -592,6 +670,39 @@ class _ChallengeHistorySheetState extends State<ChallengeHistorySheet> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value, {bool isMultiLine = false}) {
+    return Row(
+      crossAxisAlignment: isMultiLine ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Colors.grey.shade600,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+            maxLines: isMultiLine ? 3 : 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

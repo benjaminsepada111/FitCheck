@@ -13,7 +13,7 @@ class CalorieCalculator {
     'extra active': 1.9, // Alternative format
   };
 
-  // Default calorie adjustments for goals
+  // Default calorie adjustments for goals (legacy - now replaced by BMI-based adjustments)
   static const Map<String, int> defaultGoalAdjustments = {
     'maintain_weight': 0,
     'maintain weight': 0,
@@ -27,6 +27,101 @@ class CalorieCalculator {
     'deficit': -500, // Legacy
     'surplus': 500, // Legacy
   };
+
+  // BMI category thresholds
+  static const double bmiUnderweightThreshold = 18.5;
+  static const double bmiNormalThreshold = 24.9;
+
+  // BMI-based calorie adjustments by category and goal type
+  // Format: {category: {goal_type: adjustment}}
+  static const Map<String, Map<String, int>> bmiBasedAdjustments = {
+    'lean_underweight': {
+      'deficit': -250, // Deficit for lean/underweight users
+      'surplus': 300,  // Surplus for lean/underweight users
+    },
+    'normal': {
+      'deficit': -500, // Deficit for normal weight users
+      'surplus': 400,  // Surplus for normal weight users
+    },
+    'overweight_obese': {
+      'deficit': -500, // Deficit for overweight/obese users
+      'surplus': 300,  // Surplus for overweight/obese users
+    },
+  };
+
+  /// Calculate BMI internally (never displayed to users)
+  /// BMI = weight(kg) / (height(m))^2
+  static double _calculateBMI(UserData userData) {
+    if (userData.weight == null || userData.height == null ||
+        userData.weight! <= 0 || userData.height! <= 0) {
+      throw ArgumentError('Invalid user data for BMI calculation');
+    }
+
+    final weightKg = userData.weight!.toDouble();
+    final heightM = userData.height!.toDouble() / 100.0; // Convert cm to m
+    return weightKg / (heightM * heightM);
+  }
+
+  /// Determine BMI category internally (never displayed to users)
+  /// Returns: 'lean_underweight', 'normal', or 'overweight_obese'
+  static String _getBMICategory(UserData userData) {
+    try {
+      final bmi = _calculateBMI(userData);
+      
+      if (bmi < bmiUnderweightThreshold) {
+        return 'lean_underweight';
+      } else if (bmi <= bmiNormalThreshold) {
+        return 'normal';
+      } else {
+        return 'overweight_obese';
+      }
+    } catch (e) {
+      // Fallback to normal category if calculation fails
+      return 'normal';
+    }
+  }
+
+  /// Get BMI-based calorie adjustment for a given goal
+  /// Returns the appropriate adjustment based on user's hidden BMI category
+  static int _getBMIBasedAdjustment(UserData userData, String goal) {
+    final goalLower = goal.toLowerCase();
+    
+    // For maintain goals, always return 0 (keep calories as is)
+    if (goalLower.contains('maintain')) {
+      return 0;
+    }
+
+    // Determine if goal is deficit or surplus
+    final bool isDeficitGoal = goalLower.contains('lose') || 
+                               goalLower.contains('fat') || 
+                               goalLower.contains('deficit');
+    final bool isSurplusGoal = goalLower.contains('gain') || 
+                               goalLower.contains('muscle') || 
+                               goalLower.contains('surplus');
+
+    // Get BMI category
+    final bmiCategory = _getBMICategory(userData);
+    
+    // Get appropriate adjustment based on category and goal type
+    final categoryAdjustments = bmiBasedAdjustments[bmiCategory];
+    if (categoryAdjustments == null) {
+      // Fallback to normal category adjustments
+      return isDeficitGoal 
+          ? bmiBasedAdjustments['normal']!['deficit']!
+          : (isSurplusGoal 
+              ? bmiBasedAdjustments['normal']!['surplus']!
+              : 0);
+    }
+
+    if (isDeficitGoal) {
+      return categoryAdjustments['deficit'] ?? -500;
+    } else if (isSurplusGoal) {
+      return categoryAdjustments['surplus'] ?? 400;
+    }
+
+    // Default: no adjustment
+    return 0;
+  }
 
   /// Calculate BMR using Mifflin-St Jeor Equation
   /// Men: BMR = 10 × weight(kg) + 6.25 × height(cm) - 5 × age + 5
@@ -62,29 +157,47 @@ class CalorieCalculator {
   }
 
   /// Calculate daily calorie goal based on user's goal
+  /// Uses BMI-based personalized adjustments internally (BMI never displayed)
   static int calculateDailyCalorieGoal(UserData userData) {
     if (!isValidUserData(userData)) {
       return 2000; // Default fallback
     }
 
     final tdee = calculateTDEE(userData);
-    final goal = userData.goal!.toLowerCase();
+    final goal = userData.goal!;
 
-    // Use custom adjustment if provided, otherwise use default
-    final adjustment =
-        userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
+    // Use custom adjustment if explicitly provided, otherwise use BMI-based adjustment
+    int adjustment;
+    if (userData.goalAdjustment != null) {
+      // User has explicitly set a custom adjustment
+      adjustment = userData.goalAdjustment!.toInt();
+    } else {
+      // Use BMI-based personalized adjustment (calculated internally, never shown)
+      adjustment = _getBMIBasedAdjustment(userData, goal);
+    }
+
+    // Safety check: If TDEE is very low, scale deficit proportionally to avoid unsafe restriction
+    // Threshold: TDEE < 1400 for females, TDEE < 1700 for males
+    final genderLower = userData.gender!.toLowerCase();
+    final double lowTDEEThreshold = genderLower == 'female' ? 1400.0 : 1700.0;
+    
+    if (tdee < lowTDEEThreshold && adjustment < 0) {
+      // Scale deficit proportionally: max deficit = 20% of TDEE
+      final maxSafeDeficit = (tdee * 0.20).abs();
+      if (adjustment.abs() > maxSafeDeficit) {
+        adjustment = (-maxSafeDeficit).round();
+      }
+    }
 
     final dailyGoal = (tdee + adjustment).round();
 
-    // Ensure minimum safe calorie levels
-    if (userData.gender!.toLowerCase() == 'female') {
-      return dailyGoal < 1200 ? 1200 : dailyGoal;
-    } else {
-      return dailyGoal < 1500 ? 1500 : dailyGoal;
-    }
+    // Enforce minimum daily calorie threshold
+    final minimumCalories = genderLower == 'female' ? 1200 : 1500;
+    return dailyGoal < minimumCalories ? minimumCalories : dailyGoal;
   }
 
   /// Get detailed calorie breakdown for display
+  /// Note: BMI and weight category are never included in the breakdown
   static Map<String, dynamic> getCalorieBreakdown(UserData userData) {
     if (!isValidUserData(userData)) {
       return {
@@ -98,20 +211,23 @@ class CalorieCalculator {
 
     final bmr = calculateBMR(userData).round();
     final tdee = calculateTDEE(userData).round();
-    final goal = userData.goal!.toLowerCase();
-    final adjustment =
-        userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
+    final goal = userData.goal!;
+    
+    // Use custom adjustment if provided, otherwise use BMI-based adjustment
+    final adjustment = userData.goalAdjustment?.toInt() ?? 
+                      _getBMIBasedAdjustment(userData, goal);
     final dailyGoal = calculateDailyCalorieGoal(userData);
 
     return {
       'bmr': bmr,
       'tdee': tdee,
-      'goalType': userData.goal,
+      'goalType': goal,
       'adjustment': adjustment,
       'dailyGoal': dailyGoal,
       'activityLevel': userData.activityLevel,
       'activityMultiplier':
           activityMultipliers[userData.activityLevel!.toLowerCase()] ?? 1.2,
+      // Note: BMI and weight category are intentionally NOT included
     };
   }
 
@@ -206,9 +322,10 @@ class CalorieCalculator {
   static double predictWeeklyWeightChange(UserData userData) {
     if (!isValidUserData(userData)) return 0.0;
 
-    final goal = userData.goal!.toLowerCase();
-    final adjustment =
-        userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goal] ?? 0;
+    final goal = userData.goal!;
+    // Use custom adjustment if provided, otherwise use BMI-based adjustment
+    final adjustment = userData.goalAdjustment?.toInt() ?? 
+                      _getBMIBasedAdjustment(userData, goal);
 
     return (adjustment * 7) / 3500.0; // pounds per week
   }
@@ -270,7 +387,28 @@ class CalorieCalculator {
     final newTDEE = calculateTDEE(updatedUserData);
 
     // STEP 3: Calculate TheoreticalGoal = TDEE + GoalAdjustment
-    final goalAdjustment = userData.goalAdjustment?.toInt() ?? defaultGoalAdjustments[goalLower] ?? 0;
+    // Use custom adjustment if explicitly provided, otherwise use BMI-based adjustment
+    // Note: effectiveGoal is guaranteed to be non-null here due to early return check above
+    int goalAdjustment;
+    if (userData.goalAdjustment != null) {
+      goalAdjustment = userData.goalAdjustment!.toInt();
+    } else {
+      // Use BMI-based personalized adjustment (calculated internally, never shown)
+      goalAdjustment = _getBMIBasedAdjustment(updatedUserData, effectiveGoal);
+    }
+    
+    // Safety check: If TDEE is very low, scale deficit proportionally
+    final genderLower = userData.gender!.toLowerCase();
+    final double lowTDEEThreshold = genderLower == 'female' ? 1400.0 : 1700.0;
+    
+    if (newTDEE < lowTDEEThreshold && goalAdjustment < 0) {
+      // Scale deficit proportionally: max deficit = 20% of TDEE
+      final maxSafeDeficit = (newTDEE * 0.20).abs();
+      if (goalAdjustment.abs() > maxSafeDeficit) {
+        goalAdjustment = (-maxSafeDeficit).round();
+      }
+    }
+    
     final theoreticalGoal = (newTDEE + goalAdjustment).round();
 
     // STEP 4: Apply Safety Minimums (but don't finalize yet - follow goal-specific rules)
@@ -422,5 +560,134 @@ class CalorieCalculator {
       'reason': reason,
       'weightChange': weightChangeKg,
     };
+  }
+
+  /// Simplified calorie adjustment based on goal + trend
+  /// Uses ±150 kcal/week fine-tuning as specified in requirements
+  /// Returns a map with: newCalorieGoal, adjustment, interpretation, reason, weightTrend
+  static Map<String, dynamic> calculateSimplifiedAdjustment({
+    required String goal, // 'lose', 'maintain', 'gain'
+    required String trend, // 'up', 'down', 'same'
+    required int currentCalorieGoal,
+    required double currentWeight,
+    required double previousWeight,
+    UserData? userData, // Optional, for safety minimums
+  }) {
+    // Normalize goal to lowercase
+    final goalLower = goal.toLowerCase();
+    final trendLower = trend.toLowerCase();
+    
+    // Determine goal type
+    final bool isLoseGoal = goalLower.contains('lose') || goalLower.contains('fat') || goalLower.contains('deficit');
+    final bool isMaintainGoal = goalLower.contains('maintain');
+    final bool isGainGoal = goalLower.contains('gain') || goalLower.contains('muscle') || goalLower.contains('surplus');
+    
+    int adjustment = 0;
+    String interpretation = 'unchanged';
+    String reason = 'No adjustment needed';
+    
+    // Apply ±150 kcal adjustments based on goal + trend
+    if (isLoseGoal) {
+      // LOSE WEIGHT GOAL
+      if (trendLower == 'down') {
+        // Weight going down - good progress, keep same
+        adjustment = 0;
+        interpretation = 'optimal_loss';
+        reason = 'Weight trending down. Keeping calories the same to maintain progress.';
+      } else if (trendLower == 'same') {
+        // Weight stable - need more deficit
+        adjustment = -150;
+        interpretation = 'slow_loss';
+        reason = 'Weight stable. Reducing calories by 150 to increase progress.';
+      } else if (trendLower == 'up') {
+        // Weight going up - opposite of goal
+        adjustment = -150;
+        interpretation = 'no_progress';
+        reason = 'Weight trending up. Reducing calories by 150 to get back on track.';
+      }
+    } else if (isMaintainGoal) {
+      // MAINTAIN WEIGHT GOAL
+      if (trendLower == 'same') {
+        // Weight stable - perfect!
+        adjustment = 0;
+        interpretation = 'maintained';
+        reason = 'Weight stable. Maintaining current calorie goal.';
+      } else if (trendLower == 'up') {
+        // Weight going up - reduce slightly
+        adjustment = -150;
+        interpretation = 'surplus';
+        reason = 'Weight trending up. Reducing calories by 150 to maintain target weight.';
+      } else if (trendLower == 'down') {
+        // Weight going down - increase slightly
+        adjustment = 150;
+        interpretation = 'deficit';
+        reason = 'Weight trending down. Increasing calories by 150 to maintain target weight.';
+      }
+    } else if (isGainGoal) {
+      // GAIN WEIGHT GOAL
+      if (trendLower == 'up') {
+        // Weight going up - good progress, keep same
+        adjustment = 0;
+        interpretation = 'optimal_gain';
+        reason = 'Weight trending up. Keeping calories the same to maintain progress.';
+      } else if (trendLower == 'same') {
+        // Weight stable - need more surplus
+        adjustment = 150;
+        interpretation = 'slow_gain';
+        reason = 'Weight stable. Increasing calories by 150 to boost progress.';
+      } else if (trendLower == 'down') {
+        // Weight going down - opposite of goal
+        adjustment = 150;
+        interpretation = 'no_progress';
+        reason = 'Weight trending down. Increasing calories by 150 to get back on track.';
+      }
+    }
+    
+    // Calculate new calorie goal
+    int newCalorieGoal = currentCalorieGoal + adjustment;
+    
+    // Apply safety minimums if userData provided
+    if (userData != null && userData.gender != null) {
+      final safetyMinimum = userData.gender!.toLowerCase() == 'female' ? 1200 : 1500;
+      if (newCalorieGoal < safetyMinimum) {
+        newCalorieGoal = safetyMinimum;
+        adjustment = newCalorieGoal - currentCalorieGoal;
+        reason = '$reason (adjusted to meet minimum safety threshold)';
+      }
+    }
+    
+    return {
+      'newCalorieGoal': newCalorieGoal,
+      'adjustment': adjustment,
+      'interpretation': interpretation,
+      'reason': reason,
+      'weightTrend': trendLower,
+    };
+  }
+
+  /// Determine weight trend from weight comparison
+  /// Returns 'up', 'down', or 'same' based on weight change
+  /// Uses a 0.2 kg tolerance for minor fluctuations (water-weight noise)
+  /// Changes of exactly 0.2 kg or less are treated as SAME
+  static String determineWeightTrend({
+    required double currentWeight,
+    required double previousWeight,
+    double tolerance = 0.2, // kg tolerance for "same" (0.2 kg to prevent water-weight noise)
+  }) {
+    // Calculate absolute difference with floating-point precision
+    final weightChange = currentWeight - previousWeight;
+    final absoluteDifference = weightChange.abs();
+    
+    // If |Δ weight| ≤ 0.2 kg → trend = SAME
+    // Treat changes of exactly 0.2 kg as SAME to prevent reacting to water-weight noise
+    if (absoluteDifference <= tolerance) {
+      return 'same';
+    } 
+    // If |Δ weight| > 0.2 kg → trend = UP or DOWN
+    else if (weightChange > tolerance) {
+      return 'up';
+    } else {
+      return 'down';
+    }
   }
 }

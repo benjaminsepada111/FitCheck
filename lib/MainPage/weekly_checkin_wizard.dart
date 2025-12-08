@@ -6,7 +6,8 @@ import 'package:capstone_project/services/user_data_service.dart';
 import 'package:capstone_project/services/simple_weekly_summary_service.dart';
 import 'package:capstone_project/services/calorie_calculator.dart';
 import 'package:capstone_project/models/weekly_checkin.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:capstone_project/services/weekly_trend_recommendations_service.dart';
+import 'package:capstone_project/services/login_tracker_service.dart';
 
 class WeeklyCheckInWizard extends StatefulWidget {
   final Challenge challenge;
@@ -31,59 +32,22 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
 
   // Form data
   final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
-  String? _selectedFeeling;
-  String? _selectedActivityChange;
   String? _weightError;
   String _userName = 'there';
-  String? _currentQuote;
   WeeklySummaryData? _weeklySummary;
   bool _isLoadingSummary = true;
-  WeeklyCheckIn? _latestCheckIn; // Latest check-in result after submission
+  
+  // Validation status for calorie adjustment
+  bool _hasNotLoggedInRecently = false;
+  bool _hasInsufficientCalories = false;
+  bool _shouldSkipAdjustment = false;
+  
+  // Pre-loaded data for review page (loaded once in initState)
+  WeeklyCheckIn? _cachedLatestCheckIn;
+  dynamic _cachedUserData;
+  bool _hasLoggedInRecently = true; // Default to true (fail-open)
+  bool _isValidationDataLoaded = false;
 
-  // Motivational quotes list
-  static const List<Map<String, String>> _quotes = [
-    {
-      'quote': "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
-      'author': "Aristotle"
-    },
-    {
-      'quote': "Discipline is the bridge between goals and accomplishment.",
-      'author': "Jim Rohn"
-    },
-    {
-      'quote': "Strength does not come from physical capacity. It comes from an indomitable will.",
-      'author': "Mahatma Gandhi"
-    },
-    {
-      'quote': "Motivation is what gets you started. Habit is what keeps you going.",
-      'author': "Jim Ryun"
-    },
-    {
-      'quote': "Don't limit your challenges. Challenge your limits.",
-      'author': "Jerry Dunn"
-    },
-    {
-      'quote': "The only bad workout is the one that didn't happen.",
-      'author': "Unknown"
-    },
-    {
-      'quote': "Success isn't always about greatness. It's about consistency. Consistent hard work leads to success. Greatness will come.",
-      'author': "Dwayne \"The Rock\" Johnson"
-    },
-    {
-      'quote': "The difference between the impossible and the possible lies in a person's determination.",
-      'author': "Tommy Lasorda"
-    },
-    {
-      'quote': "Small daily improvements over time lead to stunning results.",
-      'author': "Robin Sharma"
-    },
-    {
-      'quote': "Push yourself because no one else is going to do it for you.",
-      'author': "Unknown"
-    },
-  ];
 
   // Animation controllers
   late AnimationController _buttonAnimationController;
@@ -106,35 +70,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     ));
 
     _loadUserName();
-    _loadNextQuote();
     _loadWeeklySummary();
-  }
-
-  /// Load the next quote in rotation (doesn't repeat until all 10 are shown)
-  Future<void> _loadNextQuote() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      int quoteIndex = prefs.getInt('checkin_quote_index') ?? 0;
-      
-      // Get the quote at current index
-      final quoteData = _quotes[quoteIndex];
-      _currentQuote = "${quoteData['quote']} – ${quoteData['author']}";
-      
-      // Increment index for next time (cycle back to 0 after 9)
-      quoteIndex = (quoteIndex + 1) % _quotes.length;
-      await prefs.setInt('checkin_quote_index', quoteIndex);
-      
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      // Fallback to first quote if error
-      final quoteData = _quotes[0];
-      _currentQuote = "${quoteData['quote']} – ${quoteData['author']}";
-      if (mounted) {
-        setState(() {});
-      }
-    }
+    _preloadValidationData(); // Pre-load data for review page
   }
 
   Future<void> _loadUserName() async {
@@ -158,6 +95,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
           _weeklySummary = summary;
           _isLoadingSummary = false;
         });
+        // Also calculate validation status now that we have summary
+        _updateValidationStatus();
       }
     } catch (e) {
       if (mounted) {
@@ -167,24 +106,80 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       }
     }
   }
+  
+  /// Pre-load data needed for review page to avoid loading delays
+  Future<void> _preloadValidationData() async {
+    try {
+      // Run all Firebase calls in parallel for faster loading
+      final results = await Future.wait([
+        WeeklyCheckInService.getLatestCheckIn(widget.challenge.id),
+        UserDataService.loadUserData(),
+        LoginTrackerService.hasLoggedInWithinLastNDays(
+          referenceDate: DateTime.now(),
+          days: 3,
+        ).timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => true, // Default to true on timeout
+        ).catchError((_) => true), // Default to true on error
+      ]);
+      
+      if (mounted) {
+        setState(() {
+          _cachedLatestCheckIn = results[0] as WeeklyCheckIn?;
+          _cachedUserData = results[1];
+          _hasLoggedInRecently = results[2] as bool;
+          _isValidationDataLoaded = true;
+        });
+        _updateValidationStatus();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _hasLoggedInRecently = true; // Fail-open
+          _isValidationDataLoaded = true;
+        });
+      }
+    }
+  }
+  
+  /// Update validation status based on cached data
+  void _updateValidationStatus() {
+    if (_weeklySummary == null || !_isValidationDataLoaded) return;
+    
+    final currentCalorieGoal = widget.challenge.dailyCalorieGoal;
+    final expectedWeeklyIntake = currentCalorieGoal * 7;
+    final weeklyCaloriesConsumed = _weeklySummary?.totalCaloriesConsumed ?? 0;
+    final calorieCompleteness = expectedWeeklyIntake > 0 
+        ? (weeklyCaloriesConsumed / expectedWeeklyIntake) * 100 
+        : 0.0;
+    
+    final hasNotLoggedIn = !_hasLoggedInRecently;
+    final hasInsufficientCals = calorieCompleteness < 75.0 || weeklyCaloriesConsumed == 0;
+    final shouldSkip = hasNotLoggedIn || hasInsufficientCals;
+    
+    if (mounted) {
+      setState(() {
+        _hasNotLoggedInRecently = hasNotLoggedIn;
+        _hasInsufficientCalories = hasInsufficientCals;
+        _shouldSkipAdjustment = shouldSkip;
+      });
+    }
+  }
 
   List<Widget> _getSlides() {
     return [
       _buildWelcomePage(),
-      _buildWeeklySummaryPage(), // NEW - Weekly Summary page
+      _buildWeeklySummaryPage(),
       _buildWeightPage(),
-      _buildFeelingPage(),
-      _buildActivityPage(),
-      _buildNotesPage(),
       _buildReviewPage(),
-      _buildRecommendationsPage(), // Completion page
+      _buildRecommendationsPage(), // Completion page with recommendations
     ];
   }
 
   Widget _buildStepProgressIndicator() {
-    const int totalSteps = 6; // Weekly Summary, Weight, Feeling, Activity, Notes, Review
+    const int totalSteps = 3; // Weekly Summary, Weight, Review
 
-    if (currentIndex == 0 || currentIndex == 7) {
+    if (currentIndex == 0 || currentIndex == 4) {
       return const SizedBox.shrink();
     }
 
@@ -214,7 +209,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   void dispose() {
     _controller.dispose();
     _weightController.dispose();
-    _notesController.dispose();
     _buttonAnimationController.dispose();
     super.dispose();
   }
@@ -222,12 +216,8 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
   String _getButtonText() {
     if (currentIndex == 0) return "LET'S START";
     if (currentIndex == 1) return "NEXT";
-    if (currentIndex == 6) return "SUBMIT";
-    if (currentIndex == 7) return "GOT IT!"; // Completion page
-
-    if (currentIndex == 3 && _selectedFeeling == null) return "SKIP";
-    if (currentIndex == 4 && _selectedActivityChange == null) return "SKIP";
-    if (currentIndex == 5 && _notesController.text.isEmpty) return "SKIP";
+    if (currentIndex == 3) return "SUBMIT";
+    if (currentIndex == 4) return "GOT IT!"; // Completion page
 
     return "CONTINUE";
   }
@@ -256,10 +246,6 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       setState(() {
         _weightError = null;
       });
-    } else {
-      setState(() {
-        _weightError = null;
-      });
     }
     return true;
   }
@@ -285,11 +271,11 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
         return;
       }
 
-      if (currentIndex == 6) {
+      if (currentIndex == 3) {
         // Submit check-in and generate recommendations
         await _submitCheckIn();
         shouldResetAnimation = false;
-      } else if (currentIndex == 7) {
+      } else if (currentIndex == 4) {
         // Close wizard after viewing recommendations
         if (mounted) {
           _buttonAnimationController.reverse();
@@ -358,22 +344,14 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
       final success = await WeeklyCheckInService.processCheckInAndUpdateGoals(
         challenge: widget.challenge,
         newWeight: newWeightDouble, // Pass double for calculation precision
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-        progressFeeling: _selectedFeeling,
-        activityLevelChange: _selectedActivityChange,
+        notes: null, // Simplified - no notes in new flow
       );
 
       if (mounted && success) {
-        // Get the latest check-in result
-        final latestCheckIn = await WeeklyCheckInService.getLatestCheckIn(widget.challenge.id);
-        
         if (mounted) {
           setState(() {
             _isAnimating = false;
             _isSubmitting = false;
-            _latestCheckIn = latestCheckIn;
           });
 
           _buttonAnimationController.reverse();
@@ -464,7 +442,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                 const SizedBox(height: 30),
 
                 // Navigation Buttons
-                if (currentIndex > 0 && currentIndex < 7)
+                if (currentIndex > 0 && currentIndex < 4)
                   Row(
                     children: [
                       // Back Button
@@ -590,7 +568,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                       );
                     },
                   )
-                else if (currentIndex == 7)
+                else if (currentIndex == 4)
                   // Completion page - only "Got It" button
                     AnimatedBuilder(
                       animation: _buttonScaleAnimation,
@@ -691,25 +669,19 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
               _buildInfoItem(
                 Icons.monitor_weight_outlined,
                 "Current Weight",
-                "Update your weight for accurate calorie calculations",
+                "Enter your weight to track progress and adjust your calorie goals",
               ),
               const SizedBox(height: 16),
               _buildInfoItem(
-                Icons.sentiment_satisfied_alt,
-                "Progress Check",
-                "Share how you're feeling about your journey",
+                Icons.trending_up,
+                "Automatic Adjustments",
+                "We'll automatically adjust your daily calorie goal based on your progress",
               ),
               const SizedBox(height: 16),
               _buildInfoItem(
-                Icons.fitness_center,
-                "Activity Update",
-                "Let us know if your activity level has changed",
-              ),
-              const SizedBox(height: 16),
-              _buildInfoItem(
-                Icons.edit_note,
-                "Personal Notes",
-                "Add any observations or challenges (optional)",
+                Icons.lightbulb_outline,
+                "Personalized Tips",
+                "Get clear, actionable recommendations based on your weekly trend",
               ),
               const SizedBox(height: 30),
             ],
@@ -1053,7 +1025,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "What is your current weight?",
+              "Please enter your current weight for this week",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -1063,7 +1035,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             ),
             const SizedBox(height: 8),
             Text(
-              "We use this to recalculate your daily calorie goal.",
+              "We'll use this to track your progress and adjust your daily calorie goal automatically.",
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey.shade600,
@@ -1156,257 +1128,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     );
   }
 
-  // Page 2: Feeling Selection
-  Widget _buildFeelingPage() {
-    return SingleChildScrollView(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "How are you feeling about your progress this week?",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Your honest feedback helps us understand what's working.",
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey.shade600,
-                height: 1.4,
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height * 0.1),
-            Center(
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  _buildFeelingOption(
-                      'great', 'Great!', Icons.sentiment_very_satisfied),
-                  _buildFeelingOption('good', 'Good', Icons.sentiment_satisfied),
-                  _buildFeelingOption('okay', 'Okay', Icons.sentiment_neutral),
-                  _buildFeelingOption(
-                      'struggling', 'Struggling', Icons.sentiment_dissatisfied),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeelingOption(String value, String label, IconData icon) {
-    final isSelected = _selectedFeeling == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFeeling = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.secondary : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.secondary,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.grey.shade600,
-              size: 24,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade600,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Page 3: Activity Level Change
-  Widget _buildActivityPage() {
-    return SingleChildScrollView(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Has your activity level changed this week?",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "This helps us adjust your calorie recommendations.",
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey.shade600,
-                height: 1.4,
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height * 0.1),
-            Center(
-              child: Column(
-                children: [
-                  _buildActivityOption(
-                      'increased', 'Increased', Icons.trending_up),
-                  const SizedBox(height: 12),
-                  _buildActivityOption(
-                      'no_change', 'No Change', Icons.trending_flat),
-                  const SizedBox(height: 12),
-                  _buildActivityOption(
-                      'decreased', 'Decreased', Icons.trending_down),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActivityOption(String value, String label, IconData icon) {
-    final isSelected = _selectedActivityChange == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedActivityChange = value;
-        });
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.secondary : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.secondary,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.grey.shade600,
-              size: 24,
-            ),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade600,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Page 4: Notes
-  Widget _buildNotesPage() {
-    return SingleChildScrollView(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Any additional notes about your week?",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Share any challenges, victories, or observations (optional).",
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey.shade600,
-                height: 1.4,
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height * 0.08),
-            TextField(
-              controller: _notesController,
-              maxLines: 5,
-              maxLength: 150,
-              style: const TextStyle(fontSize: 16),
-              onTap: () {
-                if (_notesController.text.isNotEmpty) {
-                  _notesController.selection = TextSelection(
-                    baseOffset: 0,
-                    extentOffset: _notesController.text.length,
-                  );
-                }
-              },
-              onChanged: (value) {
-                setState(() {});
-              },
-              decoration: InputDecoration(
-                hintText: 'Your thoughts here... (optional)',
-                hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontWeight: FontWeight.normal,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                  BorderSide(color: Colors.grey.shade300, width: 2),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.secondary, width: 2),
-                ),
-                contentPadding: const EdgeInsets.all(20),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Page 5: Review
+  // Page 3: Review
   Widget _buildReviewPage() {
     return SingleChildScrollView(
       child: Container(
@@ -1436,17 +1158,18 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
             const SizedBox(height: 32),
             
             // Calculate and show weight grid and calorie goal
-            FutureBuilder<WeeklyCheckIn?>(
-              future: _calculateMockCheckIn(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+            // Using synchronous method with pre-loaded cached data
+            Builder(
+              builder: (context) {
+                // Show loading only if validation data hasn't loaded yet
+                if (!_isValidationDataLoaded || _isLoadingSummary) {
                   return const Padding(
                     padding: EdgeInsets.all(40.0),
                     child: CircularProgressIndicator(),
                   );
                 }
                 
-                final mockCheckIn = snapshot.data;
+                final mockCheckIn = _calculateMockCheckInSync();
                 if (mockCheckIn == null) {
                   return const SizedBox.shrink();
                 }
@@ -1454,31 +1177,19 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Weight Grid (Previous and Current)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildWeightCard(
-                            'Previous Weight',
-                            '${mockCheckIn.previousWeight ?? 'N/A'}',
-                            'kg',
-                          ),
+                    // Validation Warning Cards (if any validation failed)
+                    if (_shouldSkipAdjustment) ...[
+                      // Show warning about calorie adjustment being skipped
+                      if (_hasNotLoggedInRecently) ...[
+                        _buildWarningCard(
+                          icon: Icons.login_outlined,
+                          title: 'Consistency Tip',
+                          message: "We noticed you haven't logged into the app recently. For better tracking and personalized recommendations, try to open the app regularly to stay on top of your progress.",
+                          color: Colors.orange,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildWeightCard(
-                            'Current Weight',
-                            '${_weightController.text}',
-                            'kg',
-                          ),
-                        ),
+                        const SizedBox(height: 16),
                       ],
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // New Calorie Goal Card
-                    if (mockCheckIn.newCalorieGoal != null) ...[
+                      // Calorie Goal (unchanged) Card - white background, red border
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -1486,20 +1197,26 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: AppColors.secondary,
+                            color: Colors.red,
                             width: 2,
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'New Calorie Goal',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, color: Colors.red, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Calorie Goal Unchanged',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -1507,37 +1224,93 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Your calorie goal remains the same. Log more consistently next week for personalized adjustments.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                                height: 1.4,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      if (mockCheckIn.adaptiveReason != null) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          "Your calorie goal has been adjusted to help you reach your target.",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.primary,
-                            height: 1.4,
+                      const SizedBox(height: 24),
+                    ] else ...[
+                      // Normal case: Show the new calorie goal
+                      if (mockCheckIn.newCalorieGoal != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.secondary,
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'New Calorie Goal',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${mockCheckIn.newCalorieGoal} Kcal',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (mockCheckIn.adaptiveReason != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            "Your calorie goal has been adjusted to help you reach your target.",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.primary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
                       ],
-                      const SizedBox(height: 24),
                     ],
                     
                     // Tips & Recommendations Section
-                    Text(
-                      'Tips & Recommendations',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                    if (mockCheckIn.weightTrend != null && widget.challenge.goal != null) ...[
+                      Text(
+                        'Tips & Recommendations',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    ..._buildPersonalizedTipsForReview(mockCheckIn),
+                      const SizedBox(height: 16),
+                      ..._buildTrendBasedTips(
+                        mockCheckIn.weightTrend!, 
+                        widget.challenge.goal!, 
+                        hasInsufficientActivity: _shouldSkipAdjustment,
+                        hasNotLoggedInRecently: _hasNotLoggedInRecently,
+                        hasInsufficientCalories: _hasInsufficientCalories,
+                      ),
+                    ],
                   ],
                 );
               },
@@ -1548,198 +1321,218 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     );
   }
   
-  Widget _buildWeightCard(String label, String value, String unit) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.secondary,
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.primary.withOpacity(0.7),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: Text(
-                  value,
+
+  // Page 4: Completion Page with Recommendations
+  Widget _buildRecommendationsPage() {
+    return FutureBuilder<WeeklyCheckIn?>(
+      future: _getLatestCheckInAfterSubmit(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final checkIn = snapshot.data;
+        if (checkIn == null) {
+          return _buildSimpleCompletionPage();
+        }
+        
+        // Get motivational quote
+        final quote = _getMotivationalQuote();
+        
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                // Success Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: AppColors.secondary,
+                    size: 72,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "Check-in Complete!",
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.primary.withOpacity(0.7),
-                    fontWeight: FontWeight.w500,
+                const SizedBox(height: 32),
+                // Motivational Quote
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.secondary.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.format_quote,
+                        color: AppColors.secondary.withOpacity(0.5),
+                        size: 32,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        quote,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.primary,
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Page 6: Completion Page
-  Widget _buildRecommendationsPage() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Spacer to push content to center
-                    const Spacer(),
-                    
-                    // Success Animation
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check_circle,
-                        color: AppColors.secondary,
-                        size: 72,
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Title
-                    Text(
-                      "Check-in Complete!",
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Motivational Quote
-                    if (_currentQuote != null)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.format_quote,
-                              color: AppColors.secondary.withOpacity(0.6),
-                              size: 32,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _currentQuote!,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic,
-                                color: Colors.grey.shade800,
-                                height: 1.5,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Spacer to push button to bottom
-                    const Spacer(),
-                    
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
         );
       },
     );
   }
+  
+  Widget _buildSimpleCompletionPage() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 60),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check_circle,
+                color: AppColors.secondary,
+                size: 72,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Check-in Complete!",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 60),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Future<WeeklyCheckIn?> _getLatestCheckInAfterSubmit() async {
+    // Wait a bit for the check-in to be saved
+    await Future.delayed(const Duration(milliseconds: 500));
+    return await WeeklyCheckInService.getLatestCheckIn(widget.challenge.id);
+  }
 
-  /// Calculate mock check-in for review page
-  Future<WeeklyCheckIn?> _calculateMockCheckIn() async {
+  /// Calculate mock check-in for review page using simplified logic
+  /// Uses pre-loaded cached data for instant loading
+  WeeklyCheckIn? _calculateMockCheckInSync() {
     final newWeightDouble = double.tryParse(_weightController.text);
     if (newWeightDouble == null || newWeightDouble <= 0) {
       return null;
     }
     
     final weekNumber = WeeklyCheckInService.getCurrentWeekNumber(widget.challenge);
-    final latestCheckIn = await WeeklyCheckInService.getLatestCheckIn(widget.challenge.id);
-    final previousWeight = latestCheckIn?.currentWeight ?? (widget.challenge.originalWeight != null ? widget.challenge.originalWeight!.round() : newWeightDouble.round());
+    // Use cached data instead of Firebase call
+    final previousWeight = _cachedLatestCheckIn?.currentWeight ?? (widget.challenge.originalWeight ?? newWeightDouble);
     final weightChange = (newWeightDouble - previousWeight).toDouble();
     
-    final userData = await UserDataService.loadUserData();
-    if (userData == null) return null;
-    
-    final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
-      userData: userData,
+    // Determine trend
+    final weightTrend = CalorieCalculator.determineWeightTrend(
       currentWeight: newWeightDouble,
       previousWeight: previousWeight.toDouble(),
-      currentCalorieGoal: widget.challenge.dailyCalorieGoal,
-      activityLevel: widget.challenge.activityLevel,
-      goal: widget.challenge.goal,
     );
     
-    final newCalorieGoal = adaptiveResult['newCalorieGoal'] as int;
-    final adjustment = adaptiveResult['adjustment'] as int;
-    final interpretation = adaptiveResult['interpretation'] as String;
-    final reason = adaptiveResult['reason'] as String;
+    // Use cached user data
+    final userData = _cachedUserData;
+    if (userData == null || widget.challenge.goal == null) return null;
+    
+    final currentCalorieGoal = widget.challenge.dailyCalorieGoal;
+    
+    // Use already-calculated validation status (from _updateValidationStatus)
+    final shouldSkip = _shouldSkipAdjustment;
+    
+    // Calculate adjustment (will be overridden if validation fails)
+    int newCalorieGoal = currentCalorieGoal;
+    int adjustment = 0;
+    String interpretation = 'unchanged';
+    String reason = 'No adjustment needed';
+    
+    if (!shouldSkip) {
+      // Use simplified adjustment only if all validation checks pass
+      final simplifiedResult = CalorieCalculator.calculateSimplifiedAdjustment(
+        goal: widget.challenge.goal!,
+        trend: weightTrend,
+        currentCalorieGoal: currentCalorieGoal,
+        currentWeight: newWeightDouble,
+        previousWeight: previousWeight.toDouble(),
+        userData: userData,
+      );
+      
+      newCalorieGoal = simplifiedResult['newCalorieGoal'] as int;
+      adjustment = simplifiedResult['adjustment'] as int;
+      interpretation = simplifiedResult['interpretation'] as String;
+      reason = simplifiedResult['reason'] as String;
+    } else {
+      // Set appropriate interpretation based on which check failed
+      if (_hasNotLoggedInRecently) {
+        interpretation = 'skipped_no_login';
+        reason = 'Calorie goal kept the same. Please log in more consistently for accurate calorie adjustments.';
+      } else if (_hasInsufficientCalories) {
+        interpretation = 'skipped_insufficient_calories';
+        reason = 'Calorie goal kept the same. Please log your calories more consistently for accurate adjustments.';
+      }
+    }
     
     return WeeklyCheckIn(
       id: 'preview_${DateTime.now().millisecondsSinceEpoch}',
       challengeId: widget.challenge.id,
       checkInDate: DateTime.now(),
       weekNumber: weekNumber,
-      currentWeight: newWeightDouble.round(),
+      currentWeight: newWeightDouble,
       previousWeight: previousWeight,
       weightChange: weightChange,
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      progressFeeling: _selectedFeeling,
-      activityLevelChange: _selectedActivityChange,
-      previousCalorieGoal: widget.challenge.dailyCalorieGoal,
+      weightTrend: weightTrend,
+      notes: null,
+      progressFeeling: null,
+      activityLevelChange: null,
+      previousCalorieGoal: currentCalorieGoal,
       newCalorieGoal: newCalorieGoal,
       calorieAdjustment: adjustment,
       progressInterpretation: interpretation,
       adaptiveReason: reason,
-      goalAdjusted: adjustment != 0,
+      goalAdjusted: !shouldSkip && adjustment != 0,
       adjustmentNotice: null,
       weeklyCaloriesConsumed: _weeklySummary?.totalCaloriesConsumed,
       weeklyCaloriesBurned: _weeklySummary?.totalCaloriesBurned,
@@ -1747,126 +1540,141 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     );
   }
 
-  /// Build personalized tips for review page
-  List<Widget> _buildPersonalizedTipsForReview(WeeklyCheckIn checkIn) {
+  /// Build a warning card to display validation issues
+  Widget _buildWarningCard({
+    required IconData icon,
+    required String title,
+    required String message,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.5),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.primary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Goal-aligned tips based on user's goal
+  static const Map<String, List<String>> _goalAlignedTips = {
+    'lose': [
+      "Slow and steady progress is more likely to last.",
+      "Staying consistent matters more than being perfect.",
+      "Small daily choices add up over time.",
+      "Focus on building routines you can maintain long-term.",
+      "Setbacks happen—what matters is getting back on track.",
+    ],
+    'maintain': [
+      "Keeping a steady routine helps maintain your progress.",
+      "Balance and consistency are key to staying on track.",
+      "Regular check-ins can help prevent unwanted changes.",
+      "Sticking with familiar habits often works best.",
+      "Stability comes from doing the basics well.",
+    ],
+    'gain': [
+      "Progress takes time—stay patient and consistent.",
+      "Regular routines support steady progress.",
+      "Being consistent matters more than quick changes.",
+      "Focus on habits you can keep doing every day.",
+      "Small improvements over time lead to meaningful results.",
+    ],
+  };
+  
+  /// Habit-focused tips (general)
+  static const List<String> _habitFocusedTips = [
+    "Consistency matters more than doing everything perfectly.",
+    "Try to follow a simple routine that fits your lifestyle.",
+    "Small habits, done consistently, can make a big difference.",
+    "It's okay to have off days—what matters is showing up again.",
+    "Building one good habit at a time makes progress easier.",
+  ];
+  
+  /// Get the goal type key from goal string
+  String _getGoalKey(String goal) {
+    final goalLower = goal.toLowerCase();
+    if (goalLower.contains('lose') || goalLower.contains('fat') || goalLower.contains('deficit')) {
+      return 'lose';
+    } else if (goalLower.contains('gain') || goalLower.contains('muscle') || goalLower.contains('surplus')) {
+      return 'gain';
+    } else {
+      return 'maintain';
+    }
+  }
+
+  /// Build trend-based tips for review page (no weight numbers)
+  /// Shows 3 tips: 1 adjustment-related + 1 goal-aligned + 1 habit-focused
+  List<Widget> _buildTrendBasedTips(
+    String trend, 
+    String goal, {
+    bool hasInsufficientActivity = false,
+    bool hasNotLoggedInRecently = false,
+    bool hasInsufficientCalories = false,
+  }) {
     final tips = <Widget>[];
+    final weekNumber = WeeklyCheckInService.getCurrentWeekNumber(widget.challenge);
     
-    // Get challenge goal
-    final challengeGoal = widget.challenge.goal?.toLowerCase() ?? '';
-    final isLoseGoal = challengeGoal.contains('lose') || challengeGoal.contains('fat') || challengeGoal.contains('deficit');
-    final isMaintainGoal = challengeGoal.contains('maintain');
-    final isGainGoal = challengeGoal.contains('gain') || challengeGoal.contains('muscle') || challengeGoal.contains('surplus');
-
-    // Tip 1: Weight change progress
-    if (checkIn.weightChange != null && checkIn.previousWeight != null) {
-      final weightChange = checkIn.weightChange!;
-      final weightChangePercent = (weightChange / checkIn.previousWeight!) * 100;
-      final isExtremeChange = weightChangePercent.abs() > 2.0;
-      final isModerateChange = weightChangePercent.abs() > 1.0 && weightChangePercent.abs() <= 2.0;
-      
-      String weightTip = '';
-      
-      // Handle extreme weight changes first
-      if (isExtremeChange) {
-        if (weightChange > 0) {
-          weightTip = "Your weight increased by ${weightChange.abs().toStringAsFixed(1)}kg this week (${weightChangePercent.abs().toStringAsFixed(1)}% of body weight). Please verify your weight entry is correct.";
-        } else {
-          weightTip = "Your weight decreased by ${weightChange.abs().toStringAsFixed(1)}kg this week (${weightChangePercent.abs().toStringAsFixed(1)}% of body weight). Please verify your weight entry is correct.";
-        }
-      } else if (isLoseGoal) {
-        if (weightChange <= -0.3) {
-          if (weightChange >= -1.0) {
-            weightTip = "Great progress! Your weight is tracking as expected. Keep following your current plan.";
-          } else {
-            weightTip = "You're losing weight faster than expected. Make sure you're eating enough to maintain energy levels and support your health.";
-          }
-        } else if (weightChange > 0.3) {
-          if (isModerateChange) {
-            weightTip = "Your weight increased this week. Consider checking portion sizes and tracking all meals for better accuracy.";
-          } else {
-            weightTip = "Your weight increased slightly this week. Consider checking portion sizes and tracking all meals for better accuracy.";
-          }
-        } else {
-          weightTip = "Your weight stayed stable this week. For weight loss, try to maintain a consistent calorie deficit.";
-        }
-      } else if (isGainGoal) {
-        if (weightChange >= 0.3) {
-          if (weightChange <= 1.0) {
-            weightTip = "Great progress! Your weight is tracking as expected. Keep following your current plan.";
-          } else {
-            weightTip = "You gained more than expected. Consider adjusting portion sizes to ensure steady, healthy weight gain.";
-          }
-        } else if (weightChange < -0.3) {
-          if (isModerateChange) {
-            weightTip = "Your weight decreased this week. Try increasing your calorie intake and ensure you're eating enough protein.";
-          } else {
-            weightTip = "Your weight decreased slightly this week. Try increasing your calorie intake and ensure you're eating enough protein.";
-          }
-        } else {
-          weightTip = "Your weight stayed stable this week. For muscle gain, try increasing calories slightly to support growth.";
-        }
-      } else if (isMaintainGoal) {
-        if (weightChange.abs() <= 0.3) {
-          weightTip = "Perfect! Your weight is tracking as expected. Keep following your current plan.";
-        } else if (weightChange > 0.3) {
-          if (isModerateChange) {
-            weightTip = "Your weight increased this week. Consider checking portion sizes and tracking all meals for better accuracy.";
-          } else {
-            weightTip = "Your weight increased slightly this week. Consider checking portion sizes and tracking all meals for better accuracy.";
-          }
-        } else {
-          if (isModerateChange) {
-            weightTip = "Your weight decreased this week. Try increasing your calorie intake slightly to maintain your current weight.";
-          } else {
-            weightTip = "Your weight decreased slightly this week. Try increasing your calorie intake slightly to maintain your current weight.";
-          }
-        }
-      }
-
-      if (weightTip.isNotEmpty) {
-        tips.add(_buildTipCard(weightTip, AppColors.secondary, Icons.monitor_weight));
-        tips.add(const SizedBox(height: 12));
-      }
-    }
-
-    // Tip 2: Missed logging days or no logging at all
-    if (_weeklySummary != null) {
-      if (_weeklySummary!.totalMeals == 0 && _weeklySummary!.totalWorkouts == 0) {
-        // User hasn't logged anything this week
-        tips.add(_buildTipCard(
-          "You haven't logged anything this week. Start logging meals and workouts to track your progress and get personalized recommendations.",
-          AppColors.secondary,
-          Icons.calendar_today,
-        ));
-        tips.add(const SizedBox(height: 12));
-      } else if (_weeklySummary!.daysMissed > 0) {
-        String loggingTip = '';
-        if (_weeklySummary!.daysMissed == 1) {
-          loggingTip = "You missed logging one day this week. Try to log every day for more accurate tracking.";
-        } else {
-          loggingTip = "You missed ${_weeklySummary!.daysMissed} days of logging this week. Consistent logging helps the system adjust your calorie goals accurately.";
-        }
-        tips.add(_buildTipCard(loggingTip, AppColors.secondary, Icons.calendar_today));
-        tips.add(const SizedBox(height: 12));
-      }
-    }
-
-    // Tip 3: Calorie goal adjustment status
-    if (checkIn.goalAdjusted == false && checkIn.adjustmentNotice != null) {
-      String notice = "Your calorie goal wasn't adjusted this week due to incomplete tracking. Log meals regularly with calories close to your target to enable automatic adjustments.";
-      tips.add(_buildTipCard(notice, AppColors.secondary, Icons.info_outline));
-      tips.add(const SizedBox(height: 12));
-    } else if (checkIn.goalAdjusted == true && checkIn.calorieAdjustment != null && checkIn.calorieAdjustment != 0) {
-      String adjustmentTip = '';
-      if (checkIn.calorieAdjustment! > 0) {
-        adjustmentTip = "Your calorie goal has been increased based on your progress. This adjustment helps optimize your results.";
-      } else {
-        adjustmentTip = "Your calorie goal has been adjusted based on your progress. Keep tracking consistently for the best results.";
-      }
-      tips.add(_buildTipCard(adjustmentTip, AppColors.secondary, Icons.trending_up));
+    // Tip 1: Get adjustment-related recommendation from the trend-based service
+    final recommendations = WeeklyTrendRecommendationsService.generateRecommendations(
+      goal: goal,
+      trend: trend,
+      hasInsufficientActivity: hasInsufficientActivity,
+    );
+    
+    // Show only the first recommendation (adjustment-related)
+    if (recommendations.isNotEmpty) {
+      tips.add(_buildTipCard(recommendations.first, AppColors.secondary, Icons.lightbulb_outline));
       tips.add(const SizedBox(height: 12));
     }
-
+    
+    // Tip 2: Goal-aligned tip (rotate based on week number)
+    final goalKey = _getGoalKey(goal);
+    final goalTips = _goalAlignedTips[goalKey] ?? _goalAlignedTips['maintain']!;
+    final goalTipIndex = weekNumber % goalTips.length;
+    tips.add(_buildTipCard(goalTips[goalTipIndex], AppColors.secondary, Icons.flag_outlined));
+    tips.add(const SizedBox(height: 12));
+    
+    // Tip 3: Habit-focused tip (rotate based on week number, offset to avoid same index)
+    final habitTipIndex = (weekNumber + 2) % _habitFocusedTips.length;
+    tips.add(_buildTipCard(_habitFocusedTips[habitTipIndex], AppColors.secondary, Icons.repeat_outlined));
+    tips.add(const SizedBox(height: 12));
+    
     return tips;
   }
 
@@ -1909,6 +1717,32 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
         ],
       ),
     );
+  }
+
+  /// Get a random motivational quote
+  String _getMotivationalQuote() {
+    final quotes = [
+      "Progress, not perfection.",
+      "Small steps lead to big changes.",
+      "You are stronger than you think.",
+      "Every journey begins with a single step.",
+      "Consistency is the key to success.",
+      "Your body can do it. It's your mind you need to convince.",
+      "The only bad workout is the one that didn't happen.",
+      "Strength doesn't come from what you can do. It comes from overcoming the things you once thought you couldn't.",
+      "Take care of your body. It's the only place you have to live.",
+      "Success is the sum of small efforts repeated day in and day out.",
+      "You don't have to be great to start, but you have to start to be great.",
+      "The pain you feel today will be the strength you feel tomorrow.",
+      "Your limitation—it's only your imagination.",
+      "Push yourself because no one else is going to do it for you.",
+      "Great things never come from comfort zones.",
+    ];
+    
+    // Use current date to get a consistent quote for the day
+    final now = DateTime.now();
+    final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
+    return quotes[dayOfYear % quotes.length];
   }
 
 }

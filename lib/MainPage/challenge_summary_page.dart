@@ -22,6 +22,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 import 'video_preview_page.dart';
+import 'challenge_calendar.dart';
 
 class DailyLogData {
   final DateTime date;
@@ -167,6 +168,9 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
 
   // Stream subscriptions for real-time updates
   StreamSubscription? _workoutSubscription;
+
+  // Challenge card expand state
+  bool _isChallengeDetailsExpanded = false;
 
   @override
   void initState() {
@@ -1358,6 +1362,36 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
     return isAfterEndDate;
   }
 
+  /// Convert widget.challenge map to a Challenge object for the calendar
+  Challenge? _getChallengeObject() {
+    try {
+      final challengeId = widget.challenge['challengeId'] as String?;
+      final title = widget.challenge['title'] as String?;
+      final startDate = widget.challenge['startDate'] as DateTime?;
+      final endDate = widget.challenge['endDate'] as DateTime?;
+      
+      if (challengeId == null || title == null || startDate == null || endDate == null) {
+        return null;
+      }
+      
+      return Challenge(
+        id: challengeId,
+        title: title,
+        startDate: startDate,
+        endDate: endDate,
+        dailyCalorieGoal: widget.challenge['dailyCalorieGoal'] ?? widget.challenge['originalCalorieGoal'] ?? 2000,
+        originalCalorieGoal: widget.challenge['originalCalorieGoal'] ?? widget.challenge['dailyCalorieGoal'],
+        originalWeight: widget.challenge['originalWeight']?.toDouble(),
+        createdAt: startDate,
+        notes: widget.challenge['notes'] ?? '',
+        lifecycleStatus: widget.challenge['status']?.toLowerCase() == 'completed' ? 'completed' : 'active',
+      );
+    } catch (e) {
+      print('Error creating Challenge object: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1428,6 +1462,15 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               const SizedBox(height: 16),
               _buildPeriodNavigation(),
               const SizedBox(height: 24),
+              // Challenge Calendar for viewing daily log history (Overall view only)
+              if (isMonthlySelected && _getChallengeObject() != null) ...[
+                ChallengeCalendar(
+                  currentChallenge: _getChallengeObject(),
+                  onChallengeCreated: (_) {}, // No-op for history view
+                  onChallengeEnded: () {}, // No-op for history view
+                ),
+                const SizedBox(height: 24),
+              ],
               _buildCalorieProgressChart(),
               const SizedBox(height: 24),
               _buildCalorieBurnedChart(),
@@ -1673,85 +1716,140 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
               ],
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
 
-            // Stats
-            _isLoading
-                ? const Center(child: FitCheckLoader())
-                : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(
-                  icon: Icons.restaurant,
-                  label: 'Daily Calorie',
-                  value: '${widget.challenge['originalCalorieGoal'] ?? widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
-                  color: AppColors.secondary,
-                ),
-                _buildStatItem(
-                  icon: Icons.monitor_weight_outlined,
-                  label: 'Starting Weight',
-                  value: widget.challenge['originalWeight'] != null
-                      ? '${widget.challenge['originalWeight']}kg'
-                      : 'N/A',
-                  color: AppColors.secondary,
-                ),
-                _buildStatItem(
-                  icon: Icons.access_time,
-                  label: 'Duration',
-                  value: '${_calculateDuration(widget.challenge)} Days',
-                  color: AppColors.secondary,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Notes
-            if (challenge['notes'] != null && (challenge['notes'] as String).isNotEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
+            // Dropdown Button to show/hide details
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _isChallengeDetailsExpanded = !_isChallengeDetailsExpanded;
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.secondary.withValues(alpha: 0.15),
-                    width: 1.5,
-                  ),
+                  color: AppColors.secondary.shade50,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.note_outlined,
-                          size: 16,
-                          color: AppColors.secondary.shade600,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Notes',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.secondary.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
                     Text(
-                      challenge['notes'] ?? '',
-                      style: const TextStyle(
+                      _isChallengeDetailsExpanded ? 'Hide Details' : 'Show Details',
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF1A1A1A),
-                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    AnimatedRotation(
+                      turns: _isChallengeDetailsExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 22,
+                        color: AppColors.secondary,
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+
+            // Expandable Details Section
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+
+                  // Stats
+                  _isLoading
+                      ? const Center(child: FitCheckLoader())
+                      : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(
+                        icon: Icons.restaurant,
+                        label: 'Daily Calorie',
+                        value: '${widget.challenge['originalCalorieGoal'] ?? widget.challenge['dailyCalorieGoal'] ?? 'N/A'}',
+                        color: AppColors.secondary,
+                      ),
+                      _buildStatItem(
+                        icon: Icons.monitor_weight_outlined,
+                        label: 'Starting Weight',
+                        value: widget.challenge['originalWeight'] != null
+                            ? '${widget.challenge['originalWeight']}kg'
+                            : 'N/A',
+                        color: AppColors.secondary,
+                      ),
+                      _buildStatItem(
+                        icon: Icons.access_time,
+                        label: 'Duration',
+                        value: '${_calculateDuration(widget.challenge)} Days',
+                        color: AppColors.secondary,
+                      ),
+                    ],
+                  ),
+
+                  // Notes
+                  if (challenge['notes'] != null && (challenge['notes'] as String).isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.secondary.withValues(alpha: 0.15),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.note_outlined,
+                                size: 16,
+                                color: AppColors.secondary.shade600,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Notes',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.secondary.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            challenge['notes'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF1A1A1A),
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              crossFadeState: _isChallengeDetailsExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
           ],
         ),
       ),
@@ -4006,7 +4104,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
             // Weight and Calorie Info
             _buildInfoRow(
               'Weight',
-              '${checkIn.currentWeight}kg',
+              '${checkIn.currentWeight.toStringAsFixed(1)}kg',
               weightChangeText,
               checkIn.weightChange != null && checkIn.weightChange! < 0
                   ? Colors.green.shade600

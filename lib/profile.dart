@@ -11,6 +11,8 @@ import 'package:capstone_project/utils/responsive_utils.dart';
 import 'package:capstone_project/widgets/responsive_widgets.dart';
 import 'package:capstone_project/reminder_settings.dart';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/MainPage/weekly_checkin_wizard.dart';
+import 'package:capstone_project/services/challenge_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {

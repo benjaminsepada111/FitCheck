@@ -4,9 +4,10 @@ class WeeklyCheckIn {
   final String challengeId;
   final DateTime checkInDate;
   final int weekNumber; // Week 1, Week 2, etc.
-  final int currentWeight; // in kg
-  final int? previousWeight; // Weight from last check-in (in kg)
+  final double currentWeight; // in kg (supports decimals)
+  final double? previousWeight; // Weight from last check-in (in kg, supports decimals)
   final double? weightChange; // Calculated weight change (kg)
+  final String? weightTrend; // 'up', 'down', or 'same' - automatically determined
   final String? notes;
   final String? progressFeeling; // 'great', 'good', 'okay', 'struggling'
   final String? activityLevelChange; // 'increased', 'decreased', 'no_change'
@@ -29,6 +30,7 @@ class WeeklyCheckIn {
     required this.currentWeight,
     this.previousWeight,
     this.weightChange,
+    this.weightTrend,
     this.notes,
     this.progressFeeling,
     this.activityLevelChange,
@@ -53,6 +55,7 @@ class WeeklyCheckIn {
       'currentWeight': currentWeight,
       'previousWeight': previousWeight,
       'weightChange': weightChange,
+      'weightTrend': weightTrend,
       'notes': notes,
       'progressFeeling': progressFeeling,
       'activityLevelChange': activityLevelChange,
@@ -75,9 +78,10 @@ class WeeklyCheckIn {
       challengeId: json['challengeId'],
       checkInDate: DateTime.parse(json['checkInDate']),
       weekNumber: json['weekNumber'],
-      currentWeight: json['currentWeight'],
-      previousWeight: json['previousWeight'],
+      currentWeight: (json['currentWeight'] is int ? json['currentWeight'].toDouble() : json['currentWeight']).toDouble(),
+      previousWeight: json['previousWeight'] != null ? (json['previousWeight'] is int ? json['previousWeight'].toDouble() : json['previousWeight']).toDouble() : null,
       weightChange: json['weightChange']?.toDouble(),
+      weightTrend: json['weightTrend'],
       notes: json['notes'],
       progressFeeling: json['progressFeeling'],
       activityLevelChange: json['activityLevelChange'],
@@ -99,9 +103,10 @@ class WeeklyCheckIn {
     String? challengeId,
     DateTime? checkInDate,
     int? weekNumber,
-    int? currentWeight,
-    int? previousWeight,
+    double? currentWeight,
+    double? previousWeight,
     double? weightChange,
+    String? weightTrend,
     String? notes,
     String? progressFeeling,
     String? activityLevelChange,
@@ -124,6 +129,7 @@ class WeeklyCheckIn {
       currentWeight: currentWeight ?? this.currentWeight,
       previousWeight: previousWeight ?? this.previousWeight,
       weightChange: weightChange ?? this.weightChange,
+      weightTrend: weightTrend ?? this.weightTrend,
       notes: notes ?? this.notes,
       progressFeeling: progressFeeling ?? this.progressFeeling,
       activityLevelChange: activityLevelChange ?? this.activityLevelChange,

@@ -44,11 +44,13 @@ class SimpleWeeklySummaryService {
       Set<String> daysWithWorkoutData = {};
       
       // First, get data from stats
+      // IMPORTANT: Use stats.dateId (YYYYMMDD format) to match WeeklyCheckInService format
       for (final stats in statsList) {
         totalCaloriesConsumed += stats.foodCalories;
         totalCaloriesBurned += stats.totalBurned;
         
-        final dateKey = _formatDateKey(stats.date);
+        // Use stats.dateId directly (YYYYMMDD format) to match WeeklyCheckInService
+        final dateKey = stats.dateId;
         
         if (stats.foodCalories > 0) {
           daysWithMeals++;
@@ -71,7 +73,8 @@ class SimpleWeeklySummaryService {
         final date = weekStart.add(Duration(days: i));
         if (date.isAfter(now)) break;
         
-        final dateKey = _formatDateKey(date);
+        // Use YYYYMMDD format to match stats.dateId and WeeklyCheckInService
+        final dateKey = '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
         
         // Get food logs for this day to count meals
         final foodLogs = await FoodLogService.getFoodLogsForDate(
@@ -134,7 +137,9 @@ class SimpleWeeklySummaryService {
         if (milestone.date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
             milestone.date.isBefore(weekEnd.add(const Duration(days: 1)))) {
           totalMilestones++;
-          activeDays.add(_formatDateKey(milestone.date));
+          // Use YYYYMMDD format to match other date keys
+          final milestoneDateKey = '${milestone.date.year}${milestone.date.month.toString().padLeft(2, '0')}${milestone.date.day.toString().padLeft(2, '0')}';
+          activeDays.add(milestoneDateKey);
         }
       }
       
@@ -164,9 +169,6 @@ class SimpleWeeklySummaryService {
     }
   }
   
-  static String _formatDateKey(DateTime date) {
-    return '${date.year}-${date.month}-${date.day}';
-  }
 }
 
 /// Weekly summary data model

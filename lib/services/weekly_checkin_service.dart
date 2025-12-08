@@ -10,6 +10,7 @@ import 'calorie_calculator.dart';
 import 'food_log_service.dart';
 import 'workout_service_v2.dart';
 import 'stats_service.dart';
+import 'login_tracker_service.dart';
 
 class WeeklyCheckInService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -125,13 +126,12 @@ class WeeklyCheckInService {
     return (daysSinceStart / 7).floor();
   }
 
-  /// Process check-in with adaptive calorie adjustment and validation
+  /// Process check-in with simplified trend-based calorie adjustment
+  /// Uses automatic trend detection and ±150 kcal adjustments
   static Future<bool> processCheckInAndUpdateGoals({
     required Challenge challenge,
     required double newWeight, // Accept double for precision
     String? notes,
-    String? progressFeeling,
-    String? activityLevelChange,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -152,13 +152,17 @@ class WeeklyCheckInService {
 
       // Get previous check-in to compare weight (convert to double for calculation)
       final latestCheckIn = await getLatestCheckIn(challenge.id);
-      final previousWeight = (latestCheckIn?.currentWeight ?? userData.weight ?? newWeight.round()).toDouble();
+      final previousWeight = latestCheckIn?.currentWeight ?? userData.weight ?? newWeight;
 
-      // Calculate weekly calories consumed and burned
+      // Determine weight trend automatically
+      final weightTrend = CalorieCalculator.determineWeightTrend(
+        currentWeight: newWeight,
+        previousWeight: previousWeight,
+      );
+
+      // Calculate weekly calories consumed and burned (for tracking purposes)
       int weeklyCaloriesConsumed = 0;
       int weeklyCaloriesBurned = 0;
-      int daysWithFoodIntake = 0;
-      int daysWithinTarget = 0;
       Set<String> activeDays = {}; // Track days with any activity (food or workouts)
 
       // Get stats for the week
@@ -170,16 +174,8 @@ class WeeklyCheckInService {
 
       for (final stats in statsList) {
         if (stats.foodCalories > 0) {
-          daysWithFoodIntake++;
           activeDays.add(stats.dateId); // Mark day as active
           weeklyCaloriesConsumed += stats.foodCalories;
-          
-          // Check if calories are within ±20% of target
-          final lowerBound = currentCalorieGoal * 0.8;
-          final upperBound = currentCalorieGoal * 1.2;
-          if (stats.foodCalories >= lowerBound && stats.foodCalories <= upperBound) {
-            daysWithinTarget++;
-          }
         }
         if (stats.totalBurned > 0) {
           activeDays.add(stats.dateId); // Mark day as active if workout was logged
@@ -187,17 +183,24 @@ class WeeklyCheckInService {
         weeklyCaloriesBurned += stats.totalBurned;
       }
 
-      // Also check food logs directly for days that might not have stats yet
+      // Also check food logs directly for days that might not have stats yet or have incomplete stats
+      // This ensures we capture all calories even if stats haven't been updated yet
+      // IMPORTANT: We check food logs ONLY if stats don't exist or show 0 calories to avoid double-counting
       for (int i = 0; i <= actualWeekEnd.difference(weekStart).inDays; i++) {
         final date = weekStart.add(Duration(days: i));
         if (date.isAfter(now)) break;
 
         final dateKey = '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
         
-        // Check if we already counted this day in stats
-        final alreadyCounted = statsList.any((s) => s.dateId == dateKey && s.foodCalories > 0);
+        // Check if we already counted calories from stats for this day
+        // Only skip food log check if stats exist AND have calories > 0 (to avoid double-counting)
+        final statsForDay = statsList.where((s) => s.dateId == dateKey).toList();
+        final hasStatsWithCalories = statsForDay.isNotEmpty && 
+                                     statsForDay.any((s) => s.foodCalories > 0);
         
-        if (!alreadyCounted) {
+        // Only check food logs if stats don't exist or show 0 calories
+        // This prevents double-counting while ensuring we capture all calories
+        if (!hasStatsWithCalories) {
           final foodLogs = await FoodLogService.getFoodLogsForDate(date, challengeId: challenge.id);
           if (foodLogs.isNotEmpty) {
             double dayCalories = 0;
@@ -205,16 +208,8 @@ class WeeklyCheckInService {
               dayCalories += log.totalCalories;
             }
             if (dayCalories > 0) {
-              daysWithFoodIntake++;
               activeDays.add(dateKey); // Mark day as active
               weeklyCaloriesConsumed += dayCalories.round();
-              
-              // Check if calories are within ±20% of target
-              final lowerBound = currentCalorieGoal * 0.8;
-              final upperBound = currentCalorieGoal * 1.2;
-              if (dayCalories >= lowerBound && dayCalories <= upperBound) {
-                daysWithinTarget++;
-              }
             }
           }
         }
@@ -237,74 +232,229 @@ class WeeklyCheckInService {
       final totalDaysInWeek = actualWeekEnd.difference(weekStart).inDays + 1;
       final daysWithActivity = activeDays.length;
       final inactiveDays = totalDaysInWeek - daysWithActivity;
+      
+      // DEBUG: Log activity tracking
+      if (kDebugMode) {
+        print('=== WEEKLY CHECK-IN VALIDATION DEBUG ===');
+        print('Total days in week: $totalDaysInWeek');
+        print('Days with activity: $daysWithActivity');
+        print('Inactive days: $inactiveDays');
+        print('Weekly calories consumed: $weeklyCaloriesConsumed');
+        print('Weekly calories burned: $weeklyCaloriesBurned');
+        print('Active days set: $activeDays');
+      }
+      
+      // Check for activity: if no weight or food log for >=3 days, skip adjustment
+      // Changed from >3 to >=3 to be more strict (3 or more days without logs)
+      final hasInsufficientActivity = inactiveDays >= 3;
 
-      // Validate conditions for adjustment
-      final hasEnoughDays = daysWithFoodIntake >= 5;
+      // Check if user hasn't logged in (opened app) for > 3 days
+      // Requirement: "hasn't logged in for > 3 days" means last login was MORE than 3 days ago
+      // So we check if they logged in within last 3 days (today, yesterday, 2 days ago)
+      // If false, it means last login was 3+ days ago, so skip adjustment
+      bool hasLoggedInWithinLast3Days = false;
+      try {
+        hasLoggedInWithinLast3Days = await LoginTrackerService.hasLoggedInWithinLastNDays(
+          referenceDate: now,
+          days: 3,
+        );
+      } catch (e) {
+        // If login check fails, assume no recent login (fail-safe: skip adjustment)
+        if (kDebugMode) {
+          print('⚠️ ERROR checking login status: $e - assuming no recent login');
+        }
+        hasLoggedInWithinLast3Days = false;
+      }
+      
+      // Skip adjustment if user hasn't logged in within the last 3 days
+      final hasNotLoggedInForMoreThan3Days = !hasLoggedInWithinLast3Days;
+
+      // Calculate net calorie completeness threshold
+      // Expected weekly intake based on daily calorie goal
+      final expectedWeeklyIntake = currentCalorieGoal * 7;
+      
+      // Calculate completeness percentage (75% threshold)
+      // Check if logged calories consumed >= 75% of expected weekly intake
+      // If weeklyCaloriesConsumed is 0, completeness is 0% which is < 75%
+      final calorieCompleteness = expectedWeeklyIntake > 0 
+        ? (weeklyCaloriesConsumed / expectedWeeklyIntake) * 100 
+        : 0.0;
+      
+      // Also check if no calories were consumed at all (0)
+      // If user hasn't logged anything, weeklyCaloriesConsumed will be 0
+      // This is an additional explicit check: if no calories were consumed at all, don't adjust
+      final hasInsufficientNetCalories = calorieCompleteness < 75.0 || weeklyCaloriesConsumed == 0;
+
+      // Simplified validation: basic checks for reliable weight data
+      // Also check that weight is positive (not negative or zero)
       final hasReliableWeightData = newWeight > 0 && previousWeight > 0;
-      final hasReasonableCalories = daysWithinTarget >= 3; // At least 3 days within ±20%
-      // If user wasn't active for more than 2 days, don't adjust regardless of weight change
-      final hasConsistentActivity = inactiveDays <= 2; // Allow max 2 inactive days
-
-      // Determine if adjustment should be made
-      // Note: If user isn't active for a few days, calorie adjustment shouldn't happen
-      // regardless of weight increase or decrease
-      bool shouldAdjust = hasEnoughDays && hasReliableWeightData && hasReasonableCalories && hasConsistentActivity;
-      String? adjustmentNotice;
+      
       int finalCalorieGoal = currentCalorieGoal;
       int finalAdjustment = 0;
       String finalInterpretation = 'unchanged';
       String finalReason = 'No adjustment needed';
 
-      if (shouldAdjust) {
-        // Determine updated activity level based on user input
-        String? updatedActivityLevel = challenge.activityLevel;
-        if (activityLevelChange != null && challenge.activityLevel != null) {
-          if (activityLevelChange == 'increased') {
-            updatedActivityLevel = _increaseActivityLevel(challenge.activityLevel!);
-          } else if (activityLevelChange == 'decreased') {
-            updatedActivityLevel = _decreaseActivityLevel(challenge.activityLevel!);
+      // CRITICAL: Combined validation logic - ALL checks must pass for adjustment to proceed
+      // Priority order: invalid weight > no calories logged > insufficient activity > incomplete logging
+      // If ANY check fails, skip adjustment completely
+      
+      bool shouldSkipAdjustment = false; // Initialize to false - will be set to true if any validation fails
+      
+      if (kDebugMode) {
+        print('=== VALIDATION CHECKS ===');
+        print('hasReliableWeightData: $hasReliableWeightData (newWeight: $newWeight, previousWeight: $previousWeight)');
+        print('weeklyCaloriesConsumed: $weeklyCaloriesConsumed');
+        print('hasLoggedInWithinLast3Days: $hasLoggedInWithinLast3Days');
+        print('hasNotLoggedInForMoreThan3Days: $hasNotLoggedInForMoreThan3Days');
+        print('hasInsufficientActivity: $hasInsufficientActivity (inactiveDays: $inactiveDays)');
+        print('hasInsufficientNetCalories: $hasInsufficientNetCalories (completeness: ${calorieCompleteness.toStringAsFixed(1)}%)');
+        print('Week period: ${weekStart.toString().split(' ')[0]} to ${actualWeekEnd.toString().split(' ')[0]}');
+      }
+      
+      // Check 1: Invalid weight (most critical - always skip if weight is invalid)
+      if (!hasReliableWeightData) {
+        shouldSkipAdjustment = true;
+        finalReason = 'Calorie goal kept the same due to invalid weight data (current: $newWeight kg, previous: $previousWeight kg)';
+        finalInterpretation = 'skipped_invalid_weight';
+        if (kDebugMode) {
+          print('❌ SKIPPING: Invalid weight data');
+        }
+      }
+      // Check 2: Insufficient calories logged (CRITICAL - must check BEFORE other checks)
+      // This MUST catch cases where user logged very few calories (<75% of expected)
+      // Moving this earlier to ensure it's always checked
+      else if (weeklyCaloriesConsumed == 0 || hasInsufficientNetCalories) {
+        shouldSkipAdjustment = true;
+        final minRequiredCalories = (expectedWeeklyIntake * 0.75).round();
+        if (weeklyCaloriesConsumed == 0) {
+          finalReason = 'Calorie goal kept the same due to no calories logged this week (need to log meals to adjust goals)';
+          finalInterpretation = 'skipped_no_calories_logged';
+        } else {
+          finalReason = 'Calorie goal kept the same due to insufficient calorie logging (logged $weeklyCaloriesConsumed calories, need at least $minRequiredCalories calories - only ${calorieCompleteness.toStringAsFixed(1)}% of expected ${expectedWeeklyIntake.round()} calories)';
+          finalInterpretation = 'skipped_insufficient_calories';
+        }
+        if (kDebugMode) {
+          print('❌ SKIPPING: Insufficient calories logged');
+          print('   Consumed: $weeklyCaloriesConsumed');
+          print('   Required: $minRequiredCalories (75% of $expectedWeeklyIntake)');
+          print('   Completeness: ${calorieCompleteness.toStringAsFixed(1)}%');
+        }
+      }
+      // Check 3: User hasn't logged in (opened app) for > 3 days
+      // This check ensures we don't adjust if user hasn't been active in the app recently
+      else if (hasNotLoggedInForMoreThan3Days) {
+        shouldSkipAdjustment = true;
+        finalReason = 'Calorie goal kept the same due to no login activity (need to log in within the last 3 days to adjust goals)';
+        finalInterpretation = 'skipped_no_login';
+        if (kDebugMode) {
+          print('❌ SKIPPING: User hasn\'t logged in within the last 3 days (hasLoggedInWithinLast3Days: $hasLoggedInWithinLast3Days)');
+        }
+      }
+      // Check 4: Insufficient activity (3+ days without logs)
+      else if (hasInsufficientActivity) {
+        shouldSkipAdjustment = true;
+        finalReason = 'Calorie goal kept the same due to insufficient activity (${inactiveDays} days without logs, need at least 3 days with activity)';
+        finalInterpretation = 'skipped_insufficient_activity';
+        if (kDebugMode) {
+          print('❌ SKIPPING: Insufficient activity (${inactiveDays} inactive days)');
+        }
+      }
+      
+      if (kDebugMode) {
+        print('=== FINAL VALIDATION RESULT ===');
+        print('shouldSkipAdjustment: $shouldSkipAdjustment');
+        print('finalReason: $finalReason');
+        print('weeklyCaloriesConsumed: $weeklyCaloriesConsumed');
+        print('expectedWeeklyIntake: $expectedWeeklyIntake');
+        print('calorieCompleteness: ${calorieCompleteness.toStringAsFixed(1)}%');
+        print('hasInsufficientNetCalories: $hasInsufficientNetCalories');
+        print('minRequiredCalories: ${(expectedWeeklyIntake * 0.75).round()}');
+      }
+      
+      // CRITICAL SAFETY CHECK: Double-verify calories before allowing any adjustment
+      // This prevents any edge cases where validation might be bypassed
+      // MUST happen BEFORE calculating the adjustment to prevent wasted computation
+      if (!shouldSkipAdjustment && weeklyCaloriesConsumed > 0) {
+        final minRequiredCalories = (expectedWeeklyIntake * 0.75).round();
+        if (weeklyCaloriesConsumed < minRequiredCalories) {
+          shouldSkipAdjustment = true;
+          finalReason = 'Calorie goal kept the same due to insufficient calorie logging (logged $weeklyCaloriesConsumed calories, need at least $minRequiredCalories calories - ${calorieCompleteness.toStringAsFixed(1)}% complete)';
+          finalInterpretation = 'skipped_insufficient_calories_safety';
+          if (kDebugMode) {
+            print('🚨 SAFETY CHECK TRIGGERED: Insufficient calories! Skipping adjustment.');
+            print('   Consumed: $weeklyCaloriesConsumed, Required: $minRequiredCalories, Completeness: ${calorieCompleteness.toStringAsFixed(1)}%');
+          }
+        }
+      }
+      
+      // ONLY calculate adjustment if ALL validation checks passed
+      // This prevents calculating adjustments that will be rejected
+      if (!shouldSkipAdjustment && challenge.goal != null) {
+        // Apply simplified adjustment based on goal + trend
+        final simplifiedResult = CalorieCalculator.calculateSimplifiedAdjustment(
+          goal: challenge.goal!,
+          trend: weightTrend,
+          currentCalorieGoal: currentCalorieGoal,
+          currentWeight: newWeight,
+          previousWeight: previousWeight,
+          userData: userData,
+        );
+
+        finalCalorieGoal = simplifiedResult['newCalorieGoal'] as int;
+        finalAdjustment = simplifiedResult['adjustment'] as int;
+        finalInterpretation = simplifiedResult['interpretation'] as String;
+        finalReason = simplifiedResult['reason'] as String;
+
+        // TRIPLE CHECK: Verify calories one more time before updating
+        // This is the final gate before any database update
+        final minRequiredCalories = (expectedWeeklyIntake * 0.75).round();
+        if (weeklyCaloriesConsumed < minRequiredCalories) {
+          shouldSkipAdjustment = true;
+          finalCalorieGoal = currentCalorieGoal;
+          finalAdjustment = 0;
+          finalReason = 'Calorie goal kept the same due to insufficient calorie logging (logged $weeklyCaloriesConsumed calories, need at least $minRequiredCalories calories)';
+          finalInterpretation = 'skipped_insufficient_calories_final';
+          if (kDebugMode) {
+            print('🚨 FINAL GATE CHECK: Blocking adjustment due to insufficient calories!');
+            print('   Consumed: $weeklyCaloriesConsumed, Required: $minRequiredCalories');
           }
         }
 
-        // Calculate adaptive adjustment using challenge-specific activity level and goal
-        final adaptiveResult = CalorieCalculator.calculateAdaptiveAdjustment(
-          userData: userData,
-          currentWeight: newWeight.toDouble(),
-          previousWeight: previousWeight.toDouble(),
-          currentCalorieGoal: currentCalorieGoal,
-          activityLevel: updatedActivityLevel,
-          goal: challenge.goal,
-        );
-
-        finalCalorieGoal = adaptiveResult['newCalorieGoal'] as int;
-        finalAdjustment = adaptiveResult['adjustment'] as int;
-        finalInterpretation = adaptiveResult['interpretation'] as String;
-        finalReason = adaptiveResult['reason'] as String;
-
-        // Update challenge with new calorie goal and activity level if changed
-        if (finalCalorieGoal != currentCalorieGoal || updatedActivityLevel != challenge.activityLevel) {
+        // SAFETY CHECK: Only update challenge if we're not skipping adjustment
+        // This is a double-check to prevent any accidental updates
+        // CRITICAL: Never update if shouldSkipAdjustment is true, regardless of calculated values
+        if (!shouldSkipAdjustment && finalCalorieGoal != currentCalorieGoal) {
+          if (kDebugMode) {
+            print('✅ UPDATING CHALLENGE: Old goal=$currentCalorieGoal, New goal=$finalCalorieGoal');
+          }
           final updatedChallenge = challenge.copyWith(
             dailyCalorieGoal: finalCalorieGoal,
-            activityLevel: updatedActivityLevel,
           );
           await ChallengeService.updateChallenge(updatedChallenge);
+        } else {
+          if (kDebugMode) {
+            print('⚠️ NOT UPDATING CHALLENGE: shouldSkipAdjustment=$shouldSkipAdjustment, goalChanged=${finalCalorieGoal != currentCalorieGoal}');
+          }
         }
       } else {
-        // Build adjustment notice explaining why adjustment wasn't made
-        final reasons = <String>[];
-        if (!hasEnoughDays) {
-          reasons.add('insufficient food tracking (only $daysWithFoodIntake days logged, need at least 5)');
+        // If we're skipping adjustment, ensure values stay unchanged
+        finalCalorieGoal = currentCalorieGoal;
+        finalAdjustment = 0;
+      }
+      
+      // FINAL SAFETY CHECK: If we skipped adjustment, ensure finalCalorieGoal stays unchanged
+      // This is the absolute last check before saving the check-in record
+      if (shouldSkipAdjustment) {
+        finalCalorieGoal = currentCalorieGoal;
+        finalAdjustment = 0;
+        if (kDebugMode) {
+          print('FINAL CHECK: Skipping adjustment - keeping calorie goal at $currentCalorieGoal');
+          print('Reason: $finalReason');
         }
-        if (!hasReasonableCalories) {
-          reasons.add('calories not consistently within target range (only $daysWithinTarget days within ±20% of goal)');
+      } else {
+        if (kDebugMode) {
+          print('ADJUSTMENT APPLIED: New calorie goal = $finalCalorieGoal (adjustment: $finalAdjustment)');
         }
-        if (!hasReliableWeightData) {
-          reasons.add('unreliable weight data');
-        }
-        if (!hasConsistentActivity) {
-          reasons.add('too many inactive days ($inactiveDays days without food or workout logs, maximum 2 allowed)');
-        }
-        adjustmentNotice = 'Your calorie goal was not adjusted this week due to incomplete tracking: ${reasons.join(', ')}. Please log at least 5 days of food intake with calories reasonably close to your target (±20%) and stay active throughout the week to enable automatic adjustments.';
       }
 
       // Update user weight in profile (store with decimal precision)
@@ -312,7 +462,7 @@ class WeeklyCheckInService {
 
       final weightChange = (newWeight - previousWeight).toDouble();
 
-      // Create detailed check-in record
+      // Create check-in record with trend
       final checkIn = WeeklyCheckIn(
         id: _firestore
             .collection(_usersCollection)
@@ -325,19 +475,20 @@ class WeeklyCheckInService {
         challengeId: challenge.id,
         checkInDate: DateTime.now(),
         weekNumber: weekNumber,
-        currentWeight: newWeight.round(),
-        previousWeight: previousWeight.round(),
+        currentWeight: newWeight,
+        previousWeight: previousWeight,
         weightChange: weightChange,
+        weightTrend: weightTrend,
         notes: notes,
-        progressFeeling: progressFeeling,
-        activityLevelChange: activityLevelChange,
+        progressFeeling: null, // Removed from simplified flow
+        activityLevelChange: null, // Removed from simplified flow
         previousCalorieGoal: currentCalorieGoal,
-        newCalorieGoal: shouldAdjust ? finalCalorieGoal : currentCalorieGoal,
-        calorieAdjustment: shouldAdjust ? finalAdjustment : 0,
+        newCalorieGoal: finalCalorieGoal,
+        calorieAdjustment: finalAdjustment,
         progressInterpretation: finalInterpretation,
         adaptiveReason: finalReason,
-        goalAdjusted: shouldAdjust,
-        adjustmentNotice: adjustmentNotice,
+        goalAdjusted: !shouldSkipAdjustment && finalAdjustment != 0,
+        adjustmentNotice: null, // Simplified - no complex notices
         weeklyCaloriesConsumed: weeklyCaloriesConsumed,
         weeklyCaloriesBurned: weeklyCaloriesBurned,
         createdAt: DateTime.now(),
@@ -355,43 +506,6 @@ class WeeklyCheckInService {
     }
   }
 
-  /// Helper method to increase activity level by one step
-  static String _increaseActivityLevel(String currentLevel) {
-    switch (currentLevel.toLowerCase()) {
-      case 'lightly_active':
-      case 'lightly active':
-        return 'active';
-      case 'active':
-        return 'very_active';
-      case 'very_active':
-      case 'very active':
-        return 'extra_active';
-      case 'extra_active':
-      case 'extra active':
-        return 'extra_active'; // Already at max
-      default:
-        return currentLevel; // Unknown level, keep as is
-    }
-  }
-
-  /// Helper method to decrease activity level by one step
-  static String _decreaseActivityLevel(String currentLevel) {
-    switch (currentLevel.toLowerCase()) {
-      case 'extra_active':
-      case 'extra active':
-        return 'very_active';
-      case 'very_active':
-      case 'very active':
-        return 'active';
-      case 'active':
-        return 'lightly_active';
-      case 'lightly_active':
-      case 'lightly active':
-        return 'lightly_active'; // Already at min
-      default:
-        return currentLevel; // Unknown level, keep as is
-    }
-  }
 
   /// Get weight progress data for charts
   static Future<List<Map<String, dynamic>>> getWeightProgress(String challengeId) async {

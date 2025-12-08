@@ -191,7 +191,33 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
     return months[date.month - 1];
   }
 
+  /// Check if navigating to the previous month is allowed (within challenge period)
+  bool _canNavigateToPreviousMonth() {
+    if (widget.currentChallenge == null) return true;
+    
+    final startDate = widget.currentChallenge!.startDate;
+    final startMonth = DateTime(startDate.year, startDate.month);
+    
+    // Can navigate if current month is after the challenge start month
+    return currentMonth.isAfter(startMonth);
+  }
+
+  /// Check if navigating to the next month is allowed (within challenge period)
+  bool _canNavigateToNextMonth() {
+    if (widget.currentChallenge == null) return true;
+    
+    final endDate = widget.currentChallenge!.endDate;
+    final endMonth = DateTime(endDate.year, endDate.month);
+    
+    // Can navigate if current month is before the challenge end month
+    return currentMonth.isBefore(endMonth);
+  }
+
   void _changeMonth(bool isNext) {
+    // Check if navigation is allowed
+    if (isNext && !_canNavigateToNextMonth()) return;
+    if (!isNext && !_canNavigateToPreviousMonth()) return;
+    
     setState(() {
       currentMonth = DateTime(
         currentMonth.year,
@@ -364,10 +390,16 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          onPressed: () => _changeMonth(false),
-                          icon: Icon(Icons.chevron_left, size: iconSize),
+                          onPressed: _canNavigateToPreviousMonth() ? () => _changeMonth(false) : null,
+                          icon: Icon(
+                            Icons.chevron_left, 
+                            size: iconSize,
+                            color: _canNavigateToPreviousMonth() ? null : Colors.grey.shade300,
+                          ),
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey.shade100,
+                            backgroundColor: _canNavigateToPreviousMonth() 
+                                ? Colors.grey.shade100 
+                                : Colors.grey.shade50,
                             padding: const EdgeInsets.all(8),
                             minimumSize: Size(buttonSize, buttonSize),
                             shape: RoundedRectangleBorder(
@@ -406,10 +438,16 @@ class _ChallengeCalendarState extends State<ChallengeCalendar> {
                           ),
                         ),
                         IconButton(
-                          onPressed: () => _changeMonth(true),
-                          icon: Icon(Icons.chevron_right, size: iconSize),
+                          onPressed: _canNavigateToNextMonth() ? () => _changeMonth(true) : null,
+                          icon: Icon(
+                            Icons.chevron_right, 
+                            size: iconSize,
+                            color: _canNavigateToNextMonth() ? null : Colors.grey.shade300,
+                          ),
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey.shade100,
+                            backgroundColor: _canNavigateToNextMonth() 
+                                ? Colors.grey.shade100 
+                                : Colors.grey.shade50,
                             padding: const EdgeInsets.all(8),
                             minimumSize: Size(buttonSize, buttonSize),
                             shape: RoundedRectangleBorder(

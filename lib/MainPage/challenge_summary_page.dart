@@ -1371,7 +1371,19 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
       final endDate = widget.challenge['endDate'] as DateTime?;
       
       if (challengeId == null || title == null || startDate == null || endDate == null) {
+        print('Missing required challenge fields: challengeId=$challengeId, title=$title, startDate=$startDate, endDate=$endDate');
         return null;
+      }
+      
+      // Determine lifecycle status from the status string
+      final statusStr = widget.challenge['status']?.toString().toLowerCase() ?? '';
+      String lifecycleStatus;
+      if (statusStr == 'cancelled') {
+        lifecycleStatus = 'cancelled';
+      } else if (statusStr == 'completed') {
+        lifecycleStatus = 'completed';
+      } else {
+        lifecycleStatus = 'active';
       }
       
       return Challenge(
@@ -1384,7 +1396,7 @@ class _ChallengeSummaryPageState extends State<ChallengeSummaryPage> {
         originalWeight: widget.challenge['originalWeight']?.toDouble(),
         createdAt: startDate,
         notes: widget.challenge['notes'] ?? '',
-        lifecycleStatus: widget.challenge['status']?.toLowerCase() == 'completed' ? 'completed' : 'active',
+        lifecycleStatus: lifecycleStatus,
       );
     } catch (e) {
       print('Error creating Challenge object: $e');

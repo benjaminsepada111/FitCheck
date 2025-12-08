@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
@@ -274,6 +275,68 @@ class AuthService {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Resend verification email with backend-enforced rate limiting
+  /// Returns remaining cooldown seconds if rate limited, or 0 if successful
+  Future<Map<String, dynamic>> resendVerificationEmail() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User must be authenticated');
+      }
+
+      // Call backend function to check rate limits and cooldown
+      final callable = FirebaseFunctions.instance.httpsCallable('resendVerificationEmail');
+      final result = await callable.call({
+        'email': user.email,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+
+      if (data['success'] == true) {
+        // Backend approved, now send the actual email
+        await user.sendEmailVerification(
+          ActionCodeSettings(
+            url: 'https://capstone-project-a9296.firebaseapp.com/__/auth/action?mode=verifyEmail',
+            handleCodeInApp: false,
+            androidPackageName: 'com.example.capstone_project',
+            androidInstallApp: false,
+            iOSBundleId: 'com.example.capstoneProject',
+          ),
+        );
+
+        return {
+          'success': true,
+          'remainingCooldownSeconds': data['remainingCooldownSeconds'] ?? 200,
+        };
+      } else {
+        // Rate limited or cooldown active
+        return {
+          'success': false,
+          'error': data['error'],
+          'remainingCooldownSeconds': data['remainingCooldownSeconds'] ?? 0,
+          'message': data['message'] ?? 'Please wait before resending',
+        };
+      }
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception('Failed to resend verification email: ${e.message}');
+    } catch (e) {
+      throw Exception('Failed to resend verification email: ${e.toString()}');
+    }
+  }
+
+  /// Get remaining cooldown time from backend
+  Future<int> getVerificationCooldown() async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('getVerificationCooldown');
+      final result = await callable.call();
+      final data = result.data as Map<String, dynamic>;
+      return data['remainingCooldownSeconds'] ?? 0;
+    } catch (e) {
+      // If function fails, return 0 to allow resend (graceful degradation)
+      return 0;
     }
   }
 }

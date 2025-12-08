@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../LoginPages/login_page.dart';
 import '../color/colors.dart';
 import '../services/user_time_tracker.dart';
@@ -129,6 +130,22 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
         );
 
+        // Record initial email send time in Firestore for backend rate limiting
+        try {
+          final now = Timestamp.now();
+          await FirebaseFirestore.instance
+              .collection('emailVerificationLimits')
+              .doc(userCredential.user!.uid)
+              .set({
+            'email': userCredential.user!.email,
+            'lastResendTime': now,
+            'resendHistory': [now],
+            'updatedAt': now,
+          }, SetOptions(merge: true));
+        } catch (e) {
+          // Don't block signup if this fails - backend will handle it on first resend
+        }
+
         // Initialize time tracking for new user
         try {
           await UserTimeTracker.initializeUserStartDate();
@@ -137,14 +154,6 @@ class _SignUpPageState extends State<SignUpPage> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created! Please check your email to verify your account.'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
-            ),
-          );
-
           // Navigate back to auth wrapper which will show email verification screen
           Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
         }

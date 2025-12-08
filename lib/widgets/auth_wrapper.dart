@@ -4,6 +4,7 @@ import 'dart:async';
 import '../LoginPages/login_page.dart';
 import '../main_page.dart';
 import '../color/colors.dart';
+import '../services/auth_service.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -56,10 +57,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   bool _isResendLoading = false;
   String? _errorMessage;
   Timer? _timer;
+  Timer? _resendCooldownTimer;
+  int _resendCooldownSeconds = 0;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
+    // Get cooldown from backend and start timer
+    _initializeCooldown();
     // Check email verification status every 3 seconds
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _checkEmailVerificationStatus();
@@ -69,7 +75,47 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _resendCooldownTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initializeCooldown() async {
+    try {
+      // Get remaining cooldown from backend
+      final remainingCooldown = await _authService.getVerificationCooldown();
+      if (mounted) {
+        setState(() {
+          _resendCooldownSeconds = remainingCooldown;
+        });
+        if (_resendCooldownSeconds > 0) {
+          _startResendCooldown();
+        }
+      }
+    } catch (e) {
+      // If backend call fails, start with 0 (allow resend)
+      if (mounted) {
+        setState(() {
+          _resendCooldownSeconds = 0;
+        });
+      }
+    }
+  }
+
+  void _startResendCooldown() {
+    _resendCooldownTimer?.cancel();
+    _resendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendCooldownSeconds > 0) {
+        setState(() {
+          _resendCooldownSeconds--;
+        });
+      } else {
+        timer.cancel();
+        // Update UI one more time when timer reaches 0 to enable the button
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    });
   }
 
   Future<void> _checkEmailVerificationStatus() async {
@@ -85,24 +131,48 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _sendVerificationEmail() async {
+    // Prevent resending if cooldown is active
+    if (_resendCooldownSeconds > 0) {
+      return;
+    }
+
     setState(() => _isResendLoading = true);
 
     try {
-      await FirebaseAuth.instance.currentUser?.sendEmailVerification(
-        ActionCodeSettings(
-          url: 'https://capstone-project-a9296.firebaseapp.com/__/auth/action?mode=verifyEmail',
-          handleCodeInApp: false,
-          androidPackageName: 'com.example.capstone_project',
-          androidInstallApp: false,
-          iOSBundleId: 'com.example.capstoneProject',
-        ),
-      );
-      // No popup notification - just clear any error message
-      if (mounted) {
-        setState(() => _errorMessage = null);
+      // Call backend function which enforces rate limiting
+      final result = await _authService.resendVerificationEmail();
+
+      if (result['success'] == true) {
+        // Success - restart cooldown timer with backend-provided value
+        final cooldown = result['remainingCooldownSeconds'] ?? 200;
+        if (mounted) {
+          setState(() {
+            _resendCooldownSeconds = cooldown;
+            _errorMessage = null;
+          });
+          if (_resendCooldownSeconds > 0) {
+            _startResendCooldown();
+          }
+        }
+      } else {
+        // Rate limited or cooldown active
+        final cooldown = result['remainingCooldownSeconds'] ?? 0;
+        if (mounted) {
+          setState(() {
+            _resendCooldownSeconds = cooldown;
+            _errorMessage = null; // Don't show error message for cooldown
+          });
+          if (_resendCooldownSeconds > 0) {
+            _startResendCooldown();
+          }
+        }
       }
     } catch (e) {
-      // No popup - silently handle error
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to resend email. Please try again.';
+        });
+      }
     } finally {
       if (mounted) setState(() => _isResendLoading = false);
     }
@@ -120,6 +190,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
   Future<void> _signOut() async {
     _timer?.cancel();
+    _resendCooldownTimer?.cancel();
     await FirebaseAuth.instance.signOut();
   }
 
@@ -169,15 +240,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Please check your email and click the verification link, then come back and tap "I\'ve Verified"',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
-                textAlign: TextAlign.center,
-              ),
               const SizedBox(height: 32),
 
               // Error message
@@ -219,7 +281,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
               const SizedBox(height: 16),
 
-              // Resend Email Button
+              // Resend Email Button - shows only seconds countdown
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -230,14 +292,18 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: _isResendLoading ? null : _sendVerificationEmail,
+                  onPressed: (_isResendLoading || _resendCooldownSeconds > 0) ? null : _sendVerificationEmail,
                   child: _isResendLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                    "RESEND VERIFICATION EMAIL",
+                    _resendCooldownSeconds > 0
+                        ? '$_resendCooldownSeconds'
+                        : "RESEND VERIFICATION EMAIL",
                     style: TextStyle(
-                      color: AppColors.secondary.withOpacity(0.8),
-                      fontSize: 16,
+                      color: _resendCooldownSeconds > 0
+                          ? AppColors.secondary.withOpacity(0.5)
+                          : AppColors.secondary.withOpacity(0.8),
+                      fontSize: _resendCooldownSeconds > 0 ? 32 : 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

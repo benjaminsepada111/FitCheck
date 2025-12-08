@@ -11,11 +11,6 @@ class CalorieCalculator {
     'very active': 1.725, // Alternative format
     'extra_active': 1.9, // Highly physical (athlete, fitness trainer)
     'extra active': 1.9, // Alternative format
-    // Legacy support for backward compatibility
-    'sedentary': 1.2,
-    'light': 1.375,
-    'moderate': 1.55,
-    'not_active': 1.375,
   };
 
   // Default calorie adjustments for goals

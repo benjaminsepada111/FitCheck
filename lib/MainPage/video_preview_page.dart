@@ -63,6 +63,12 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   // Active tool
   String? _activeTool;
 
+  double _currentPlaybackSpeed = 1.0;
+  final ScrollController _timelineScrollController = ScrollController();
+  double _timelineScrollOffset = 0.0;
+
+
+
   // Theme colors
   static const Color _darkBg = Color(0xFF0A0A0A);
   static const Color _surfaceColor = Color(0xFF1A1A1A);
@@ -74,6 +80,14 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     _currentVideoUrl = widget.videoUrl;
     _textLogs = widget.textLogs;
     _loadCachedMusicVideo();
+
+    _timelineScrollController.addListener(() {
+      if (mounted) {
+        setState(() {
+          _timelineScrollOffset = _timelineScrollController.offset;
+        });
+      }
+    });
   }
 
   // ======================
@@ -86,6 +100,16 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
   String _getMusicVideoTextLogsCacheKey() {
     return 'music_video_logs_${widget.videoUrl.hashCode}';
+  }
+
+  Future<void> _changePlaybackSpeed(double speed) async {
+    if (!_videoController.value.isInitialized) return;
+
+    await _videoController.setPlaybackSpeed(speed);
+    setState(() {
+      _currentPlaybackSpeed = speed;
+    });
+    _showSnackBar('Playback speed: ${speed}x');
   }
 
   Future<void> _loadCachedMusicVideo() async {
@@ -945,6 +969,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       _chewieController?.dispose();
     } catch (_) {}
     super.dispose();
+    _timelineScrollController.dispose();
+    super.dispose();
   }
 
   // ============================================================================
@@ -975,6 +1001,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
+          // Close button
           Container(
             decoration: BoxDecoration(
               color: Colors.black26,
@@ -985,11 +1012,14 @@ class _VideoEditorPageState extends State<VideoEditorPage>
               onPressed: () => Navigator.pop(context),
             ),
           ),
+          const SizedBox(width: 4),
+          // Speed control
+          _buildSpeedControl(),
           const Spacer(),
           // Music indicator badge
           if (hasMusic)
             Container(
-              margin: const EdgeInsets.only(right: 12),
+              margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.secondary,
@@ -1011,21 +1041,29 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                 ],
               ),
             ),
+          // Time display - 🎯 FIXED: Added flexible/constrained width
           if (_isInitialized)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _formatDuration(_videoController.value.position) +
-                    ' / ' +
-                    _formatDuration(_videoController.value.duration),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _formatDuration(_videoController.value.position) +
+                        ' / ' +
+                        _formatDuration(_videoController.value.duration),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
@@ -1100,6 +1138,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                 : Stack(
               children: [
                 ListView.builder(
+                  controller: _timelineScrollController, // 🎯 ADD CONTROLLER
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.only(left: horizontalPadding, top: 8, bottom: 8),
                   itemCount: milestones.length,
@@ -1117,19 +1156,6 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                         decoration: BoxDecoration(
                           color: _cardColor,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isActive ? AppColors.secondary : Colors.white24,
-                            width: isActive ? 3 : 1.5,
-                          ),
-                          boxShadow: isActive
-                              ? [
-                            BoxShadow(
-                              color: AppColors.secondary.withOpacity(0.5),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                              : null,
                           image: milestone.imageUrl != null
                               ? DecorationImage(
                             image: NetworkImage(milestone.imageUrl!),
@@ -1155,13 +1181,20 @@ class _VideoEditorPageState extends State<VideoEditorPage>
                     );
                   },
                 ),
+                // 🎯 FIXED RED LINE INDICATOR - Now accounts for scroll offset
                 if (_isInitialized && videoDuration.inMilliseconds > 0 && milestones.isNotEmpty)
                   Positioned(
-                    left: horizontalPadding +
-                        (currentPosition.inMilliseconds / videoDuration.inMilliseconds) *
-                            (milestones.length * thumbnailWidth + (milestones.length - 1) * thumbnailGap),
-                    top: 0,
-                    bottom: 0,
+                    left: _calculatePlayheadPosition(
+                      currentPosition: currentPosition,
+                      videoDuration: videoDuration,
+                      milestoneCount: milestones.length,
+                      thumbnailWidth: thumbnailWidth,
+                      thumbnailGap: thumbnailGap,
+                      horizontalPadding: horizontalPadding,
+                      scrollOffset: _timelineScrollOffset, // 🎯 PASS SCROLL OFFSET
+                    ),
+                    top: 8,
+                    bottom: 8,
                     child: Container(
                       width: 3,
                       decoration: BoxDecoration(
@@ -1183,6 +1216,41 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         ],
       ),
     );
+  }
+  // ============================================================================
+// PLAYHEAD POSITION CALCULATOR (WITH SCROLL OFFSET)
+// ============================================================================
+  double _calculatePlayheadPosition({
+    required Duration currentPosition,
+    required Duration videoDuration,
+    required int milestoneCount,
+    required double thumbnailWidth,
+    required double thumbnailGap,
+    required double horizontalPadding,
+    required double scrollOffset, // 🎯 NEW PARAMETER
+  }) {
+    if (videoDuration.inMilliseconds == 0 || milestoneCount == 0) return horizontalPadding;
+
+    // Calculate progress as a percentage (0.0 to 1.0)
+    double progress = currentPosition.inMilliseconds / videoDuration.inMilliseconds;
+    progress = progress.clamp(0.0, 1.0);
+
+    // Calculate which thumbnail we're in and how far through it
+    final slideshowDuration = videoDuration.inMilliseconds / milestoneCount;
+    final currentThumbnailIndex = currentPosition.inMilliseconds / slideshowDuration;
+
+    // Get the integer part (which thumbnail) and decimal part (progress within thumbnail)
+    final thumbnailFloor = currentThumbnailIndex.floor().clamp(0, milestoneCount - 1);
+    final thumbnailProgress = currentThumbnailIndex - thumbnailFloor;
+
+    // Calculate base position of current thumbnail
+    final basePosition = thumbnailFloor * (thumbnailWidth + thumbnailGap);
+
+    // Add progress within current thumbnail
+    final withinThumbnailOffset = thumbnailProgress * thumbnailWidth;
+
+    // 🎯 SUBTRACT SCROLL OFFSET to keep indicator in view
+    return horizontalPadding + basePosition + withinThumbnailOffset - scrollOffset;
   }
 
   Widget _buildBottomActions() {
@@ -1290,5 +1358,70 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     final minutes = duration.inMinutes.remainder(60);
     final seconds = duration.inSeconds.remainder(60);
     return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
+
+  Widget _buildSpeedControl() {
+    return PopupMenuButton<double>(
+      icon: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.speed, color: Colors.white, size: 18),
+            const SizedBox(width: 4),
+            Text(
+              '${_currentPlaybackSpeed}x',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      color: _cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      tooltip: 'Playback Speed',
+      onSelected: _changePlaybackSpeed,
+      itemBuilder: (context) => [
+        _buildSpeedMenuItem(0.25, '0.25x (Very Slow)'),
+        _buildSpeedMenuItem(0.5, '0.5x (Slow)'),
+        _buildSpeedMenuItem(0.75, '0.75x'),
+        _buildSpeedMenuItem(1.0, '1x (Normal)'),
+        _buildSpeedMenuItem(1.25, '1.25x'),
+        _buildSpeedMenuItem(1.5, '1.5x (Fast)'),
+        _buildSpeedMenuItem(2.0, '2x (Very Fast)'),
+      ],
+    );
+  }
+
+  PopupMenuItem<double> _buildSpeedMenuItem(double speed, String label) {
+    final isSelected = _currentPlaybackSpeed == speed;
+    return PopupMenuItem(
+      value: speed,
+      child: Row(
+        children: [
+          Icon(
+            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: isSelected ? AppColors.secondary : Colors.white38,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? AppColors.secondary : Colors.white,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -260,9 +260,9 @@ class CalorieCalculator {
 
     // STEP 1: Recalculate BMR using updated weight, height, age, and sex (Mifflin-St Jeor)
     // STEP 2: Recalculate TDEE using updated activity multiplier
-    // Convert double weight to int for UserData (rounds to nearest kg)
+    // Store weight with decimal precision
     final updatedUserData = userData.copyWith(
-      weight: currentWeight.round(),
+      weight: currentWeight,
       activityLevel: effectiveActivityLevel,
       goal: effectiveGoal,
     );

@@ -307,8 +307,8 @@ class WeeklyCheckInService {
         adjustmentNotice = 'Your calorie goal was not adjusted this week due to incomplete tracking: ${reasons.join(', ')}. Please log at least 5 days of food intake with calories reasonably close to your target (±20%) and stay active throughout the week to enable automatic adjustments.';
       }
 
-      // Update user weight in profile (round to int for storage)
-      await UserDataService.updateUserData(weight: newWeight.round());
+      // Update user weight in profile (store with decimal precision)
+      await UserDataService.updateUserData(weight: newWeight);
 
       final weightChange = (newWeight - previousWeight).toDouble();
 

@@ -52,6 +52,8 @@ class _OnboardingWizardState extends State<OnboardingWizard> with TickerProvider
   }
 
   void _nextPage() {
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
     if (_currentPage < _totalPages - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -61,6 +63,8 @@ class _OnboardingWizardState extends State<OnboardingWizard> with TickerProvider
   }
 
   void _previousPage() {
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
     if (_currentPage > 0) {
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),
@@ -192,7 +196,7 @@ class _OnboardingWizardState extends State<OnboardingWizard> with TickerProvider
                       hobbies: _data.hobbies,
                       gender: _data.gender ?? '',
                       birthDate: _data.birthDate ?? DateTime.now(),
-                      weight: _data.weight ?? 0,
+                      weight: _data.weight ?? 0.0,
                       height: _data.height ?? 0,
                     ),
                   ),

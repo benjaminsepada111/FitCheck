@@ -5,7 +5,7 @@ class OnboardingData {
   List<String> hobbies = [];
   String? gender;
   DateTime? birthDate;
-  int? weight;
+  double? weight; // Changed to double to allow decimal input
   int? height;
 
   OnboardingData();

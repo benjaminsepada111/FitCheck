@@ -9,7 +9,7 @@ class OnboardingSummaryPage extends StatefulWidget {
   final List<String> hobbies;
   final String gender;
   final DateTime birthDate;
-  final int weight;
+  final double weight; // Changed to double to support decimal display
   final int height;
 
   const OnboardingSummaryPage({
@@ -82,7 +82,7 @@ class _OnboardingSummaryPageState extends State<OnboardingSummaryPage>
         hobbies: widget.hobbies,
         gender: widget.gender,
         birthDate: widget.birthDate,
-        weight: widget.weight,
+        weight: widget.weight, // Store with decimal precision
         height: widget.height,
       );
 
@@ -191,7 +191,7 @@ class _OnboardingSummaryPageState extends State<OnboardingSummaryPage>
                         icon: Icons.monitor_weight_outlined,
                         title: "Physical Stats",
                         children: [
-                          _buildInfoRow("Weight", "${widget.weight} kg"),
+                          _buildInfoRow("Weight", "${widget.weight.toStringAsFixed(1)} kg"),
                           _buildInfoRow("Height", "${widget.height} cm"),
                         ],
                       ),

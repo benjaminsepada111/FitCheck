@@ -8,7 +8,7 @@ class Challenge {
   final DateTime endDate;
   final int dailyCalorieGoal; // Current/adjusted calorie goal (can change via check-ins)
   final int? originalCalorieGoal; // Original calorie goal at challenge creation (never changes)
-  final int? originalWeight; // Starting weight at challenge creation (in kg)
+  final double? originalWeight; // Starting weight at challenge creation (in kg, supports decimals)
   final String? activityLevel; // Challenge-specific activity level (e.g., 'lightly_active', 'active')
   final String? goal; // Challenge-specific goal (e.g., 'lose_fat', 'maintain_weight', 'gain_muscle')
   final String notes;
@@ -40,13 +40,13 @@ class Challenge {
     required DateTime endDate,
     String notes = '',
     int? customCalorieGoal, // Override calculated goal if needed
-    int? originalWeight, // Starting weight at challenge creation
+    double? originalWeight, // Starting weight at challenge creation
   }) async {
     int calorieGoal =
         customCalorieGoal ?? await UserDataService.getDailyCalorieGoal();
 
     // Get current user weight if originalWeight not provided
-    int? startingWeight = originalWeight;
+    double? startingWeight = originalWeight;
     if (startingWeight == null) {
       final userData = await UserDataService.loadUserData();
       startingWeight = userData?.weight;
@@ -204,7 +204,7 @@ class Challenge {
       endDate: DateTime.parse(json['endDate']),
       dailyCalorieGoal: json['dailyCalorieGoal'],
       originalCalorieGoal: json['originalCalorieGoal'] ?? json['dailyCalorieGoal'], // Fallback for old challenges
-      originalWeight: json['originalWeight'],
+      originalWeight: json['originalWeight'] != null ? (json['originalWeight'] is int ? json['originalWeight'].toDouble() : json['originalWeight']?.toDouble()) : null,
       activityLevel: json['activityLevel'],
       goal: json['goal'],
       createdAt: DateTime.parse(json['createdAt']),
@@ -226,7 +226,7 @@ class Challenge {
     DateTime? endDate,
     int? dailyCalorieGoal,
     int? originalCalorieGoal,
-    int? originalWeight,
+    double? originalWeight,
     String? activityLevel,
     String? goal,
     DateTime? createdAt,

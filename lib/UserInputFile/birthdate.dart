@@ -83,6 +83,9 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
   Future<void> _saveAndContinue() async {
     if (_isLoading) return;
 
+    // Dismiss keyboard before navigation
+    FocusScope.of(context).unfocus();
+
     // Validate age (must be at least 13)
     if (calculatedAge < 13) {
       _showErrorSnackBar('You must be at least 13 years old to use this app.');
@@ -139,6 +142,7 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -269,6 +273,8 @@ class _BirthdatePageState extends State<BirthdatePage> with TickerProviderStateM
                       height: 55,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : () {
+                          // Dismiss keyboard before navigation
+                          FocusScope.of(context).unfocus();
                           final nav = OnboardingNavigation.of(context);
                           if (nav?.onBack != null) {
                             nav!.onBack!();

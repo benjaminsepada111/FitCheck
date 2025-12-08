@@ -36,8 +36,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
   // Activity Level & Goal
   String? _selectedLifestyleLevel;
   String? _selectedGoal;
-  double _goalAdjustment = 500;
-  bool _showAdjustment = false;
 
   // Calculated values
   int _calculatedCalorieGoal = 0;
@@ -119,7 +117,7 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       // Pre-fill weight and height from user's profile
       if (_userData!.weight != null) {
         _challengeWeight = _userData!.weight!.toDouble();
-        _weightController.text = _userData!.weight.toString();
+        _weightController.text = _userData!.weight!.toStringAsFixed(1);
       }
       if (_userData!.height != null) {
         _challengeHeight = _userData!.height;
@@ -201,10 +199,10 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       // Create temporary user data with challenge-specific activity and goal
       // Use challenge weight if entered, otherwise use user profile weight
       final tempUserData = _userData!.copyWith(
-        weight: _challengeWeight?.round(), // Round to int for UserData model
+        weight: _challengeWeight, // Store with decimal precision
         activityLevel: _selectedLifestyleLevel,
         goal: _selectedGoal,
-        goalAdjustment: _showAdjustment ? _goalAdjustment : null,
+        goalAdjustment: null,
       );
 
       if (CalorieCalculator.isValidUserData(tempUserData)) {
@@ -292,8 +290,8 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     try {
       // Use the weight entered/edited by user during challenge creation
       // This becomes the permanent originalWeight for this challenge
-      // Round to int for storage (models use int for weight)
-      int? originalWeight = _challengeWeight?.round();
+      // Store with decimal precision
+      double? originalWeight = _challengeWeight;
 
       final challenge = Challenge(
         id: ChallengeService.generateChallengeId(),
@@ -629,12 +627,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
           ),
           const SizedBox(height: 12),
           ...goals.map((goal) => _buildGoalOption(goal)),
-
-          // Adjustment slider (if not maintain)
-          if (_selectedGoal != null && _selectedGoal != "maintain_weight") ...[
-            const SizedBox(height: 20),
-            _buildAdjustmentSection(),
-          ],
         ],
       ),
     );
@@ -923,7 +915,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
       onTap: () {
         setState(() {
           _selectedGoal = goal["value"];
-          _showAdjustment = false;
         });
       },
       child: Container(
@@ -972,61 +963,6 @@ class _CreateChallengeSheetState extends State<CreateChallengeSheet> {
     );
   }
 
-  Widget _buildAdjustmentSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  "Customize ${_selectedGoal == 'lose_fat' ? 'deficit' : 'surplus'}",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Switch(
-                value: _showAdjustment,
-                onChanged: (value) {
-                  setState(() => _showAdjustment = value);
-                },
-                activeColor: AppColors.secondary,
-              ),
-            ],
-          ),
-          if (_showAdjustment) ...[
-            const SizedBox(height: 12),
-            Slider(
-              value: _goalAdjustment,
-              min: 200,
-              max: 1000,
-              divisions: 8,
-              label: "${_goalAdjustment.round()} kcal",
-              onChanged: (val) {
-                setState(() => _goalAdjustment = val);
-              },
-              activeColor: AppColors.secondary,
-            ),
-            Text(
-              "${_selectedGoal == 'lose_fat' ? '-' : '+'}${_goalAdjustment.round()} kcal/day",
-              style: TextStyle(
-                color: AppColors.secondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
   Widget _buildSummaryItem(String label, String value) {
     return Padding(

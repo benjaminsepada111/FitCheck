@@ -668,7 +668,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                   Expanded(
                     child: _buildCompactInfoCard(
                       "Weight",
-                      _userData!.weight != null ? "${_userData!.weight} kg" : "Not set",
+                      _userData!.weight != null ? "${_userData!.weight!.toStringAsFixed(1)} kg" : "Not set",
                       Icons.monitor_weight_outlined,
                     ),
                   ),

@@ -1703,7 +1703,7 @@ class _WeeklyCheckInWizardState extends State<WeeklyCheckInWizard>
     
     final weekNumber = WeeklyCheckInService.getCurrentWeekNumber(widget.challenge);
     final latestCheckIn = await WeeklyCheckInService.getLatestCheckIn(widget.challenge.id);
-    final previousWeight = latestCheckIn?.currentWeight ?? widget.challenge.originalWeight ?? newWeightDouble.round();
+    final previousWeight = latestCheckIn?.currentWeight ?? (widget.challenge.originalWeight != null ? widget.challenge.originalWeight!.round() : newWeightDouble.round());
     final weightChange = (newWeightDouble - previousWeight).toDouble();
     
     final userData = await UserDataService.loadUserData();

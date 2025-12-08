@@ -219,6 +219,8 @@
                       height: 55,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : () {
+                          // Dismiss keyboard before navigation
+                          FocusScope.of(context).unfocus();
                           final nav = OnboardingNavigation.of(context);
                           if (nav?.onBack != null) {
                             nav!.onBack!();

@@ -76,7 +76,7 @@ class UserDataService {
     List<String>? hobbies,
     String? gender,
     DateTime? birthDate,
-    int? weight,
+    double? weight,
     int? height,
     String? activityLevel,
     String? goal,

@@ -5,7 +5,7 @@ class UserData {
   final List<String>? hobbies; // user's selected hobbies/interests
   final String? gender;
   final DateTime? birthDate;
-  final int? weight; // in kg
+  final double? weight; // in kg (supports decimals)
   final int? height; // in cm
   final String? activityLevel;
   final String? goal;
@@ -86,7 +86,7 @@ class UserData {
       birthDate: json['birthDate'] != null
           ? DateTime.parse(json['birthDate'])
           : null,
-      weight: json['weight'],
+      weight: json['weight'] != null ? (json['weight'] is int ? json['weight'].toDouble() : json['weight']?.toDouble()) : null,
       height: json['height'],
       activityLevel: json['activityLevel'],
       goal: json['goal'],
@@ -105,7 +105,7 @@ class UserData {
     List<String>? hobbies,
     String? gender,
     DateTime? birthDate,
-    int? weight,
+    double? weight,
     int? height,
     String? activityLevel,
     String? goal,

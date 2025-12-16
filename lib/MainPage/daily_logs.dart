@@ -46,7 +46,8 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       widget.selectedDate.month,
       widget.selectedDate.day,
     );
-    return !selectedDay.isAfter(today); // Can edit today and past, but not future
+    // Can only edit dates BEFORE today (yesterday and earlier)
+    return selectedDay.isBefore(today);
   }
 
   @override

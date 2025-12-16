@@ -121,6 +121,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage>
       backgroundColor: Colors.transparent,
       builder: (context) => AddWorkoutSheet(
         currentChallenge: widget.currentChallenge!,
+        selectedDate: DateTime.now(),
         onWorkoutAdded: () {
           _loadWorkouts(forceRefresh: true);
         },

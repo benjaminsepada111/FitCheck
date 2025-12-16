@@ -642,6 +642,7 @@ class _MealCardState extends State<_MealCard> {
                         builder: (context) => AddFoodSheet(
                           mealName: widget.name,
                           challengeId: widget.challengeId,
+                          selectedDate: DateTime.now(),
                           onFoodAdded: (foodName, calories, {grams, imageUrl, servingSize, unit}) {
                             widget.onFoodAdded(
                               foodName,

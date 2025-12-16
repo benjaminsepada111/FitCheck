@@ -1,709 +1,709 @@
-import 'package:flutter/material.dart';
-import 'create_challenge_sheet.dart';
-import 'package:capstone_project/color/colors.dart';
-import 'package:capstone_project/models/challenge.dart';
-import '../app_text_styles.dart';
-import 'daily_logs.dart';
-import 'package:capstone_project/services/food_log_service.dart';
-import 'package:capstone_project/services/workout_service_v2.dart';
-import 'package:capstone_project/services/milestone_service.dart';
-import 'package:capstone_project/widgets/fitcheck_loader.dart';
-
-class ChallengeCalendar extends StatefulWidget {
-  final Challenge? currentChallenge;
-  final Function(Challenge) onChallengeCreated;
-  final VoidCallback onChallengeEnded;
-
-  const ChallengeCalendar({
-    super.key,
-    this.currentChallenge,
-    required this.onChallengeCreated,
-    required this.onChallengeEnded,
-  });
-
-  @override
-  State<ChallengeCalendar> createState() => _ChallengeCalendarState();
-}
-
-class _ChallengeCalendarState extends State<ChallengeCalendar> {
-  late DateTime currentMonth;
-  Map<String, bool> _dayCompletionStatus = {};
-  bool _isLoadingCompletions = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Initialize to current month
-    final now = DateTime.now();
-    currentMonth = DateTime(now.year, now.month);
-
-    if (widget.currentChallenge != null) {
-      _loadMonthCompletions();
-    }
+  import 'package:flutter/material.dart';
+  import 'create_challenge_sheet.dart';
+  import 'package:capstone_project/color/colors.dart';
+  import 'package:capstone_project/models/challenge.dart';
+  import '../app_text_styles.dart';
+  import 'daily_logs.dart';
+  import 'package:capstone_project/services/food_log_service.dart';
+  import 'package:capstone_project/services/workout_service_v2.dart';
+  import 'package:capstone_project/services/milestone_service.dart';
+  import 'package:capstone_project/widgets/fitcheck_loader.dart';
+  
+  class ChallengeCalendar extends StatefulWidget {
+    final Challenge? currentChallenge;
+    final Function(Challenge) onChallengeCreated;
+    final VoidCallback onChallengeEnded;
+  
+    const ChallengeCalendar({
+      super.key,
+      this.currentChallenge,
+      required this.onChallengeCreated,
+      required this.onChallengeEnded,
+    });
+  
+    @override
+    State<ChallengeCalendar> createState() => _ChallengeCalendarState();
   }
-
-  @override
-  void didUpdateWidget(ChallengeCalendar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.currentChallenge != null &&
-        oldWidget.currentChallenge != widget.currentChallenge) {
-      _loadMonthCompletions();
+  
+  class _ChallengeCalendarState extends State<ChallengeCalendar> {
+    late DateTime currentMonth;
+    Map<String, bool> _dayCompletionStatus = {};
+    bool _isLoadingCompletions = false;
+  
+    @override
+    void initState() {
+      super.initState();
+      // Initialize to current month
+      final now = DateTime.now();
+      currentMonth = DateTime(now.year, now.month);
+  
+      if (widget.currentChallenge != null) {
+        _loadMonthCompletions();
+      }
     }
-  }
-
-  // Load completion status for all days in the current month
-  Future<void> _loadMonthCompletions() async {
-    if (widget.currentChallenge == null) return;
-
-    setState(() => _isLoadingCompletions = true);
-
-    try {
-      final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
-
-      Map<String, bool> completions = {};
-
-      // Check each day in the month
-      for (int day = 1; day <= lastDay.day; day++) {
-        final date = DateTime(currentMonth.year, currentMonth.month, day);
-
-        // Only check days within challenge period
-        if (_isDateInChallenge(day)) {
-          final isComplete = await _checkDayCompletion(date);
-          completions[_getDateKey(date)] = isComplete;
+  
+    @override
+    void didUpdateWidget(ChallengeCalendar oldWidget) {
+      super.didUpdateWidget(oldWidget);
+      if (widget.currentChallenge != null &&
+          oldWidget.currentChallenge != widget.currentChallenge) {
+        _loadMonthCompletions();
+      }
+    }
+  
+    // Load completion status for all days in the current month
+    Future<void> _loadMonthCompletions() async {
+      if (widget.currentChallenge == null) return;
+  
+      setState(() => _isLoadingCompletions = true);
+  
+      try {
+        final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
+  
+        Map<String, bool> completions = {};
+  
+        // Check each day in the month
+        for (int day = 1; day <= lastDay.day; day++) {
+          final date = DateTime(currentMonth.year, currentMonth.month, day);
+  
+          // Only check days within challenge period
+          if (_isDateInChallenge(day)) {
+            final isComplete = await _checkDayCompletion(date);
+            completions[_getDateKey(date)] = isComplete;
+          }
+        }
+  
+        if (mounted) {
+          setState(() {
+            _dayCompletionStatus = completions;
+            _isLoadingCompletions = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingCompletions = false);
         }
       }
-
-      if (mounted) {
-        setState(() {
-          _dayCompletionStatus = completions;
-          _isLoadingCompletions = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingCompletions = false);
-      }
     }
-  }
-
-  // Check if a specific day is complete
-  Future<bool> _checkDayCompletion(DateTime date) async {
-    try {
-      if (widget.currentChallenge == null) return false;
-
-      // Check if there are any food logs
-      final foodLogs = await FoodLogService.getFoodLogsForDate(
-        date,
-        challengeId: widget.currentChallenge!.id,
-      );
-      final hasFood = foodLogs.isNotEmpty;
-
-      // Check if there are any workouts
-      final workouts = await WorkoutServiceV2.getWorkoutsForDate(
-        challengeId: widget.currentChallenge!.id,
-        date: date,
-      );
-      final hasWorkout = workouts.isNotEmpty;
-
-      // Check if there are any milestones
-      final allMilestones = await MilestoneService.getAllMilestones(
-        challengeId: widget.currentChallenge!.id,
-      );
-      final hasMilestone = allMilestones.any(
-        (m) =>
-            m.date.year == date.year &&
-            m.date.month == date.month &&
-            m.date.day == date.day,
-      );
-
-      // Day is complete if any activity was logged
-      return hasFood || hasWorkout || hasMilestone;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  String _getDateKey(DateTime date) {
-    return '${date.year}-${date.month}-${date.day}';
-  }
-
-  bool _isDayComplete(int day) {
-    final date = DateTime(currentMonth.year, currentMonth.month, day);
-    return _dayCompletionStatus[_getDateKey(date)] ?? false;
-  }
-
-  void _onChallengeCreated(Challenge challenge) {
-    widget.onChallengeCreated(challenge);
-    _loadMonthCompletions();
-  }
-
-  bool _isDateInChallenge(int day) {
-    if (widget.currentChallenge == null) return false;
-
-    final date = DateTime(currentMonth.year, currentMonth.month, day);
-    return date.isAfter(
-          widget.currentChallenge!.startDate.subtract(const Duration(days: 1)),
-        ) &&
-        date.isBefore(
-          widget.currentChallenge!.endDate.add(const Duration(days: 1)),
+  
+    // Check if a specific day is complete
+    Future<bool> _checkDayCompletion(DateTime date) async {
+      try {
+        if (widget.currentChallenge == null) return false;
+  
+        // Check if there are any food logs
+        final foodLogs = await FoodLogService.getFoodLogsForDate(
+          date,
+          challengeId: widget.currentChallenge!.id,
         );
-  }
-
-  bool _isToday(int day) {
-    final today = DateTime.now();
-    final date = DateTime(currentMonth.year, currentMonth.month, day);
-    return date.year == today.year &&
-        date.month == today.month &&
-        date.day == today.day;
-  }
-
-  bool _isStartDate(int day) {
-    if (widget.currentChallenge == null) return false;
-    final date = DateTime(currentMonth.year, currentMonth.month, day);
-    return date.year == widget.currentChallenge!.startDate.year &&
-        date.month == widget.currentChallenge!.startDate.month &&
-        date.day == widget.currentChallenge!.startDate.day;
-  }
-
-  bool _isEndDate(int day) {
-    if (widget.currentChallenge == null) return false;
-    final date = DateTime(currentMonth.year, currentMonth.month, day);
-    return date.year == widget.currentChallenge!.endDate.year &&
-        date.month == widget.currentChallenge!.endDate.month &&
-        date.day == widget.currentChallenge!.endDate.day;
-  }
-
-  String _getMonthName(DateTime date) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[date.month - 1];
-  }
-
-  /// Check if navigating to the previous month is allowed (within challenge period)
-  bool _canNavigateToPreviousMonth() {
-    if (widget.currentChallenge == null) return true;
-    
-    final startDate = widget.currentChallenge!.startDate;
-    final startMonth = DateTime(startDate.year, startDate.month);
-    
-    // Can navigate if current month is after the challenge start month
-    return currentMonth.isAfter(startMonth);
-  }
-
-  /// Check if navigating to the next month is allowed (within challenge period)
-  bool _canNavigateToNextMonth() {
-    if (widget.currentChallenge == null) return true;
-    
-    final endDate = widget.currentChallenge!.endDate;
-    final endMonth = DateTime(endDate.year, endDate.month);
-    
-    // Can navigate if current month is before the challenge end month
-    return currentMonth.isBefore(endMonth);
-  }
-
-  void _changeMonth(bool isNext) {
-    // Check if navigation is allowed
-    if (isNext && !_canNavigateToNextMonth()) return;
-    if (!isNext && !_canNavigateToPreviousMonth()) return;
-    
-    setState(() {
-      currentMonth = DateTime(
-        currentMonth.year,
-        currentMonth.month + (isNext ? 1 : -1),
-      );
-    });
-    _loadMonthCompletions();
-  }
-
-  List<Widget> _buildCalendarDays() {
-    final firstDay = DateTime(currentMonth.year, currentMonth.month, 1);
-    final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
-
-    // Get weekday (Sunday = 0, Monday = 1, ..., Saturday = 6)
-    final startWeekday = firstDay.weekday % 7;
-
-    List<Widget> days = [];
-
-    // Add previous month's trailing days
-    if (startWeekday > 0) {
-      final prevMonth = DateTime(currentMonth.year, currentMonth.month - 1);
-      final prevMonthLastDay = DateTime(
-        prevMonth.year,
-        prevMonth.month + 1,
-        0,
-      ).day;
-
-      for (int i = startWeekday - 1; i >= 0; i--) {
-        days.add(_buildDateCell('${prevMonthLastDay - i}', isOtherMonth: true));
+        final hasFood = foodLogs.isNotEmpty;
+  
+        // Check if there are any workouts
+        final workouts = await WorkoutServiceV2.getWorkoutsForDate(
+          challengeId: widget.currentChallenge!.id,
+          date: date,
+        );
+        final hasWorkout = workouts.isNotEmpty;
+  
+        // Check if there are any milestones
+        final allMilestones = await MilestoneService.getAllMilestones(
+          challengeId: widget.currentChallenge!.id,
+        );
+        final hasMilestone = allMilestones.any(
+          (m) =>
+              m.date.year == date.year &&
+              m.date.month == date.month &&
+              m.date.day == date.day,
+        );
+  
+        // Day is complete if any activity was logged
+        return hasFood || hasWorkout || hasMilestone;
+      } catch (e) {
+        return false;
       }
     }
-
-    // Add current month's days
-    for (int day = 1; day <= lastDay.day; day++) {
-      days.add(_buildDateCell('$day', day: day));
+  
+    String _getDateKey(DateTime date) {
+      return '${date.year}-${date.month}-${date.day}';
     }
-
-    // Fill remaining spaces with next month's days to complete 6 weeks (42 cells)
-    int totalCells = 42; // 6 weeks × 7 days
-    int remainingCells = totalCells - days.length;
-
-    for (int day = 1; day <= remainingCells; day++) {
-      days.add(_buildDateCell('$day', isOtherMonth: true));
+  
+    bool _isDayComplete(int day) {
+      final date = DateTime(currentMonth.year, currentMonth.month, day);
+      return _dayCompletionStatus[_getDateKey(date)] ?? false;
     }
-
-    return days;
-  }
-
-  List<Widget> _buildWeeks(List<Widget> days) {
-    List<Widget> weeks = [];
-
-    if (widget.currentChallenge == null && days.length >= 14) {
-      weeks.add(_buildWeekRow(days.sublist(0, 7)));
-      weeks.add(_buildWeekRow(days.sublist(7, 14)));
-
-      if (days.length >= 21) {
-        List<Widget> thirdWeek = days.sublist(14, 21);
-        weeks.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                    child: thirdWeek[0],
+  
+    void _onChallengeCreated(Challenge challenge) {
+      widget.onChallengeCreated(challenge);
+      _loadMonthCompletions();
+    }
+  
+    bool _isDateInChallenge(int day) {
+      if (widget.currentChallenge == null) return false;
+  
+      final date = DateTime(currentMonth.year, currentMonth.month, day);
+      return date.isAfter(
+            widget.currentChallenge!.startDate.subtract(const Duration(days: 1)),
+          ) &&
+          date.isBefore(
+            widget.currentChallenge!.endDate.add(const Duration(days: 1)),
+          );
+    }
+  
+    bool _isToday(int day) {
+      final today = DateTime.now();
+      final date = DateTime(currentMonth.year, currentMonth.month, day);
+      return date.year == today.year &&
+          date.month == today.month &&
+          date.day == today.day;
+    }
+  
+    bool _isStartDate(int day) {
+      if (widget.currentChallenge == null) return false;
+      final date = DateTime(currentMonth.year, currentMonth.month, day);
+      return date.year == widget.currentChallenge!.startDate.year &&
+          date.month == widget.currentChallenge!.startDate.month &&
+          date.day == widget.currentChallenge!.startDate.day;
+    }
+  
+    bool _isEndDate(int day) {
+      if (widget.currentChallenge == null) return false;
+      final date = DateTime(currentMonth.year, currentMonth.month, day);
+      return date.year == widget.currentChallenge!.endDate.year &&
+          date.month == widget.currentChallenge!.endDate.month &&
+          date.day == widget.currentChallenge!.endDate.day;
+    }
+  
+    String _getMonthName(DateTime date) {
+      const months = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      return months[date.month - 1];
+    }
+  
+    /// Check if navigating to the previous month is allowed (within challenge period)
+    bool _canNavigateToPreviousMonth() {
+      if (widget.currentChallenge == null) return true;
+      
+      final startDate = widget.currentChallenge!.startDate;
+      final startMonth = DateTime(startDate.year, startDate.month);
+      
+      // Can navigate if current month is after the challenge start month
+      return currentMonth.isAfter(startMonth);
+    }
+  
+    /// Check if navigating to the next month is allowed (within challenge period)
+    bool _canNavigateToNextMonth() {
+      if (widget.currentChallenge == null) return true;
+      
+      final endDate = widget.currentChallenge!.endDate;
+      final endMonth = DateTime(endDate.year, endDate.month);
+      
+      // Can navigate if current month is before the challenge end month
+      return currentMonth.isBefore(endMonth);
+    }
+  
+    void _changeMonth(bool isNext) {
+      // Check if navigation is allowed
+      if (isNext && !_canNavigateToNextMonth()) return;
+      if (!isNext && !_canNavigateToPreviousMonth()) return;
+      
+      setState(() {
+        currentMonth = DateTime(
+          currentMonth.year,
+          currentMonth.month + (isNext ? 1 : -1),
+        );
+      });
+      _loadMonthCompletions();
+    }
+  
+    List<Widget> _buildCalendarDays() {
+      final firstDay = DateTime(currentMonth.year, currentMonth.month, 1);
+      final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
+  
+      // Get weekday (Sunday = 0, Monday = 1, ..., Saturday = 6)
+      final startWeekday = firstDay.weekday % 7;
+  
+      List<Widget> days = [];
+  
+      // Add previous month's trailing days
+      if (startWeekday > 0) {
+        final prevMonth = DateTime(currentMonth.year, currentMonth.month - 1);
+        final prevMonthLastDay = DateTime(
+          prevMonth.year,
+          prevMonth.month + 1,
+          0,
+        ).day;
+  
+        for (int i = startWeekday - 1; i >= 0; i--) {
+          days.add(_buildDateCell('${prevMonthLastDay - i}', isOtherMonth: true));
+        }
+      }
+  
+      // Add current month's days
+      for (int day = 1; day <= lastDay.day; day++) {
+        days.add(_buildDateCell('$day', day: day));
+      }
+  
+      // Fill remaining spaces with next month's days to complete 6 weeks (42 cells)
+      int totalCells = 42; // 6 weeks × 7 days
+      int remainingCells = totalCells - days.length;
+  
+      for (int day = 1; day <= remainingCells; day++) {
+        days.add(_buildDateCell('$day', isOtherMonth: true));
+      }
+  
+      return days;
+    }
+  
+    List<Widget> _buildWeeks(List<Widget> days) {
+      List<Widget> weeks = [];
+  
+      if (widget.currentChallenge == null && days.length >= 14) {
+        weeks.add(_buildWeekRow(days.sublist(0, 7)));
+        weeks.add(_buildWeekRow(days.sublist(7, 14)));
+  
+        if (days.length >= 21) {
+          List<Widget> thirdWeek = days.sublist(14, 21);
+          weeks.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: thirdWeek[0],
+                    ),
                   ),
-                ),
-                Expanded(
-                  flex: 5,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(20),
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
                             ),
+                            builder: (context) => CreateChallengeSheet(
+                              onChallengeCreated: _onChallengeCreated,
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          builder: (context) => CreateChallengeSheet(
-                            onChallengeCreated: _onChallengeCreated,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        "Start A Challenge",
-                        style: TextStyle(fontSize: 14),
+                        child: const Text(
+                          "Start A Challenge",
+                          style: TextStyle(fontSize: 14),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                    child: thirdWeek[6],
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: thirdWeek[6],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-
-        // ✅ Add remaining weeks (weeks 4, 5, 6)
-        for (int i = 21; i < days.length; i += 7) {
+          );
+  
+          // ✅ Add remaining weeks (weeks 4, 5, 6)
+          for (int i = 21; i < days.length; i += 7) {
+            int endIndex = (i + 7 <= days.length) ? i + 7 : days.length;
+            if (endIndex - i == 7) {
+              weeks.add(_buildWeekRow(days.sublist(i, endIndex)));
+            }
+          }
+        }
+      } else {
+        // ✅ When challenge exists, show all 6 weeks
+        for (int i = 0; i < days.length; i += 7) {
           int endIndex = (i + 7 <= days.length) ? i + 7 : days.length;
           if (endIndex - i == 7) {
             weeks.add(_buildWeekRow(days.sublist(i, endIndex)));
           }
         }
       }
-    } else {
-      // ✅ When challenge exists, show all 6 weeks
-      for (int i = 0; i < days.length; i += 7) {
-        int endIndex = (i + 7 <= days.length) ? i + 7 : days.length;
-        if (endIndex - i == 7) {
-          weeks.add(_buildWeekRow(days.sublist(i, endIndex)));
-        }
-      }
+  
+      return weeks;
     }
-
-    return weeks;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final horizontalPadding = screenWidth > 400 ? 16.0 : 12.0;
-    final buttonSize = screenWidth > 400 ? 44.0 : 40.0;
-    final iconSize = screenWidth > 400 ? 24.0 : 20.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Challenge Calendar", style: AppTextStyles.heading2),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: 12,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: _isLoadingCompletions
-              ? SizedBox(height: 280, child: Center(child: FitCheckLoader()))
-              : Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: _canNavigateToPreviousMonth() ? () => _changeMonth(false) : null,
-                          icon: Icon(
-                            Icons.chevron_left, 
-                            size: iconSize,
-                            color: _canNavigateToPreviousMonth() ? null : Colors.grey.shade300,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _canNavigateToPreviousMonth() 
-                                ? Colors.grey.shade100 
-                                : Colors.grey.shade50,
-                            padding: const EdgeInsets.all(8),
-                            minimumSize: Size(buttonSize, buttonSize),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+  
+    @override
+    Widget build(BuildContext context) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      final horizontalPadding = screenWidth > 400 ? 16.0 : 12.0;
+      final buttonSize = screenWidth > 400 ? 44.0 : 40.0;
+      final iconSize = screenWidth > 400 ? 24.0 : 20.0;
+  
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Challenge Calendar", style: AppTextStyles.heading2),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: _isLoadingCompletions
+                ? SizedBox(height: 280, child: Center(child: FitCheckLoader()))
+                : Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            onPressed: _canNavigateToPreviousMonth() ? () => _changeMonth(false) : null,
+                            icon: Icon(
+                              Icons.chevron_left, 
+                              size: iconSize,
+                              color: _canNavigateToPreviousMonth() ? null : Colors.grey.shade300,
+                            ),
+                            style: IconButton.styleFrom(
+                              backgroundColor: _canNavigateToPreviousMonth() 
+                                  ? Colors.grey.shade100 
+                                  : Colors.grey.shade50,
+                              padding: const EdgeInsets.all(8),
+                              minimumSize: Size(buttonSize, buttonSize),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(
-                                "${_getMonthName(currentMonth)} ${currentMonth.year}",
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              Text(
-                                widget.currentChallenge == null
-                                    ? "No Challenge Started"
-                                    : widget.currentChallenge!.title,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: widget.currentChallenge == null
-                                      ? Colors.grey
-                                      : AppColors.secondary,
-                                  fontWeight: widget.currentChallenge == null
-                                      ? FontWeight.normal
-                                      : FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: _canNavigateToNextMonth() ? () => _changeMonth(true) : null,
-                          icon: Icon(
-                            Icons.chevron_right, 
-                            size: iconSize,
-                            color: _canNavigateToNextMonth() ? null : Colors.grey.shade300,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _canNavigateToNextMonth() 
-                                ? Colors.grey.shade100 
-                                : Colors.grey.shade50,
-                            padding: const EdgeInsets.all(8),
-                            minimumSize: Size(buttonSize, buttonSize),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                          .map(
-                            (day) => Expanded(
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 1,
-                                ),
-                                child: Text(
-                                  day,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
+                          Expanded(
+                            child: Column(
+                              children: [
+                                Text(
+                                  "${_getMonthName(currentMonth)} ${currentMonth.year}",
+                                  style: const TextStyle(
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: widget.currentChallenge != null
-                                        ? Colors.black87
-                                        : Colors.grey,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                Text(
+                                  widget.currentChallenge == null
+                                      ? "No Challenge Started"
+                                      : widget.currentChallenge!.title,
+                                  style: TextStyle(
                                     fontSize: 12,
+                                    color: widget.currentChallenge == null
+                                        ? Colors.grey
+                                        : AppColors.secondary,
+                                    fontWeight: widget.currentChallenge == null
+                                        ? FontWeight.normal
+                                        : FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _canNavigateToNextMonth() ? () => _changeMonth(true) : null,
+                            icon: Icon(
+                              Icons.chevron_right, 
+                              size: iconSize,
+                              color: _canNavigateToNextMonth() ? null : Colors.grey.shade300,
+                            ),
+                            style: IconButton.styleFrom(
+                              backgroundColor: _canNavigateToNextMonth() 
+                                  ? Colors.grey.shade100 
+                                  : Colors.grey.shade50,
+                              padding: const EdgeInsets.all(8),
+                              minimumSize: Size(buttonSize, buttonSize),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                            .map(
+                              (day) => Expanded(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 1,
+                                  ),
+                                  child: Text(
+                                    day,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: widget.currentChallenge != null
+                                          ? Colors.black87
+                                          : Colors.grey,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    Column(children: _buildWeeks(_buildCalendarDays())),
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWeekRow(List<Widget> children) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: children
-            .map(
-              (child) => Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                  child: child,
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  void _navigateToDailyLog(DateTime selectedDate) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DailyLogsPage(
-          selectedDate: selectedDate,
-          challenge: widget.currentChallenge,
-        ),
-      ),
-    );
-
-    // Only reload completion for the specific day that was viewed
-    if (mounted && widget.currentChallenge != null) {
-      final isComplete = await _checkDayCompletion(selectedDate);
-      setState(() {
-        _dayCompletionStatus[_getDateKey(selectedDate)] = isComplete;
-      });
-    }
-  }
-
-  Widget _buildDateCell(String date, {bool isOtherMonth = false, int? day}) {
-    final isInChallenge = day != null ? _isDateInChallenge(day) : false;
-    final isStart = day != null ? _isStartDate(day) : false;
-    final isEnd = day != null ? _isEndDate(day) : false;
-    final isCurrentDay = day != null ? _isToday(day) : false;
-    final isComplete = day != null ? _isDayComplete(day) : false;
-    final isClickable = isInChallenge || isStart || isEnd;
-
-    // Determine if day is in the future
-    final currentDate = day != null
-        ? DateTime(currentMonth.year, currentMonth.month, day)
-        : null;
-    final today = DateTime.now();
-    final isFuture =
-        currentDate != null &&
-        currentDate.isAfter(DateTime(today.year, today.month, today.day));
-
-    Color? backgroundColor;
-    Color textColor = Colors.black;
-    String? labelText;
-    BorderRadius borderRadius = BorderRadius.circular(8);
-    Border? border;
-    IconData? icon;
-    Gradient? gradient;
-
-    // Priority order for visual states (using red color scheme):
-    // 1. Start date - Deep red with gradient + flag icon
-    // 2. End date - Deep red with gradient + finish flag icon
-    // 3. Current day - Solid red with TODAY label + star icon
-    // 4. Completed days - Solid red with checkmark
-    // 5. Incomplete challenge days (missed) - Light red with warning icon
-    // 6. Future challenge days - Very light red with circle outline
-    // 7. Other month days - Grey
-    // 8. Non-challenge days - Light grey
-
-    if (isStart) {
-      // START day - Deep red with gradient from bottom
-      gradient = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.secondary.shade600, AppColors.secondary.shade900],
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+                      Column(children: _buildWeeks(_buildCalendarDays())),
+                    ],
+                  ),
+          ),
+        ],
       );
-      textColor = Colors.white;
-      labelText = 'START';
-      icon = Icons.flag;
-    } else if (isEnd) {
-      // END day - Deep red with gradient from bottom + checkered flag
-      gradient = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.secondary.shade600, AppColors.secondary.shade900],
-      );
-      textColor = Colors.white;
-      labelText = 'END';
-      icon = Icons.sports_score;
-    } else if (isCurrentDay && isInChallenge) {
-      // TODAY within challenge - Solid red with star icon
-      backgroundColor = AppColors.secondary;
-      textColor = Colors.white;
-      labelText = 'TODAY';
-      icon = Icons.star;
-    } else if (isComplete && isInChallenge) {
-      // Completed day - Solid red with checkmark icon
-      backgroundColor = AppColors.secondary;
-      textColor = Colors.white;
-      icon = Icons.check_circle;
-    } else if (isInChallenge && !isFuture) {
-      // Incomplete challenge day (missed) - Light red with warning
-      backgroundColor = AppColors.secondary.shade50;
-      textColor = AppColors.secondary.shade900;
-      border = Border.all(color: AppColors.secondary.shade300, width: 1.5);
-      icon = Icons.warning_amber_rounded;
-    } else if (isInChallenge && isFuture) {
-      // Future challenge day - Very light red with border
-      backgroundColor = AppColors.secondary.shade50.withValues(alpha: 0.3);
-      textColor = AppColors.secondary.shade700;
-      border = Border.all(color: AppColors.secondary.shade200, width: 1);
-      icon = Icons.radio_button_unchecked;
-    } else if (isCurrentDay) {
-      // TODAY outside challenge - White with red border
-      backgroundColor = Colors.white;
-      textColor = AppColors.secondary;
-      labelText = 'TODAY';
-      border = Border.all(color: AppColors.secondary, width: 2);
-    } else if (isOtherMonth) {
-      // Other month days - Very light grey
-      backgroundColor = Colors.grey.shade100.withValues(alpha: 0.3);
-      textColor = Colors.grey.shade400;
-    } else {
-      // Regular non-challenge days - Light grey
-      backgroundColor = Colors.grey.shade50;
-      textColor = widget.currentChallenge != null
-          ? Colors.grey.shade600
-          : Colors.grey.shade400;
     }
-
-    Widget dateWidget = Container(
-      decoration: BoxDecoration(
-        color: gradient == null ? backgroundColor : null,
-        gradient: gradient,
-        borderRadius: borderRadius,
-        border: border,
-        boxShadow: isClickable
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 2,
-                  offset: const Offset(0, 1),
+  
+    Widget _buildWeekRow(List<Widget> children) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: children
+              .map(
+                (child) => Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                    child: child,
+                  ),
                 ),
-              ]
-            : null,
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (labelText != null) ...[
-                const SizedBox(height: 2),
+              )
+              .toList(),
+        ),
+      );
+    }
+  
+    void _navigateToDailyLog(DateTime selectedDate) async {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DailyLogsPage(
+            selectedDate: selectedDate,
+            challenge: widget.currentChallenge,
+          ),
+        ),
+      );
+  
+      // Only reload completion for the specific day that was viewed
+      if (mounted && widget.currentChallenge != null) {
+        final isComplete = await _checkDayCompletion(selectedDate);
+        setState(() {
+          _dayCompletionStatus[_getDateKey(selectedDate)] = isComplete;
+        });
+      }
+    }
+  
+    Widget _buildDateCell(String date, {bool isOtherMonth = false, int? day}) {
+      final isInChallenge = day != null ? _isDateInChallenge(day) : false;
+      final isStart = day != null ? _isStartDate(day) : false;
+      final isEnd = day != null ? _isEndDate(day) : false;
+      final isCurrentDay = day != null ? _isToday(day) : false;
+      final isComplete = day != null ? _isDayComplete(day) : false;
+      final isClickable = isInChallenge || isStart || isEnd;
+  
+      // Determine if day is in the future
+      final currentDate = day != null
+          ? DateTime(currentMonth.year, currentMonth.month, day)
+          : null;
+      final today = DateTime.now();
+      final isFuture =
+          currentDate != null &&
+          currentDate.isAfter(DateTime(today.year, today.month, today.day));
+  
+      Color? backgroundColor;
+      Color textColor = Colors.black;
+      String? labelText;
+      BorderRadius borderRadius = BorderRadius.circular(8);
+      Border? border;
+      IconData? icon;
+      Gradient? gradient;
+  
+      // Priority order for visual states (using red color scheme):
+      // 1. Start date - Deep red with gradient + flag icon
+      // 2. End date - Deep red with gradient + finish flag icon
+      // 3. Current day - Solid red with TODAY label + star icon
+      // 4. Completed days - Solid red with checkmark
+      // 5. Incomplete challenge days (missed) - Light red with warning icon
+      // 6. Future challenge days - Very light red with circle outline
+      // 7. Other month days - Grey
+      // 8. Non-challenge days - Light grey
+  
+      if (isStart) {
+        // START day - Deep red with gradient from bottom
+        gradient = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.secondary.shade600, AppColors.secondary.shade900],
+        );
+        textColor = Colors.white;
+        labelText = 'START';
+        icon = Icons.flag;
+      } else if (isEnd) {
+        // END day - Deep red with gradient from bottom + checkered flag
+        gradient = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.secondary.shade600, AppColors.secondary.shade900],
+        );
+        textColor = Colors.white;
+        labelText = 'END';
+        icon = Icons.sports_score;
+      } else if (isCurrentDay && isInChallenge) {
+        // TODAY within challenge - Solid red with star icon
+        backgroundColor = AppColors.secondary;
+        textColor = Colors.white;
+        labelText = 'TODAY';
+        icon = Icons.star;
+      } else if (isComplete && isInChallenge) {
+        // Completed day - Solid red with checkmark icon
+        backgroundColor = AppColors.secondary;
+        textColor = Colors.white;
+        icon = Icons.check_circle;
+      } else if (isInChallenge && !isFuture) {
+        // Incomplete challenge day (missed) - Light red with warning
+        backgroundColor = AppColors.secondary.shade50;
+        textColor = AppColors.secondary.shade900;
+        border = Border.all(color: AppColors.secondary.shade300, width: 1.5);
+        icon = Icons.warning_amber_rounded;
+      } else if (isInChallenge && isFuture) {
+        // Future challenge day - Very light red with border
+        backgroundColor = AppColors.secondary.shade50.withValues(alpha: 0.3);
+        textColor = AppColors.secondary.shade700;
+        border = Border.all(color: AppColors.secondary.shade200, width: 1);
+        icon = Icons.radio_button_unchecked;
+      } else if (isCurrentDay) {
+        // TODAY outside challenge - White with red border
+        backgroundColor = Colors.white;
+        textColor = AppColors.secondary;
+        labelText = 'TODAY';
+        border = Border.all(color: AppColors.secondary, width: 2);
+      } else if (isOtherMonth) {
+        // Other month days - Very light grey
+        backgroundColor = Colors.grey.shade100.withValues(alpha: 0.3);
+        textColor = Colors.grey.shade400;
+      } else {
+        // Regular non-challenge days - Light grey
+        backgroundColor = Colors.grey.shade50;
+        textColor = widget.currentChallenge != null
+            ? Colors.grey.shade600
+            : Colors.grey.shade400;
+      }
+  
+      Widget dateWidget = Container(
+        decoration: BoxDecoration(
+          color: gradient == null ? backgroundColor : null,
+          gradient: gradient,
+          borderRadius: borderRadius,
+          border: border,
+          boxShadow: isClickable
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
                 Text(
-                  labelText,
+                  date,
                   style: TextStyle(
-                    fontSize: 7,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     color: textColor,
-                    letterSpacing: 0.3,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (labelText != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    labelText,
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                      letterSpacing: 0.3,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
-            ],
-          ),
-
-          // Icon indicator
-          if (icon != null)
-            Positioned(
-              top: 2,
-              right: 2,
-              child: Icon(icon, size: 12, color: textColor.withValues(alpha: 0.9)),
             ),
-        ],
-      ),
-    );
-
-    return AspectRatio(
-      aspectRatio: 1.0,
-      child: isClickable
-          ? InkWell(
-              onTap: () {
-                final selectedDate = DateTime(
-                  currentMonth.year,
-                  currentMonth.month,
-                  day,
-                );
-                _navigateToDailyLog(selectedDate);
-              },
-              borderRadius: borderRadius,
-              splashColor: AppColors.secondary.withValues(alpha: 0.3),
-              highlightColor: AppColors.secondary.withValues(alpha: 0.1),
-              child: dateWidget,
-            )
-          : dateWidget,
-    );
+  
+            // Icon indicator
+            if (icon != null)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Icon(icon, size: 12, color: textColor.withValues(alpha: 0.9)),
+              ),
+          ],
+        ),
+      );
+  
+      return AspectRatio(
+        aspectRatio: 1.0,
+        child: isClickable
+            ? InkWell(
+                onTap: () {
+                  final selectedDate = DateTime(
+                    currentMonth.year,
+                    currentMonth.month,
+                    day,
+                  );
+                  _navigateToDailyLog(selectedDate);
+                },
+                borderRadius: borderRadius,
+                splashColor: AppColors.secondary.withValues(alpha: 0.3),
+                highlightColor: AppColors.secondary.withValues(alpha: 0.1),
+                child: dateWidget,
+              )
+            : dateWidget,
+      );
+    }
   }
-}

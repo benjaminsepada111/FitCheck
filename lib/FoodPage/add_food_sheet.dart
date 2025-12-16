@@ -13,21 +13,23 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 class AddFoodSheet extends StatefulWidget {
   final String mealName;
-  final String? challengeId; // Required for image uploads
+  final String? challengeId;
+  final DateTime selectedDate;
   final Function(
-    String foodName,
-    int calories, {
-    double? grams,
-    String? imageUrl,
-    double? servingSize,
-    String? unit,
-  })?
+      String foodName,
+      int calories, {
+      double? grams,
+      String? imageUrl,
+      double? servingSize,
+      String? unit,
+      })?
   onFoodAdded;
 
   const AddFoodSheet({
     super.key,
     required this.mealName,
     this.challengeId,
+    required this.selectedDate,
     this.onFoodAdded,
   });
 
@@ -37,12 +39,10 @@ class AddFoodSheet extends StatefulWidget {
 
 class _AddFoodSheetState extends State<AddFoodSheet> {
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _gramsController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _manualFoodController = TextEditingController();
-  final TextEditingController _manualCaloriesController =
-      TextEditingController();
-  final TextEditingController _manualServingSizeController =
-      TextEditingController();
+  final TextEditingController _manualCaloriesController = TextEditingController();
+  final TextEditingController _manualServingSizeController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
   List<FoodSearchResult> _searchResults = [];
@@ -55,14 +55,11 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   bool _isUploadingImage = false;
   bool _isSaving = false;
 
-  // Recent searches and manual foods
   List<String> _recentSearches = [];
   List<FoodSearchResult> _recentManualFoods = [];
-  
-  // Manual entry unit (grams or ml)
+
   String _manualUnit = 'grams';
-  
-  // Cache for manual food serving info (fdcId -> serving info)
+
   Map<int, Map<String, dynamic>> _manualFoodServingInfo = {};
 
   @override
@@ -74,7 +71,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   @override
   void dispose() {
     _searchController.dispose();
-    _gramsController.dispose();
+    _quantityController.dispose();
     _manualFoodController.dispose();
     _manualCaloriesController.dispose();
     _manualServingSizeController.dispose();
@@ -92,12 +89,11 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       if (mounted) {
         setState(() {
           _recentSearches = recentSearches;
-          // Cap at 10 items - most recent ones
           _recentManualFoods = recentManualFoods.take(10).toList();
         });
       }
     } catch (e) {
-      // Silently fail - recent data is not critical
+      // Silently fail
     }
   }
 
@@ -111,7 +107,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    // Only save to recent searches if explicitly requested (on submit or selection)
     if (saveToRecent) {
       await UserFoodPreferencesService.saveRecentSearch(query);
     }
@@ -122,14 +117,11 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     });
 
     try {
-      // Use the new caching service which implements multi-tier lookup
       final results = await FoodCacheService.searchFoods(query.trim());
 
-      // Load serving info for all manual foods in results
       _manualFoodServingInfo.clear();
       for (final food in results) {
         if (food.fdcId < 0) {
-          // Manual food - load serving info
           final servingInfo = await UserFoodPreferencesService.getManualFoodServingInfo(food.fdcId);
           if (servingInfo != null) {
             _manualFoodServingInfo[food.fdcId] = servingInfo;
@@ -142,8 +134,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           _searchResults = [];
           _selectedFood = null;
           _isLoading = false;
-          _errorMessage =
-              'No foods found for "$query". Try a different search term.';
+          _errorMessage = 'No foods found for "$query". Try a different search term.';
         });
       } else {
         setState(() {
@@ -153,8 +144,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           _errorMessage = null;
         });
       }
-      
-      // Only reload recent searches if we saved to recent searches
+
       if (saveToRecent) {
         _loadRecentData();
       }
@@ -184,24 +174,23 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
   void _selectFood(FoodSearchResult food) async {
     final currentQuery = _searchController.text.trim();
-    
-    // Load serving info if it's a manual food and not already loaded
+
     if (food.fdcId < 0 && !_manualFoodServingInfo.containsKey(food.fdcId)) {
       final servingInfo = await UserFoodPreferencesService.getManualFoodServingInfo(food.fdcId);
       if (servingInfo != null) {
         _manualFoodServingInfo[food.fdcId] = servingInfo;
       }
     }
-    
+
     setState(() {
       _selectedFood = food;
       _searchController.text = USDAApiService.formatFoodDescription(food);
+      // Set default quantity to 1
+      _quantityController.text = '1';
     });
-    
-    // Save the search query to recent searches when user selects a food
+
     if (currentQuery.isNotEmpty && currentQuery.length > 2) {
       await UserFoodPreferencesService.saveRecentSearch(currentQuery);
-      // Reload recent searches to update the list
       _loadRecentData();
     }
   }
@@ -209,9 +198,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       if (source == ImageSource.camera) {
-        // Handle camera permission
         if (Platform.isAndroid) {
-          // On Android, explicitly request permission
           var status = await Permission.camera.request();
           if (!status.isGranted) {
             if (!mounted) return;
@@ -219,14 +206,11 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             return;
           }
         } else if (Platform.isIOS) {
-          // On iOS, check permission status first
           var status = await Permission.camera.status;
           if (status.isDenied || status.isRestricted) {
-            // Request permission - this will show the dialog on iOS
             status = await Permission.camera.request();
             if (!status.isGranted) {
               if (!mounted) return;
-              // If permanently denied, offer to open settings
               if (status.isPermanentlyDenied) {
                 final shouldOpen = await showDialog<bool>(
                   context: context,
@@ -256,7 +240,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               return;
             }
           }
-          // If permission is already granted or just granted, proceed
         }
       } else if (source == ImageSource.gallery) {
         PermissionStatus status;
@@ -276,7 +259,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             return;
           }
         }
-        // On iOS, image_picker handles photo library permissions automatically via PHPickerViewController
       }
 
       final pickedFile = await _picker.pickImage(
@@ -289,7 +271,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         final imageFile = File(pickedFile.path);
         setState(() {
           _selectedImage = imageFile;
-          _imageUrl = null; // Reset URL until uploaded
+          _imageUrl = null;
         });
       }
     } catch (e) {
@@ -310,14 +292,14 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       _selectedFood = null;
       _searchResults = [];
       _searchController.clear();
-      _gramsController.clear();
+      _quantityController.clear();
       _manualFoodController.clear();
       _manualCaloriesController.clear();
       _manualServingSizeController.clear();
       _errorMessage = null;
       _selectedImage = null;
       _imageUrl = null;
-      _manualUnit = 'grams'; // Reset to default
+      _manualUnit = 'grams';
     });
   }
 
@@ -335,58 +317,59 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       return;
     }
 
-    // Check if this is a manual food
     final servingInfo = _manualFoodServingInfo[_selectedFood!.fdcId];
     final isManualFood = servingInfo != null || _selectedFood!.fdcId < 0;
-    
-    double? grams;
+
+    double? servingSize;
     String? unit;
     int calories;
     String foodName;
+    double quantity;
+
+    // ✅ Both food types now require quantity input
+    final quantityText = _quantityController.text.trim();
+    if (quantityText.isEmpty) {
+      _showError('Please enter the quantity');
+      return;
+    }
+
+    final parsedQuantity = double.tryParse(quantityText);
+    if (parsedQuantity == null || parsedQuantity <= 0) {
+      _showError('Please enter a valid quantity greater than 0');
+      return;
+    }
+
+    quantity = parsedQuantity;
+
+    if (quantity > 50) {
+      _showError('Quantity seems too large. Please enter a reasonable amount.');
+      return;
+    }
 
     if (isManualFood && servingInfo != null) {
-      // Manual food - use stored serving size directly
-      grams = servingInfo['servingSize'] as double;
+      // Manual food with quantity
+      servingSize = servingInfo['servingSize'] as double;
       unit = servingInfo['unit'] as String;
-      calories = servingInfo['calories'] as int; // Total calories per serving
+      final baseCalories = servingInfo['calories'] as int;
+      calories = (baseCalories * quantity).round(); // ✅ Multiply by quantity
       foodName = _selectedFood!.description;
     } else {
-      // USDA food - require grams input
-      final gramsText = _gramsController.text.trim();
-      if (gramsText.isEmpty) {
-        _showError('Please enter the amount in grams');
-        return;
-      }
-
-      grams = double.tryParse(gramsText);
-      if (grams == null || grams <= 0) {
-        _showError('Please enter a valid amount greater than 0');
-        return;
-      }
-
-      if (grams > 5000) {
-        _showError('Amount seems too large. Please enter a reasonable amount.');
-        return;
-      }
-
+      // USDA food with quantity
       if (_selectedFood!.calories <= 0) {
         _showError('This food item doesn\'t have calorie information available');
         return;
       }
 
-      // Calculate calories for USDA food
-      calories = USDAApiService.calculateCaloriesForAmount(
-        food: _selectedFood!,
-        grams: grams,
-      ).round();
+      // For USDA foods, 1 serving = 100g
+      servingSize = 100.0 * quantity;
+      calories = (_selectedFood!.calories * quantity).round();
       foodName = USDAApiService.formatFoodDescription(_selectedFood!);
-      unit = 'g';
+      unit = 'serving';
     }
 
     setState(() => _isSaving = true);
 
     try {
-      // Upload image to Cloud Storage if selected
       String? uploadedImageUrl;
       if (_selectedImage != null && widget.challengeId != null) {
         setState(() => _isUploadingImage = true);
@@ -402,26 +385,24 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           _showError(
             'Failed to upload image. Food will be saved without photo.',
           );
-          // Continue anyway, just without the image
         }
       } else if (_selectedImage != null && widget.challengeId == null) {
         _showError('Cannot upload image without an active challenge.');
       }
 
-      // Track meal logging and calories for achievements
       try {
         await UserAchievementService.trackMealLogging(calories: calories);
       } catch (e) {
-        // Don't block the success flow if achievement tracking fails
+        // Don't block
       }
 
       if (widget.onFoodAdded != null) {
         widget.onFoodAdded!(
           foodName,
           calories,
-          grams: grams,
+          grams: servingSize,
           imageUrl: uploadedImageUrl,
-          servingSize: grams,
+          servingSize: servingSize,
           unit: unit,
         );
       }
@@ -445,7 +426,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Added ${grams.toStringAsFixed(0)}g $foodName to ${widget.mealName}',
+                  'Added ${quantity == 1.0 ? '1 serving' : '${quantity.toStringAsFixed(1)} servings'} of $foodName to ${widget.mealName}',
                 ),
               ),
             ],
@@ -513,7 +494,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
     setState(() => _isSaving = true);
 
     try {
-      // Upload image to Cloud Storage if selected
       String? uploadedImageUrl;
       if (_selectedImage != null && widget.challengeId != null) {
         setState(() => _isUploadingImage = true);
@@ -529,31 +509,26 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           _showError(
             'Failed to upload image. Food will be saved without photo.',
           );
-          // Continue anyway, just without the image
         }
       } else if (_selectedImage != null && widget.challengeId == null) {
         _showError('Cannot upload image without an active challenge.');
       }
 
-      // Save manual food to user preferences (so it can be searched later)
       await UserFoodPreferencesService.saveManualFood(
         foodName: foodName,
-        calories: totalCalories, // Total calories per serving
+        calories: totalCalories,
         servingSize: servingSize,
         imageUrl: uploadedImageUrl,
         unit: _manualUnit,
       );
 
-      // Track meal logging and calories for achievements
-      // Use total calories (per serving) for tracking
       try {
         await UserAchievementService.trackMealLogging(calories: totalCalories);
       } catch (e) {
-        // Don't block the success flow if achievement tracking fails
+        // Don't block
       }
 
       if (widget.onFoodAdded != null) {
-        // Pass total calories (per serving), serving size, and unit to the callback
         widget.onFoodAdded!(
           foodName,
           totalCalories,
@@ -608,17 +583,20 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
   }
 
   Widget _buildCaloriePreview() {
-    if (_selectedFood == null || _gramsController.text.isEmpty) {
+    if (_selectedFood == null || _quantityController.text.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final grams = double.tryParse(_gramsController.text);
-    if (grams == null || grams <= 0) return const SizedBox.shrink();
+    final quantity = double.tryParse(_quantityController.text);
+    if (quantity == null || quantity <= 0) return const SizedBox.shrink();
 
-    final calories = USDAApiService.calculateCaloriesForAmount(
-      food: _selectedFood!,
-      grams: grams,
-    );
+    // ✅ Calculate calories based on food type
+    final servingInfo = _manualFoodServingInfo[_selectedFood!.fdcId];
+    final isManualFood = servingInfo != null || _selectedFood!.fdcId < 0;
+
+    final calories = isManualFood && servingInfo != null
+        ? (servingInfo['calories'] as int) * quantity
+        : _selectedFood!.calories * quantity;
 
     return Container(
       margin: const EdgeInsets.only(top: 16),
@@ -682,7 +660,7 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              '${grams.toStringAsFixed(0)}g',
+              quantity == 1.0 ? '1 serving' : '${quantity.toStringAsFixed(1)} servings',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
@@ -713,7 +691,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Enhanced Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -754,7 +731,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
             const SizedBox(height: 20),
 
-            // Modern Toggle Buttons
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -775,12 +751,12 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: !_isManualEntry
                               ? [
-                                  BoxShadow(
-                                    color: AppColors.secondary.withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
+                            BoxShadow(
+                              color: AppColors.secondary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
                               : null,
                         ),
                         child: Row(
@@ -821,12 +797,12 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: _isManualEntry
                               ? [
-                                  BoxShadow(
-                                    color: AppColors.secondary.withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
+                            BoxShadow(
+                              color: AppColors.secondary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
                               : null,
                         ),
                         child: Row(
@@ -860,14 +836,12 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ),
             const SizedBox(height: 24),
 
-            // Content
             Expanded(
               child: _isManualEntry ? _buildManualEntry() : _buildFoodSearch(),
             ),
 
             const SizedBox(height: 16),
 
-            // Enhanced Action Buttons
             Row(
               children: [
                 Expanded(
@@ -912,22 +886,22 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
+                      ),
+                    )
                         : const Text(
-                            'Add Food',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      'Add Food',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -943,12 +917,10 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Enhanced Search Field
           TextField(
             controller: _searchController,
             onChanged: (value) {
               if (value.length > 2) {
-                // Don't save to recent searches while typing
                 _searchFoods(value, saveToRecent: false);
               } else if (value.length <= 2) {
                 setState(() {
@@ -960,7 +932,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             },
             onSubmitted: (value) {
               if (value.length > 2) {
-                // Save to recent searches when user presses Enter
                 _searchFoods(value, saveToRecent: true);
               }
             },
@@ -973,16 +944,16 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               prefixIcon: Icon(Icons.search, color: AppColors.secondary),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Color(0xFFAAAAAA)),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchResults = [];
-                          _selectedFood = null;
-                          _errorMessage = null;
-                        });
-                      },
-                    )
+                icon: const Icon(Icons.clear, color: Color(0xFFAAAAAA)),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchResults = [];
+                    _selectedFood = null;
+                    _errorMessage = null;
+                  });
+                },
+              )
                   : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1038,9 +1009,33 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 ],
               ),
             ),
+            // Show "Add Manually" button when no results found
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _toggleEntryMode,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.add_circle_outline, size: 20),
+                label: const Text(
+                  'Add Food Manually',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ],
 
-          // Search Results with constrained height
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 20),
             Row(
@@ -1081,119 +1076,117 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                 separatorBuilder: (context, index) =>
                     Divider(height: 1, color: Colors.grey.shade200),
                 itemBuilder: (context, index) {
-                    final food = _searchResults[index];
-                    final isSelected = _selectedFood?.fdcId == food.fdcId;
-                    return Container(
-                      color: isSelected
-                          ? AppColors.secondary.withOpacity(0.08)
-                          : Colors.white,
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        title: Text(
-                          USDAApiService.formatFoodDescription(food),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        subtitle: Builder(
-                          builder: (context) {
-                            String calorieText;
-                            final servingInfo = _manualFoodServingInfo[food.fdcId];
-                            final isManualFood = servingInfo != null || food.fdcId < 0;
-                            
-                            if (servingInfo != null) {
-                              // Manual food - show "X kcal per Y unit"
-                              final servingSize = servingInfo['servingSize'] as double;
-                              final unit = servingInfo['unit'] as String;
-                              final calories = servingInfo['calories'] as int;
-                              calorieText = '$calories kcal per ${servingSize.toStringAsFixed(0)} $unit';
-                            } else {
-                              // USDA food - show "X cal per 100g"
-                              calorieText = '${food.calories.toStringAsFixed(0)} cal per 100g';
-                            }
-                            
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.local_fire_department,
-                                    size: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    calorieText,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 1,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isManualFood
-                                          ? AppColors.secondary.withOpacity(0.1)
-                                          : Colors.blue.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: isManualFood
-                                            ? AppColors.secondary.withOpacity(0.3)
-                                            : Colors.blue.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      isManualFood ? 'Manual' : 'USDA',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w600,
-                                        color: isManualFood
-                                            ? AppColors.secondary
-                                            : Colors.blue.shade700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                        trailing: isSelected
-                            ? Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: AppColors.secondary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                              )
-                            : null,
-                        onTap: () => _selectFood(food),
+                  final food = _searchResults[index];
+                  final isSelected = _selectedFood?.fdcId == food.fdcId;
+                  return Container(
+                    color: isSelected
+                        ? AppColors.secondary.withOpacity(0.08)
+                        : Colors.white,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
                       ),
-                    );
-                  },
-                ),
+                      title: Text(
+                        USDAApiService.formatFoodDescription(food),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      subtitle: Builder(
+                        builder: (context) {
+                          String calorieText;
+                          final servingInfo = _manualFoodServingInfo[food.fdcId];
+                          final isManualFood = servingInfo != null || food.fdcId < 0;
+
+                          if (servingInfo != null) {
+                            final servingSize = servingInfo['servingSize'] as double;
+                            final unit = servingInfo['unit'] as String;
+                            final calories = servingInfo['calories'] as int;
+                            calorieText = '$calories kcal per ${servingSize.toStringAsFixed(0)} $unit';
+                          } else {
+                            calorieText = '${food.calories.toStringAsFixed(0)} cal per serving (100g)';
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.local_fire_department,
+                                  size: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  calorieText,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isManualFood
+                                        ? AppColors.secondary.withOpacity(0.1)
+                                        : Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: isManualFood
+                                          ? AppColors.secondary.withOpacity(0.3)
+                                          : Colors.blue.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isManualFood ? 'Manual' : 'USDA',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: isManualFood
+                                          ? AppColors.secondary
+                                          : Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      trailing: isSelected
+                          ? Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      )
+                          : null,
+                      onTap: () => _selectFood(food),
+                    ),
+                  );
+                },
               ),
-            ],
+            ),
+          ],
+
           if (_searchController.text.isEmpty && !_isLoading) ...[
-            // Recent Searches Section (Compact horizontal scrollable)
             if (_recentSearches.isNotEmpty) ...[
               const SizedBox(height: 16),
               Row(
@@ -1226,7 +1219,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     return GestureDetector(
                       onTap: () {
                         _searchController.text = suggestion;
-                        // Save to recent searches when clicking a recent search
                         _searchFoods(suggestion, saveToRecent: true);
                       },
                       child: Container(
@@ -1258,69 +1250,54 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
           ],
 
           if (_selectedFood != null) ...[
-            // Only show "Enter Amount" for USDA foods, not manual foods
-            Builder(
-              builder: (context) {
-                final servingInfo = _manualFoodServingInfo[_selectedFood!.fdcId];
-                final isManualFood = servingInfo != null || _selectedFood!.fdcId < 0;
-                
-                if (isManualFood) {
-                  // Manual food - no input needed, just return empty
-                  return const SizedBox.shrink();
-                } else {
-                  // USDA food - show amount input
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Enter Amount',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _gramsController,
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: "Enter amount in grams",
-                          hintStyle: const TextStyle(
-                            color: Color(0xFFAAAAAA),
-                            fontSize: 14,
-                          ),
-                          suffixText: 'grams',
-                          suffixStyle: TextStyle(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.secondary, width: 2),
-                          ),
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      _buildCaloriePreview(),
-                    ],
-                  );
-                }
-              },
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                const Text(
+                  'Enter Quantity',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _quantityController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (value) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: "Enter quantity (e.g., 1, 2, 0.5)",
+                    hintStyle: const TextStyle(
+                      color: Color(0xFFAAAAAA),
+                      fontSize: 14,
+                    ),
+                    suffixText: 'serving(s)',
+                    suffixStyle: TextStyle(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppColors.secondary, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+                _buildCaloriePreview(),
+              ],
             ),
           ],
 
-          // Image Upload Section
           const SizedBox(height: 24),
           _buildImageUploadSection(),
         ],
@@ -1345,7 +1322,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
         if (_selectedImage == null) ...[
           Row(
             children: [
-              // Take Photo Button
               Expanded(
                 child: GestureDetector(
                   onTap: () => _pickImage(ImageSource.camera),
@@ -1406,7 +1382,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
 
               const SizedBox(width: 12),
 
-              // Upload from Gallery Button
               Expanded(
                 child: GestureDetector(
                   onTap: () => _pickImage(ImageSource.gallery),
@@ -1467,7 +1442,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ],
           ),
         ] else ...[
-          // Preview Selected Image (matching AddMilestoneSheet style)
           Container(
             margin: const EdgeInsets.only(bottom: 16),
             height: 220,
@@ -1485,12 +1459,10 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
-                  // Selected Image
                   Positioned.fill(
                     child: Image.file(_selectedImage!, fit: BoxFit.cover),
                   ),
 
-                  // Gradient overlay (for text readability)
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
@@ -1506,7 +1478,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     ),
                   ),
 
-                  // Remove button top-right
                   Positioned(
                     top: 12,
                     right: 12,
@@ -1527,7 +1498,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
                     ),
                   ),
 
-                  // Label bottom-left
                   Positioned(
                     bottom: 12,
                     left: 12,
@@ -1753,7 +1723,6 @@ class _AddFoodSheetState extends State<AddFoodSheet> {
             ],
           ),
 
-          // Image Upload Section for Manual Entry
           const SizedBox(height: 20),
           _buildImageUploadSection(),
         ],

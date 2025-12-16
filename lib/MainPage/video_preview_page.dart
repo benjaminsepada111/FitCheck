@@ -90,6 +90,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
     });
   }
 
+
+
   // ======================
   // MUSIC VIDEO CACHE MANAGEMENT
   // ======================
@@ -101,6 +103,11 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   String _getMusicVideoTextLogsCacheKey() {
     return 'music_video_logs_${widget.videoUrl.hashCode}';
   }
+
+  String _getMusicVideoExpirationKey() {
+    return 'music_video_expiry_${widget.videoUrl.hashCode}';
+  }
+
 
   Future<void> _changePlaybackSpeed(double speed) async {
     if (!_videoController.value.isInitialized) return;
@@ -117,14 +124,41 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getMusicVideoCacheKey();
       final textLogsCacheKey = _getMusicVideoTextLogsCacheKey();
+      final expiryKey = _getMusicVideoExpirationKey();
 
       print('🎵 Checking for cached music-enhanced video...');
 
       final cachedMusicVideoUrl = prefs.getString(cacheKey);
       final cachedLogsJson = prefs.getString(textLogsCacheKey);
+      final expiryTime = prefs.getInt(expiryKey);
 
+      // Check if cache exists and is not expired
       if (cachedMusicVideoUrl != null && cachedMusicVideoUrl.isNotEmpty) {
-        print('✅ Found cached music-enhanced video!');
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        // Check if expired (or no expiry time set - treat as expired)
+        if (expiryTime == null || now > expiryTime) {
+          print('⏰ Cached video has expired, clearing cache...');
+          await _clearMusicVideoCache();
+
+          // Load original video and show re-render dialog
+          await _initializeVideo();
+
+          if (mounted) {
+            _showSnackBar('🎵 Your music video expired. Tap Re-render to create a fresh one.');
+
+            // Automatically show re-render dialog after a short delay
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                _showReRenderDialog();
+              }
+            });
+          }
+          return;
+        }
+
+        // Cache is still valid
+        print('✅ Found cached music-enhanced video (valid for ${Duration(milliseconds: expiryTime - now).inHours} more hours)');
 
         if (cachedLogsJson != null) {
           try {
@@ -142,7 +176,8 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         await _initializeVideo();
 
         if (mounted) {
-          _showSnackBar('🎵 Loaded video with your music');
+          final hoursRemaining = Duration(milliseconds: expiryTime - now).inHours;
+          _showSnackBar('🎵 Loaded video with your music (expires in ${hoursRemaining}h)');
         }
       } else {
         print('ℹ️ No cached music-enhanced video found, using original');
@@ -159,13 +194,20 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getMusicVideoCacheKey();
       final textLogsCacheKey = _getMusicVideoTextLogsCacheKey();
+      final expiryKey = _getMusicVideoExpirationKey();
 
+      // Save URL and text logs
       await prefs.setString(cacheKey, musicVideoUrl);
       await prefs.setString(textLogsCacheKey, jsonEncode(textLogs));
 
-      print('✅ Cached music-enhanced video URL');
+      // Save expiration timestamp (24 hours from now)
+      final expiryTime = DateTime.now().add(const Duration(hours: 18)).millisecondsSinceEpoch;
+      await prefs.setInt(expiryKey, expiryTime);
+
+      print('✅ Cached music-enhanced video URL (expires in 24 hours)');
       print('   Original video: ${widget.videoUrl}');
       print('   Music video: $musicVideoUrl');
+      print('   Expiry: ${DateTime.fromMillisecondsSinceEpoch(expiryTime)}');
     } catch (e) {
       print('❌ Error saving music video cache: $e');
     }
@@ -176,15 +218,320 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       final prefs = await SharedPreferences.getInstance();
       final cacheKey = _getMusicVideoCacheKey();
       final textLogsCacheKey = _getMusicVideoTextLogsCacheKey();
+      final expiryKey = _getMusicVideoExpirationKey();
 
       await prefs.remove(cacheKey);
       await prefs.remove(textLogsCacheKey);
+      await prefs.remove(expiryKey); // ✅ Also remove expiration timestamp
 
       print('✅ Cleared music video cache');
     } catch (e) {
       print('❌ Error clearing music video cache: $e');
     }
   }
+  // Add this new method after _clearMusicVideoCache()
+  bool _isUrlExpiredError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('403') ||
+        errorStr.contains('404') ||
+        errorStr.contains('expired') ||
+        errorStr.contains('invalid') ||
+        errorStr.contains('not found') ||
+        errorStr.contains('source error') ||
+        errorStr.contains('video player had error');
+  }
+
+  // Add this new method after _isUrlExpiredError()
+  Future<void> _showReRenderDialog() async {
+    final hasMusic = _selectedMusicFile != null || _selectedMusicUrl != null;
+
+    final shouldReRender = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.refresh, color: AppColors.secondary, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Video Expired',
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'The video link has expired and can no longer be played.',
+              style: TextStyle(color: Colors.white70, fontSize: 15),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _surfaceColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: AppColors.secondary, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'What will be preserved:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPreservedItem(Icons.image, 'All milestone photos'),
+                  _buildPreservedItem(Icons.text_fields, 'All text descriptions'),
+                  if (hasMusic)
+                    _buildPreservedItem(Icons.music_note, 'Your background music'),
+                  _buildPreservedItem(Icons.timer, 'Video duration settings'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Would you like to re-render the video now?',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white60, fontSize: 16),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.play_arrow, size: 20),
+            label: const Text('Re-render Video'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReRender == true) {
+      await _refreshVideoUrl();
+    }
+  }
+
+// Helper widget for preserved items list
+  Widget _buildPreservedItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white60, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+  // Add this new method after _isUrlExpiredError()
+  Future<void> _refreshVideoUrl() async {
+    if (widget.milestones == null || widget.milestones!.isEmpty) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Cannot refresh video: No milestone data available';
+      });
+      return;
+    }
+
+    setState(() => _isReRendering = true);
+    _showLoadingDialog('Video link expired. Re-rendering your video...');
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final List<File> filesToUpload = [];
+      final List<String> textLogsToSend = _textLogs ?? [];
+
+      print('🔄 Re-rendering expired video with ${textLogsToSend.length} text logs');
+      if (_selectedMusicFile != null || _selectedMusicUrl != null) {
+        print('🎵 Including music in re-render');
+      }
+
+      // Download milestone images
+      for (int i = 0; i < widget.milestones!.length; i++) {
+        final m = widget.milestones![i];
+
+        if (m.imagePath != null) {
+          final f = File(m.imagePath!);
+          if (await f.exists()) {
+            filesToUpload.add(f);
+            continue;
+          }
+        }
+
+        if (m.imageUrl != null) {
+          try {
+            final resp = await http
+                .get(Uri.parse(m.imageUrl!), headers: {'Accept': 'image/*'})
+                .timeout(const Duration(seconds: 15));
+
+            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+              final ext = _getImageExtensionFromUrl(m.imageUrl!) ?? '.jpg';
+              final saved = File('${tempDir.path}/milestone_${i + 1}$ext');
+              await saved.writeAsBytes(resp.bodyBytes);
+              filesToUpload.add(saved);
+            }
+          } catch (e) {
+            print('Error downloading image: $e');
+          }
+        }
+      }
+
+      if (filesToUpload.isEmpty) {
+        throw Exception('No images available for video regeneration');
+      }
+
+      while (textLogsToSend.length < filesToUpload.length) {
+        textLogsToSend.add('');
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        _showLoadingDialog('Re-rendering video with your settings...');
+      }
+
+      // Re-render video with current settings (INCLUDING MUSIC if it was added)
+      final response = await ApiService.generateVideo(
+        images: filesToUpload,
+        notes: textLogsToSend,
+        musicFile: _selectedMusicFile,
+        musicUrl: _selectedMusicUrl,
+        durationPerImage: widget.slideshowInterval?.inSeconds ?? 2,
+      );
+
+      String? renderId;
+      if (response['success'] == true) {
+        final data = response['data'];
+        if (data is Map) {
+          final responseObj = data['response'];
+          if (responseObj is Map && responseObj['id'] != null) {
+            renderId = responseObj['id'].toString();
+          }
+        }
+      }
+
+      if (renderId == null || renderId.isEmpty) {
+        throw Exception('Could not get render ID from response');
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        _showRenderProgressDialog(renderId);
+      }
+
+      // Poll for completion
+      String? resultUrl;
+      int maxAttempts = 90;
+      int attempt = 0;
+
+      while (attempt < maxAttempts && mounted) {
+        await Future.delayed(const Duration(seconds: 3));
+        attempt++;
+
+        try {
+          final statusResp = await ApiService.checkRenderStatus(renderId);
+
+          if (statusResp['success'] == true) {
+            final data = statusResp['data'];
+            if (data is Map) {
+              final responseObj = data['response'];
+              if (responseObj is Map) {
+                final status = responseObj['status']?.toString();
+                final url = responseObj['url']?.toString();
+
+                if (status == 'done' && url != null && url.isNotEmpty) {
+                  resultUrl = url;
+                  break;
+                } else if (status == 'failed') {
+                  final error = responseObj['error'] ?? 'Unknown error';
+                  throw Exception('Render failed: $error');
+                }
+              }
+            }
+          }
+        } catch (e) {
+          if (attempt >= maxAttempts - 1) {
+            throw Exception('Failed to check render status: $e');
+          }
+        }
+      }
+
+      if (mounted) Navigator.pop(context);
+
+      if (resultUrl != null && resultUrl.isNotEmpty) {
+        setState(() {
+          _isReRendering = false;
+          _hasError = false;
+          _errorMessage = null;
+        });
+        _currentVideoUrl = resultUrl;
+
+        // Save to cache if music was added
+        if (_selectedMusicFile != null || _selectedMusicUrl != null) {
+          await _saveMusicVideoCache(resultUrl, textLogsToSend);
+        }
+
+        await _initializeVideoWithUrl(resultUrl, autoPlay: true);
+
+        if (_selectedMusicFile != null || _selectedMusicUrl != null) {
+          _showSnackBar('✅ Video refreshed with your music!');
+        } else {
+          _showSnackBar('✅ Video refreshed successfully!');
+        }
+      } else {
+        throw Exception('Render timeout. Please try again.');
+      }
+    } catch (e) {
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Failed to refresh video: ${e.toString()}';
+        _isReRendering = false;
+      });
+      _showSnackBar('Failed to refresh video: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isReRendering = false);
+    }
+  }
+
 
   Future<void> _initializeVideo() async {
     await _initializeVideoWithUrl(_currentVideoUrl, autoPlay: false);
@@ -268,6 +615,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         setState(() {
           _hasError = false;
           _isInitialized = false;
+          _errorMessage = null;
         });
       }
 
@@ -286,7 +634,14 @@ class _VideoEditorPageState extends State<VideoEditorPage>
 
       _currentVideoUrl = videoUrl;
       _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-      await _videoController.initialize();
+
+      // Add timeout to catch network issues faster
+      await _videoController.initialize().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Video loading timed out - URL may be expired');
+        },
+      );
 
       _chewieController = ChewieController(
         videoPlayerController: _videoController,
@@ -310,11 +665,34 @@ class _VideoEditorPageState extends State<VideoEditorPage>
         setState(() => _isInitialized = true);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = 'Failed to load video: ${e.toString()}';
-        });
+      print('❌ Video initialization error: $e');
+
+      // Check if error is due to expired URL
+      if (_isUrlExpiredError(e)) {
+        print('🔄 Detected expired URL - showing re-render dialog');
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'Video link expired';
+          });
+
+          // Show the re-render dialog popup
+          if (widget.milestones != null && widget.milestones!.isNotEmpty) {
+            // Delay to ensure UI is ready
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                _showReRenderDialog();
+              }
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = 'Failed to load video: ${e.toString()}';
+          });
+        }
       }
     }
   }
@@ -333,6 +711,7 @@ class _VideoEditorPageState extends State<VideoEditorPage>
       }
     });
   }
+
 
   // ============================================================================
   // MUSIC SELECTION
@@ -1331,24 +1710,100 @@ class _VideoEditorPageState extends State<VideoEditorPage>
   }
 
   Widget _buildErrorWidget() {
+    final isExpiredUrl = _errorMessage?.toLowerCase().contains('expired') ?? false;
+    final canReRender = widget.milestones != null && widget.milestones!.isNotEmpty;
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 60, color: Colors.red.shade400),
-          const SizedBox(height: 24),
-          const Text('Failed to load video', style: TextStyle(color: Colors.white, fontSize: 18)),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: _initializeVideo,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isExpiredUrl ? Icons.access_time : Icons.error_outline,
+              size: 60,
+              color: isExpiredUrl ? AppColors.secondary.shade400 : AppColors.secondary.shade400,
             ),
-            child: const Text('Retry'),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              isExpiredUrl ? 'Video Link Expired' : 'Failed to load video',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                isExpiredUrl
+                    ? 'Tap the button below to re-render your video'
+                    : _errorMessage ?? 'An error occurred while loading the video',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            // Show appropriate button based on error type
+            if (isExpiredUrl && canReRender)
+              ElevatedButton.icon(
+                onPressed: _isReRendering ? null : _showReRenderDialog,
+                icon: _isReRendering
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                    : const Icon(Icons.refresh),
+                label: Text(_isReRendering ? 'Re-rendering...' : 'Re-render Video'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              )
+            else if (isExpiredUrl && !canReRender)
+              Column(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Cannot re-render: Milestone data not available',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Go Back', style: TextStyle(color: Colors.white60)),
+                  ),
+                ],
+              )
+            else
+              ElevatedButton(
+                onPressed: _initializeVideo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Retry'),
+              ),
+          ],
+        ),
       ),
     );
   }

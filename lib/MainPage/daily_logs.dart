@@ -11,6 +11,9 @@ import 'package:capstone_project/services/user_data_service.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:capstone_project/widgets/fitcheck_loader.dart';
+import 'package:capstone_project/FoodPage/add_food_sheet.dart';
+import 'package:capstone_project/MainPage/add_milestone_sheet.dart';
+import 'package:capstone_project/WorkoutPage/add_workout_sheet.dart';
 
 class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
@@ -34,6 +37,17 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
   // Page controller for workout carousel
   PageController? _workoutPageController;
   int _currentWorkoutPage = 0;
+
+  bool get _canEditThisDate {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selectedDay = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month,
+      widget.selectedDate.day,
+    );
+    return !selectedDay.isAfter(today); // Can edit today and past, but not future
+  }
 
   @override
   void initState() {
@@ -177,6 +191,256 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
+  // Show Add Food Sheet (you need to import your AddFoodSheet)
+  void _showAddFoodSheet(String mealType) async {
+    if (widget.challenge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No active challenge. Please start a challenge first.'),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddFoodSheet(
+        mealName: mealType,
+        challengeId: widget.challenge!.id,
+        selectedDate: widget.selectedDate, // Pass the selected date
+        onFoodAdded: (foodName, calories, {grams, imageUrl, servingSize, unit}) async {
+          final foodEntry = FoodEntry(
+            id: 'food_${DateTime.now().millisecondsSinceEpoch}',
+            fdcId: DateTime.now().millisecondsSinceEpoch,
+            foodName: foodName,
+            servingSize: servingSize ?? grams ?? 100,
+            servingUnit: unit ?? 'g',
+            caloriesPer100g: calories / ((servingSize ?? grams ?? 100) / 100),
+            imageUrl: imageUrl,
+          );
+
+          await FoodLogService.addFoodEntry(
+            widget.selectedDate, // Use selected date
+            mealType,
+            foodEntry,
+            challengeId: widget.challenge!.id,
+          );
+
+          _loadDailyData();
+        },
+      ),
+    );
+  }
+
+// Show Add Workout Sheet
+  void _showAddWorkoutSheet() async {
+    if (widget.challenge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No active challenge. Please start a challenge first.'),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddWorkoutSheet(
+        currentChallenge: widget.challenge!,
+        selectedDate: widget.selectedDate, // Pass the selected date
+        onWorkoutAdded: () {
+          _loadDailyData();
+        },
+      ),
+    );
+  }
+
+// Show Add Milestone Sheet
+  void _showAddMilestoneSheet() async {
+    if (widget.challenge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No active challenge. Please start a challenge first.'),
+          backgroundColor: Colors.orange.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddMilestoneSheet(
+        selectedDate: widget.selectedDate, // Pass the selected date
+        challengeId: widget.challenge!.id,
+        onSave: (milestone, imageFile) async {
+          await MilestoneService.saveMilestone(
+            milestone,
+            imageFile: imageFile,
+            challengeId: widget.challenge!.id,
+          );
+          _loadDailyData();
+        },
+      ),
+    );
+  }
+
+// Quick Add Menu
+  void _showQuickAddMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Add Entry for ${_formatDate(widget.selectedDate)}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Add Food
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.restaurant, color: AppColors.secondary.shade700),
+              ),
+              title: const Text('Add Food'),
+              subtitle: const Text('Log your meal'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(context);
+                _showMealTypeSelector();
+              },
+            ),
+
+            // Add Workout
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.fitness_center, color: AppColors.secondary.shade700),
+              ),
+              title: const Text('Add Workout'),
+              subtitle: const Text('Log your exercise'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddWorkoutSheet();
+              },
+            ),
+
+            // Add Milestone
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.camera_alt, color: AppColors.secondary.shade700),
+              ),
+              title: const Text('Add Progress Photo'),
+              subtitle: const Text('Capture your milestone'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddMilestoneSheet();
+              },
+            ),
+
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Show meal type selector for food logging
+  void _showMealTypeSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Select Meal Type',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _buildMealTypeOption('Breakfast', Icons.wb_sunny),
+            _buildMealTypeOption('Lunch', Icons.lunch_dining),
+            _buildMealTypeOption('Dinner', Icons.dinner_dining),
+            _buildMealTypeOption('Snack', Icons.fastfood),
+
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Build meal type option widget
+  Widget _buildMealTypeOption(String mealType, IconData icon) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: AppColors.secondary),
+      ),
+      title: Text(mealType),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.pop(context);
+        _showAddFoodSheet(mealType);
+      },
+    );
+  }
+
+  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,6 +487,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
+
               // Daily Summary
               _buildDailySummary(),
 
@@ -242,6 +507,16 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
           ),
         ),
       ),
+
+      floatingActionButton: _canEditThisDate && widget.challenge != null
+          ? FloatingActionButton.extended(
+        onPressed: _showQuickAddMenu,
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Entry'),
+      )
+          : null,
     );
   }
 

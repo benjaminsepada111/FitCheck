@@ -629,6 +629,8 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
                           ),
                         ),
                         builder: (context) => AddMilestoneSheet(
+                          selectedDate: DateTime.now(),
+                          challengeId: widget.currentChallenge!.id,
                           onSave: (milestone, imageFile) =>
                               _addMilestone(
                                 milestone,

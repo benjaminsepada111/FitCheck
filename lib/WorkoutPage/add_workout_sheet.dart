@@ -18,11 +18,13 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 class AddWorkoutSheet extends StatefulWidget {
   final Challenge currentChallenge;
+  final DateTime selectedDate;
   final Function()? onWorkoutAdded;
 
   const AddWorkoutSheet({
     super.key,
     required this.currentChallenge,
+    required this.selectedDate,
     this.onWorkoutAdded,
   });
 
@@ -288,7 +290,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         durationMinutes: duration,
         met: _selectedCardioExercise!.met,
         imageUrl: uploadedImageUrl,
-        timestamp: DateTime.now(),
+        timestamp: widget.selectedDate, // Use selected date instead of now
       );
 
       final success = await WorkoutServiceV2.addWorkout(
@@ -418,7 +420,7 @@ class _AddWorkoutSheetState extends State<AddWorkoutSheet> {
         sets: sets,
         reps: reps,
         imageUrl: uploadedImageUrl,
-        timestamp: DateTime.now(),
+        timestamp: widget.selectedDate, // Use selected date instead of now
       );
 
       final success = await WorkoutServiceV2.addWorkout(

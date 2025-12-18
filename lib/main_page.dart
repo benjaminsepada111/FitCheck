@@ -27,6 +27,7 @@ import 'package:capstone_project/widgets/NotificationBellIcon.dart';
 import 'services/challenge_completion_service.dart';
 import 'widgets/challenge_completion_dialog.dart';
 
+
 class MainPage extends StatefulWidget {
   final Challenge? initialChallenge;
   final List<Challenge>? initialChallengeHistory;
@@ -49,7 +50,7 @@ class _MainPageState extends State<MainPage> {
   List<Challenge> _challengeHistory = [];
 
   // GlobalKeys to maintain widget identity across rebuilds
-  final GlobalKey _milestoneKey = GlobalKey();
+  final GlobalKey<MilestoneJourneyState> _milestoneKey = GlobalKey<MilestoneJourneyState>();
   final GlobalKey _foodPageKey = GlobalKey();
   final GlobalKey _workoutPageKey = GlobalKey();
   final GlobalKey<TrackersState> _trackersKey = GlobalKey<TrackersState>();
@@ -59,6 +60,13 @@ class _MainPageState extends State<MainPage> {
     super.initState();
     _initializeWithPreloadedData();
   }
+
+  void _refreshMilestoneJourney() {
+    // Directly call MilestoneJourney's reload method
+    _milestoneKey.currentState?.loadMilestonesFromParent();
+  }
+
+
 
   Future<void> _checkChallengeCompletion() async {
     try {
@@ -686,6 +694,7 @@ class _MainPageState extends State<MainPage> {
                       currentChallenge: _currentChallenge,
                       onChallengeCreated: _onChallengeCreated,
                       onChallengeEnded: _onChallengeEnded,
+                      onMilestoneAdded: _refreshMilestoneJourney, // ✅ ADD THIS LINE
                     ),
                   ],
                 ),

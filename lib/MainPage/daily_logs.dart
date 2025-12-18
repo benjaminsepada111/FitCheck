@@ -18,8 +18,9 @@ import 'package:capstone_project/WorkoutPage/add_workout_sheet.dart';
 class DailyLogsPage extends StatefulWidget {
   final DateTime selectedDate;
   final Challenge? challenge;
+  final VoidCallback? onMilestoneAdded;
 
-  const DailyLogsPage({super.key, required this.selectedDate, this.challenge});
+  const DailyLogsPage({super.key, required this.selectedDate, this.challenge, this.onMilestoneAdded,});
 
   @override
   State<DailyLogsPage> createState() => _DailyLogsPageState();
@@ -285,7 +286,7 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddMilestoneSheet(
-        selectedDate: widget.selectedDate, // Pass the selected date
+        selectedDate: widget.selectedDate,
         challengeId: widget.challenge!.id,
         onSave: (milestone, imageFile) async {
           await MilestoneService.saveMilestone(
@@ -294,6 +295,11 @@ class _DailyLogsPageState extends State<DailyLogsPage> {
             challengeId: widget.challenge!.id,
           );
           _loadDailyData();
+
+          // ✅ ADD THIS: Trigger callback to refresh milestone journey
+          if (mounted) {
+            widget.onMilestoneAdded?.call();
+          }
         },
       ),
     );

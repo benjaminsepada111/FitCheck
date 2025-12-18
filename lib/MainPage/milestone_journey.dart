@@ -26,10 +26,10 @@ class MilestoneJourney extends StatefulWidget {
   });
 
   @override
-  State<MilestoneJourney> createState() => _MilestoneJourneyState();
+  State<MilestoneJourney> createState() => MilestoneJourneyState();
 }
 
-class _MilestoneJourneyState extends State<MilestoneJourney>
+class MilestoneJourneyState extends State<MilestoneJourney>
     with AutomaticKeepAliveClientMixin {
   List<Milestone> _milestones = [];
   bool _isLoading = false;
@@ -100,6 +100,11 @@ class _MilestoneJourneyState extends State<MilestoneJourney>
         });
       }
     }
+  }
+
+  /// Public method for parent widget to trigger milestone reload
+  void loadMilestonesFromParent() {
+    _loadMilestones(forceRefresh: true);
   }
 
   Future<void> _updateNotificationStatus() async {

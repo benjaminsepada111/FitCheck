@@ -13,12 +13,14 @@
     final Challenge? currentChallenge;
     final Function(Challenge) onChallengeCreated;
     final VoidCallback onChallengeEnded;
+    final VoidCallback? onMilestoneAdded;
   
     const ChallengeCalendar({
       super.key,
       this.currentChallenge,
       required this.onChallengeCreated,
       required this.onChallengeEnded,
+      this.onMilestoneAdded,
     });
   
     @override
@@ -510,7 +512,7 @@
         ),
       );
     }
-  
+
     void _navigateToDailyLog(DateTime selectedDate) async {
       await Navigator.push(
         context,
@@ -518,10 +520,11 @@
           builder: (context) => DailyLogsPage(
             selectedDate: selectedDate,
             challenge: widget.currentChallenge,
+            onMilestoneAdded: widget.onMilestoneAdded, // PASS CALLBACK
           ),
         ),
       );
-  
+
       // Only reload completion for the specific day that was viewed
       if (mounted && widget.currentChallenge != null) {
         final isComplete = await _checkDayCompletion(selectedDate);

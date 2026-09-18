@@ -1,14 +1,12 @@
-// Create file: lib/services/usda_api_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 import '../models/food_models.dart';
 
 class USDAApiService {
   static const String _baseUrl = 'https://api.nal.usda.gov/fdc/v1';
 
-  // Replace with your API key or leave empty for demo mode (with rate limits)
-  static const String _apiKey = 'qLe1ZmPZocFJ6aM2N71IrZqsvNVs8ctsVHgHie6e';
+  static String get _apiKey => EnvConfig.usdaApiKey;
 
   // Clean and simplify food names by removing unnecessary details
   static String cleanFoodName(String description) {

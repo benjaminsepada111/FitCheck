@@ -1,15 +1,21 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 
 class SpoonacularService {
   static const String _baseUrl = 'https://api.spoonacular.com';
-  static const String _apiKey = '8bf544f05b374c6491f2d6f32980d39e'; // Replace with your key
+
+  static String get _apiKey => EnvConfig.spoonacularApiKey;
 
   // Get meal-specific food recommendations
   static Future<List<RecommendedFood>> getRecommendedFoods({
     required String mealType, // breakfast, lunch, dinner, snack
     int number = 6,
   }) async {
+    if (!EnvConfig.hasSpoonacularKey) {
+      throw Exception('Spoonacular API key is not configured. Set SPOONACULAR_API_KEY in .env');
+    }
+
     try {
       final String endpoint;
       final Map<String, String> queryParams = {
@@ -84,6 +90,10 @@ class SpoonacularService {
     required String mealType,
     int number = 6,
   }) async {
+    if (!EnvConfig.hasSpoonacularKey) {
+      throw Exception('Spoonacular API key is not configured. Set SPOONACULAR_API_KEY in .env');
+    }
+
     try {
       final Map<String, String> queryParams = {
         'apiKey': _apiKey,
@@ -124,6 +134,10 @@ class SpoonacularService {
 
   // Get nutrition info for a specific ingredient
   static Future<Map<String, dynamic>> getIngredientNutrition(int ingredientId) async {
+    if (!EnvConfig.hasSpoonacularKey) {
+      return {};
+    }
+
     try {
       final uri = Uri.parse('$_baseUrl/food/ingredients/$ingredientId/information').replace(
         queryParameters: {
